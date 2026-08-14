@@ -1,0 +1,2862 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Zona Bariátrica — Panel interno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Identidad de Zona Bariátrica (zonabariatrica.com): azul eléctrico como
+     color de acción, neutros grises cálidos, semánticos en pastel suave. */
+  --primary:#2563eb; --primary-dark:#1d4ed8; --primary-suave:#eff6ff; --primary-ring:rgba(37,99,235,.16);
+  --azul:#2563eb; --azul-suave:#eff6ff;
+  --success:#15803d; --success-suave:#f0fdf4; --success-br:#bbf7d0;
+  --danger:#dc2626; --danger-suave:#fef2f2; --danger-br:#fecaca;
+  --warning:#b45309; --warning-suave:#fffbeb; --warning-br:#fde68a;
+  --violeta:#7c3aed; --violeta-suave:#f5f3ff;
+
+  --text:#111827; --muted:#6b7280; --text-light:#9ca3af;
+  --bg:#f8fafc; --card:#ffffff; --bg-soft:#f1f5f9;
+  --border:#e5e7eb; --border-light:#f1f5f9;
+  --dark:#111827;
+
+  --rol:#2563eb; --rol-suave:#eff6ff; /* color del usuario activo: se sobreescribe al iniciar sesión */
+
+  --r-xs:10px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-pill:999px;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.04);
+  --shadow-sm:0 1px 3px rgba(16,24,40,.05),0 1px 2px rgba(16,24,40,.03);
+  --shadow-md:0 4px 12px rgba(16,24,40,.06),0 2px 4px rgba(16,24,40,.03);
+  --shadow-lg:0 12px 28px rgba(16,24,40,.08),0 4px 10px rgba(16,24,40,.04);
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;-webkit-font-smoothing:antialiased;}
+.oculto{display:none !important;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r-sm);width:100%;background:#fff;color:var(--text);transition:border-color .15s,box-shadow .15s;}
+input::placeholder,textarea::placeholder{color:var(--text-light);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring);}
+label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:600;}
+.btn{background:var(--primary);color:#fff;border:none;border-radius:var(--r-sm);padding:10px 18px;font-weight:600;font-size:14px;box-shadow:var(--shadow-xs);transition:background .15s,box-shadow .15s,transform .1s;}
+.btn:hover{background:var(--primary-dark);box-shadow:var(--shadow-sm);}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{background:var(--bg-soft);color:var(--text-light);box-shadow:none;cursor:not-allowed;}
+.btn-secundario{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-secundario:hover{background:var(--bg-soft);border-color:#d8dee7;}
+.btn-peligro{background:var(--danger);color:#fff;border:none;box-shadow:var(--shadow-xs);}
+.btn-peligro:hover{background:#b91c1c;}
+.btn-chico{padding:6px 12px;font-size:12.5px;border-radius:var(--r-xs);}
+.btn-icono{background:none;border:none;font-size:16px;padding:4px 8px;border-radius:var(--r-xs);color:var(--muted);transition:background .15s,color .15s;}
+.btn-icono:hover{background:var(--bg-soft);color:var(--text);}
+
+.menu-contextual{position:fixed;z-index:80;background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow-lg);padding:5px;display:flex;flex-direction:column;min-width:150px;}
+.menu-contextual button{background:none;border:none;text-align:left;padding:8px 10px;font-size:13.5px;border-radius:var(--r-xs);color:var(--text);}
+.menu-contextual button:hover{background:var(--bg-soft);}
+
+/* ---------- LOGIN ---------- */
+#pantallaLogin{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;padding:20px;background:linear-gradient(180deg,var(--bg) 0%,#eef2fa 100%);}
+.marca-login{text-align:center;}
+.marca-login h1{margin:0;font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.marca-login p{margin:5px 0 0;color:var(--muted);font-size:13px;}
+.usuarios-login{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.usuario-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 30px;text-align:center;min-width:130px;box-shadow:var(--shadow-sm);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
+.usuario-card .avatar{width:52px;height:52px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px;}
+.usuario-card .nombre{font-weight:600;color:var(--text);}
+.usuario-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
+.pin-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;width:280px;text-align:center;box-shadow:var(--shadow-lg);}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin:16px 0 20px;}
+.pin-dots span{width:12px;height:12px;border-radius:50%;border:2px solid var(--border);}
+.pin-dots span.on{background:var(--rol);border-color:var(--rol);}
+.pin-teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pin-teclado button{padding:14px 0;font-size:18px;border-radius:var(--r-sm);border:1px solid var(--border);background:#fff;transition:background .15s,border-color .15s;}
+.pin-teclado button:hover{border-color:#d8dee7;background:var(--bg-soft);}
+.pin-teclado button:active{background:var(--rol-suave);}
+.pin-error{color:var(--danger);font-size:13px;height:18px;margin-top:6px;}
+
+/* ---------- APP ---------- */
+#app{min-height:100vh;}
+header.app-header{background:var(--dark);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+header.app-header .titulo{font-weight:700;font-size:16px;letter-spacing:-.01em;}
+header.app-header .titulo small{display:block;font-weight:400;font-size:12px;opacity:.65;margin-top:1px;}
+header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:13px;}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border);padding:8px 12px;}
+nav.tabs button{background:none;border:none;padding:9px 16px;font-size:13.5px;font-weight:500;color:var(--muted);white-space:nowrap;border-radius:var(--r-pill);transition:background .15s,color .15s;}
+nav.tabs button:hover{background:var(--bg-soft);color:var(--text);}
+nav.tabs button.activo{color:var(--primary);background:var(--primary-suave);font-weight:600;}
+main{padding:20px 16px;max-width:1100px;margin:0 auto;}
+.sec{display:none;}
+.sec.activa{display:block;}
+
+.barra-sec{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.barra-sec h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em;}
+.barra-sec .acciones{display:flex;gap:8px;flex-wrap:wrap;}
+.filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.filtros input,.filtros select{width:auto;min-width:150px;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
+.link-historial{background:none;border:none;padding:0;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer;}
+.tabla-excel{border:1px solid var(--border);border-radius:var(--r-md);overflow:auto;background:var(--card);}
+.tabla-excel table{border-collapse:collapse;width:100%;}
+.tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;}
+.tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);}
+.tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:12.5px;width:100%;border-radius:0;min-width:90px;}
+.tabla-excel td input:focus,.tabla-excel td select:focus{background:var(--primary-suave);box-shadow:inset 0 0 0 1px var(--primary);position:relative;z-index:1;}
+.tabla-excel tbody tr:hover{background:var(--bg-soft);}
+.link-lead{background:none;border:none;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:left;width:100%;}
+.link-lead:hover{text-decoration:underline;}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-xs);}
+.stat .num{font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;}
+.grid-cards.chico .stat{padding:10px 12px;}
+.grid-cards.chico .stat .num{font-size:17px;}
+.grid-cards.chico .stat .lbl{font-size:10.5px;}
+
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--r-md);overflow:hidden;}
+table th,table td{padding:10px 12px;text-align:left;font-size:13.5px;border-bottom:1px solid var(--border-light);}
+table th{background:var(--bg-soft);color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+table tr:last-child td{border-bottom:none;}
+table tbody tr:hover{background:var(--bg-soft);}
+.tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);}
+.tabla-wrap table{border:none;border-radius:0;}
+
+.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.chip-gris{background:var(--bg-soft);color:var(--muted);}
+.chip-azul{background:var(--azul-suave);color:var(--azul);}
+.chip-verde{background:var(--success-suave);color:var(--success);}
+.chip-naranja{background:var(--warning-suave);color:var(--warning);}
+.chip-rojo{background:var(--danger-suave);color:var(--danger);}
+
+.vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
+
+/* ---------- VISTA SOCIO: estado de cuenta ---------- */
+#vistaSocio{--eq-border:#e2e8f0;background:var(--bg);min-height:100vh;}
+#vistaSocio .eq-header{background:var(--dark);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;}
+#vistaSocio .eq-header-nombre{font-size:21px;font-weight:700;letter-spacing:-.01em;}
+#vistaSocio .eq-header-marca{font-size:13px;color:rgba(255,255,255,.6);margin-top:3px;}
+#vistaSocio .eq-header-fecha{font-size:12px;color:rgba(255,255,255,.42);margin-top:6px;}
+#vistaSocio .eq-header-derecha{display:flex;align-items:center;gap:18px;}
+#vistaSocio .eq-btn-salir{background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:6px;padding:6px 14px;font-size:12.5px;font-weight:500;transition:background .15s,border-color .15s,color .15s;}
+#vistaSocio .eq-btn-salir:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:#fff;}
+
+#vistaSocio .eq-cuerpo{max-width:920px;margin:0 auto;padding:30px 24px 60px;}
+#vistaSocio .eq-seccion{margin-bottom:36px;}
+#vistaSocio .eq-seccion-titulo{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;}
+
+#vistaSocio .eq-resumen{display:flex;border:1px solid var(--eq-border);border-radius:6px;overflow:hidden;background:var(--card);}
+#vistaSocio .eq-resumen-item{flex:1;padding:18px 20px;text-align:center;border-right:1px solid var(--eq-border);}
+#vistaSocio .eq-resumen-item:last-child{border-right:none;}
+#vistaSocio .eq-resumen-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px;}
+#vistaSocio .eq-resumen-val{font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+
+/* .eq-tabla: estilo de tabla compacto, reutilizado también fuera de #vistaSocio
+   (ej. Historial de ventas de Reportes) para que ambas vistas luzcan iguales. */
+.eq-tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:6px;background:var(--card);}
+table.eq-tabla{width:100%;border-collapse:collapse;}
+table.eq-tabla th,table.eq-tabla td{border:1px solid var(--border);padding:10px 14px;text-align:center;font-size:13px;white-space:nowrap;}
+table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;}
+table.eq-tabla tbody tr:hover{background:var(--bg-soft);}
+.fecha-corta{display:none;}
+
+@media(max-width:640px){
+  #vistaSocio .eq-header{padding:18px 16px;}
+  #vistaSocio .eq-cuerpo{padding:22px 14px 40px;}
+  #vistaSocio .eq-resumen{flex-direction:column;}
+  #vistaSocio .eq-resumen-item{border-right:none;border-bottom:1px solid var(--eq-border);}
+  #vistaSocio .eq-resumen-item:last-child{border-bottom:none;}
+  .fecha-larga{display:none;}
+  .fecha-corta{display:inline;}
+  table.eq-tabla th,table.eq-tabla td{padding:8px 6px;font-size:12px;}
+  table.eq-tabla th{font-size:9.5px;letter-spacing:.02em;}
+}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.5);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto;z-index:50;}
+.modal{background:#fff;border-radius:var(--r-lg);padding:22px;width:100%;max-width:520px;box-shadow:var(--shadow-lg);}
+.modal h3{margin:0 0 6px;font-size:17px;font-weight:700;letter-spacing:-.01em;}
+.modal .cerrar-x{float:right;background:none;border:none;font-size:18px;color:var(--muted);border-radius:var(--r-xs);padding:4px 6px;transition:background .15s,color .15s;}
+.modal .cerrar-x:hover{background:var(--bg-soft);color:var(--text);}
+.fila-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.acciones-modal{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;flex-wrap:wrap;}
+
+.item-linea{display:flex;justify-content:space-between;align-items:center;background:var(--bg-soft);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:6px;font-size:13.5px;}
+.item-linea .q{color:var(--muted);font-size:12px;}
+.subtotal-box{display:flex;justify-content:space-between;font-weight:700;padding:8px 2px;border-top:1px dashed var(--border);margin-top:6px;}
+
+.nota-linea{border-left:3px solid var(--primary-suave);padding:7px 11px;margin-bottom:6px;background:var(--bg-soft);border-radius:0 var(--r-sm) var(--r-sm) 0;font-size:13px;}
+.nota-linea .meta{color:var(--muted);font-size:11px;margin-top:2px;}
+
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.kanban-col h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;margin:0 0 10px;}
+.kanban-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;font-size:13.5px;box-shadow:var(--shadow-xs);}
+.kanban-card .asignado{font-size:11.5px;font-weight:600;color:var(--primary);margin-top:4px;}
+.kanban-card .mover{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+
+details.config-block{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
+details.config-block summary{font-weight:600;cursor:pointer;padding:4px 0;}
+details.config-block summary:hover{color:var(--primary);}
+.lista-simple{list-style:none;margin:8px 0;padding:0;}
+.lista-simple li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.lista-simple li:last-child{border-bottom:none;}
+
+.stock-bajo{color:var(--danger);font-weight:700;}
+.aviso{background:var(--warning-suave);color:var(--warning);border-radius:var(--r-sm);padding:11px 14px;font-size:13px;margin-bottom:12px;border:1px solid var(--warning-br);}
+
+@media(max-width:640px){
+  .fila-2{grid-template-columns:1fr;}
+  .kanban{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="pantallaLogin">
+  <div class="marca-login">
+    <h1>Zona Bariátrica</h1>
+    <p>Panel interno — CRM, ventas, stock y tareas</p>
+  </div>
+  <div id="usuariosLogin" class="usuarios-login"></div>
+
+  <div id="pinBox" class="pin-box oculto">
+    <div id="pinNombre" style="font-weight:700;"></div>
+    <div class="pin-dots">
+      <span id="pd0"></span><span id="pd1"></span><span id="pd2"></span><span id="pd3"></span>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-teclado">
+      <button onclick="teclaPin('1')">1</button><button onclick="teclaPin('2')">2</button><button onclick="teclaPin('3')">3</button>
+      <button onclick="teclaPin('4')">4</button><button onclick="teclaPin('5')">5</button><button onclick="teclaPin('6')">6</button>
+      <button onclick="teclaPin('7')">7</button><button onclick="teclaPin('8')">8</button><button onclick="teclaPin('9')">9</button>
+      <button onclick="volverAUsuarios()">←</button><button onclick="teclaPin('0')">0</button><button onclick="teclaPin('borrar')">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="oculto">
+  <header class="app-header">
+    <div class="titulo">Zona Bariátrica <small id="fechaHoyTxt"></small></div>
+    <div class="sesion">
+      <span id="sesionNombre"></span>
+      <button class="btn-secundario btn-chico" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3);" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="navTabs">
+    <button id="tab-leads" onclick="irA('leads')">💬 Leads</button>
+    <button id="tab-clientes" onclick="irA('clientes')">👤 Clientes</button>
+    <button id="tab-stock" onclick="irA('stock')">📦 Stock</button>
+    <button id="tab-proveedores" onclick="irA('proveedores')">🚚 Proveedores</button>
+    <button id="tab-tareas" onclick="irA('tareas')">✅ Tareas</button>
+    <button id="tab-reportes" onclick="irA('reportes')">📊 Reportes</button>
+    <button id="tab-config" onclick="irA('config')">⚙️ Config</button>
+  </nav>
+
+  <main id="mainApp">
+
+    <!-- ===== LEADS ===== -->
+    <section class="sec" id="sec-leads">
+      <div class="barra-sec">
+        <h2>💬 Leads</h2>
+        <div class="acciones"><button class="btn" onclick="abrirFormLead()">+ Nuevo lead</button></div>
+      </div>
+      <div class="filtros">
+        <input id="leadsBuscar" placeholder="Buscar por nombre, apellido o teléfono..." oninput="pintarLeads()">
+        <select id="leadsFiltroEstado" onchange="pintarLeads()">
+          <option value="">Todos los estados</option>
+        </select>
+      </div>
+      <div id="listaLeads"></div>
+    </section>
+
+    <!-- ===== CLIENTES ===== -->
+    <section class="sec" id="sec-clientes">
+      <div class="barra-sec">
+        <h2>👤 Clientes</h2>
+      </div>
+      <div class="filtros">
+        <input id="clientesBuscar" placeholder="Buscar por nombre, apellido, teléfono o DNI..." oninput="pintarClientes()">
+      </div>
+      <div id="listaClientes"></div>
+    </section>
+
+    <!-- ===== STOCK ===== -->
+    <section class="sec" id="sec-stock">
+      <div class="barra-sec">
+        <h2>📦 Stock</h2>
+        <div class="acciones">
+          <button class="btn-secundario" onclick="abrirFormStock()">+ Nuevo producto</button>
+          <button class="btn" onclick="abrirFormCompra()">+ Registrar entrega/compra</button>
+        </div>
+      </div>
+      <div class="filtros">
+        <input id="stockBuscar" placeholder="Buscar producto..." oninput="pintarStock()">
+      </div>
+      <div id="listaStock"></div>
+      <div style="text-align:center;margin-top:18px;">
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:11.5px;color:var(--text-light);cursor:pointer;"><input type="checkbox" id="stockVerArchivados" style="width:auto;" onchange="pintarStock()"> Mostrar productos archivados</label>
+      </div>
+    </section>
+
+    <!-- ===== PROVEEDORES ===== -->
+    <section class="sec" id="sec-proveedores">
+      <div class="barra-sec"><h2>🚚 Proveedores / Pagos</h2></div>
+      <div id="resumenProveedores" class="grid-cards chico"></div>
+      <div id="listaProveedores"></div>
+      <div id="listaReparto"></div>
+    </section>
+
+    <!-- ===== TAREAS ===== -->
+    <section class="sec" id="sec-tareas">
+      <div class="barra-sec">
+        <h2>✅ Tareas</h2>
+        <div class="acciones"><button class="btn" onclick="abrirFormTarea()">+ Nueva tarea</button></div>
+      </div>
+      <div id="tableroTareas" class="kanban"></div>
+    </section>
+
+    <!-- ===== REPORTES ===== -->
+    <section class="sec" id="sec-reportes">
+      <div class="barra-sec"><h2>📊 Reportes</h2></div>
+      <div class="filtros">
+        <label style="margin:0;">Desde<input type="date" id="repDesde" onchange="pintarReportes()"></label>
+        <label style="margin:0;">Hasta<input type="date" id="repHasta" onchange="pintarReportes()"></label>
+        <button class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="exportarCSV('pedidos')">⬇ Exportar pedidos (CSV)</button>
+        <button class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="exportarCSV('leads')">⬇ Exportar leads (CSV)</button>
+      </div>
+      <div id="repContenido"></div>
+
+      <h3 style="font-size:15px;margin:22px 0 8px;">🧾 Historial de ventas</h3>
+      <div class="filtros">
+        <select id="pedidosFiltroMarca" onchange="pintarPedidos()"><option value="">Todas las marcas</option></select>
+        <label style="margin:0;">Desde<input type="date" id="pedidosFiltroDesde" onchange="pintarPedidos()"></label>
+        <label style="margin:0;">Hasta<input type="date" id="pedidosFiltroHasta" onchange="pintarPedidos()"></label>
+      </div>
+      <div id="listaPedidos"></div>
+    </section>
+
+    <!-- ===== CONFIG ===== -->
+    <section class="sec" id="sec-config">
+      <div class="barra-sec"><h2>⚙️ Configuración</h2></div>
+
+      <details class="config-block" open>
+        <summary>Usuarios y PIN</summary>
+        <ul class="lista-simple" id="listaUsuariosConfig"></ul>
+        <p class="vacio" style="text-align:left;padding:10px 0 4px;">Agregar usuario nuevo (equipo interno o socio/proveedor):</p>
+        <div class="fila-2">
+          <input id="nu-nombre" placeholder="Nombre (ej. Dr. Fulano)">
+          <select id="nu-rol" onchange="document.getElementById('nu-proveedor-fila').classList.toggle('oculto',this.value!=='socio')">
+            <option value="admin">Administrador (acceso completo al CRM)</option>
+            <option value="socio">Socio / proveedor (solo ve su propia cuenta)</option>
+          </select>
+        </div>
+        <div class="fila-2 oculto" id="nu-proveedor-fila">
+          <div style="grid-column:1/-1;">
+            <label>Proveedor vinculado</label>
+            <select id="nu-proveedor" onchange="nuToggleNuevoProveedor(this)"></select>
+            <input id="nu-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
+          </div>
+        </div>
+        <div class="fila-2">
+          <input id="nu-pin" placeholder="PIN de 4 dígitos" maxlength="4">
+          <button class="btn-secundario" onclick="agregarUsuario()">+ Agregar usuario</button>
+        </div>
+      </details>
+
+      <details class="config-block">
+        <summary>Marcas</summary>
+        <ul class="lista-simple" id="listaMarcasConfig"></ul>
+        <div class="fila-2" style="margin-top:8px;">
+          <input id="nuevaMarcaInput" placeholder="Nombre de la nueva marca">
+          <button class="btn-secundario" onclick="agregarMarca()">+ Agregar marca</button>
+        </div>
+      </details>
+
+      <details class="config-block">
+        <summary>Envío y pauta</summary>
+        <label>Embalaje por defecto (S/) — se cobra en pedidos por Shalom</label>
+        <input type="number" id="cfgEmbalaje" step="0.5" onchange="guardarCfgNumero('embalajeDefault', this.value)">
+        <label>Gasto total en pauta publicitaria (S/) — para calcular ROI en Reportes</label>
+        <input type="number" id="cfgGastoPauta" step="1" onchange="guardarCfgNumero('gastoPauta', this.value)">
+      </details>
+
+      <details class="config-block">
+        <summary>Importar datos existentes</summary>
+        <p class="vacio" style="text-align:left;padding:0 0 6px;">Pega desde Excel/Sheets (una fila por línea, columnas separadas por tabulación). Si al pegar se pierden las columnas (texto pegado que no se copió desde Excel/Sheets, por ejemplo de un chat), usa ";;" entre columnas en vez de tabulación.</p>
+        <label>Leads de pauta — columnas: nombre, teléfono, canal, fecha, notas</label>
+        <textarea id="impLeadsTexto" rows="4" placeholder="Juan Pérez	987654321	Pauta Instagram	2026-07-20	Preguntó por colágeno"></textarea>
+        <button class="btn-secundario btn-chico" style="margin-top:6px;" onclick="importarLeadsPegados()">Importar leads pegados</button>
+
+        <label style="margin-top:16px;">Clientes CRM viejo (Drive) — columnas: nombre, apellido, DNI, dirección, ciudad, teléfono, marca</label>
+        <textarea id="impClientesTexto" rows="4" placeholder="Juan	Pérez	12345678	Av. Siempre Viva 123	Arequipa	987654321	Bari&Nutrition"></textarea>
+        <button class="btn-secundario btn-chico" style="margin-top:6px;" onclick="importarClientesPegados()">Importar clientes pegados</button>
+        <div id="impResultado" class="pin-error" style="color:var(--primary-dark);height:auto;"></div>
+      </details>
+
+      <details class="config-block">
+        <summary>Respaldo de datos</summary>
+        <p class="vacio" style="text-align:left;padding:0 0 6px;">Todo se guarda solo en este navegador. Descarga un respaldo seguido para no perder información.</p>
+        <div class="fila-2">
+          <button class="btn-secundario" onclick="descargarRespaldo()">⬇ Descargar respaldo</button>
+          <button class="btn-secundario" onclick="document.getElementById('inputRestaurar').click()">⬆ Restaurar respaldo</button>
+        </div>
+        <input type="file" id="inputRestaurar" accept="application/json" class="oculto" onchange="restaurarRespaldo(event)">
+        <div class="fila-2" style="margin-top:14px;">
+          <button class="btn-peligro" onclick="restaurarDeFabrica()">Restaurar de fábrica (borra todo)</button>
+        </div>
+      </details>
+    </section>
+
+  </main>
+
+  <!-- ===== VISTA SOCIO (proveedor/doctor con marca propia) ===== -->
+  <main id="vistaSocio" class="oculto">
+    <header class="eq-header">
+      <div>
+        <div class="eq-header-nombre" id="socioNombreTitulo">Socio</div>
+        <div class="eq-header-marca" id="socioMarcaTitulo">Marca</div>
+        <div class="eq-header-fecha" id="socioFechaTxt"></div>
+      </div>
+      <div class="eq-header-derecha">
+        <button class="eq-btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <div id="socioBloqueReparto" class="oculto eq-cuerpo">
+      <section class="eq-seccion">
+        <h3 class="eq-seccion-titulo">Resumen</h3>
+        <div id="socioResumenReparto" class="eq-resumen"></div>
+      </section>
+
+      <section class="eq-seccion">
+        <h3 class="eq-seccion-titulo">Stock</h3>
+        <div id="socioStockDetalle"></div>
+      </section>
+
+      <section class="eq-seccion">
+        <h3 class="eq-seccion-titulo">Ventas</h3>
+        <div id="socioVentasReparto"></div>
+      </section>
+
+      <section class="eq-seccion">
+        <h3 class="eq-seccion-titulo">Pagos recibidos</h3>
+        <div id="socioLiquidaciones"></div>
+      </section>
+    </div>
+
+    <div id="socioSinDatos" class="oculto vacio">Todavía no hay información cargada para tu cuenta.</div>
+  </main>
+</div>
+
+<!-- Modal genérico -->
+<div id="modalOverlay" class="modal-overlay oculto" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+/* =========================================================
+   ZONA BARIÁTRICA — PANEL INTERNO
+   Un solo archivo, sin backend. Persistencia en localStorage.
+   Patrón heredado de consultorio-bn (db único + pintar* + PIN).
+   ========================================================= */
+
+const CLAVE='zbdb_v1';
+const MODO_PRUEBAS=true; // ⚠️ poner en false antes de usar con datos reales de clientes: reactiva el PIN
+let db=null;
+let selloDisco=null;
+let sesion=null;          // usuario actual {id,nombre,pin,color}
+let seccionActual='leads';
+let pinCandidato=null;
+let pinEscrito='';
+let pedidoItemsTmp=[];
+let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
+let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
+
+/* ---------- helpers ---------- */
+function nuevoId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Para incrustar texto de usuario dentro de un argumento de string simple en onclick="fn('...')"
+function escJs(t){return esc(t).replace(/'/g,"\\'");}
+function money(n){return 'S/ '+Number(n||0).toFixed(2);}
+function hoyStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function horaAhora(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function fechaBonita(str){if(!str)return '—';const d=new Date(str+(str.length<=10?'T00:00:00':''));return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});}
+function fechaCorta(str){if(!str)return '—';const d=new Date(str+(str.length<=10?'T00:00:00':''));return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(-2);}
+// Celda de fecha para la vista socio: en pantallas angostas se ve la versión corta para que la tabla de Ventas quepa sin scroll.
+function fechaCelda(str){return `<span class="fecha-larga">${fechaBonita(str)}</span><span class="fecha-corta">${fechaCorta(str)}</span>`;}
+function mesDe(fechaStr){return (fechaStr||'').slice(0,7);} // 'YYYY-MM'
+function mesLabel(mesStr){
+  const[y,m]=mesStr.split('-');
+  return new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-PE',{month:'long',year:'numeric'});
+}
+function primerDiaMes(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+function porId(arr,id){return arr.find(x=>x.id===id);}
+
+/* ---------- persistencia ---------- */
+function dbVacia(){
+  return{
+    leads:[], clientes:[], pedidos:[], stock:[], movimientosStock:[], pagosProveedor:[], liquidacionesSocio:[], tareas:[],
+    usuarios:[
+      {id:'u-roberto',nombre:'Roberto',pin:'1234',color:'#15557f',rol:'admin'},
+      {id:'u-genesis',nombre:'Genesis',pin:'4321',color:'#8e3b8e',rol:'admin'},
+      {id:'u-socio-demo',nombre:'Dr. Mariano',pin:'0000',color:'#0f766e',rol:'socio',proveedor:'Dr. Mariano'}
+    ],
+    config:{
+      marcas:['Bari&Nutrition','LVL Drink','Bariatric Fusion'],embalajeDefault:10,gastoPauta:200,
+      // Bariatric Fusion es la marca del Dr. Mariano, vendida por el canal de Zona
+      // Bariátrica con reparto de ingresos (no es stock que compramos nosotros).
+      modalidadMarca:{'Bariatric Fusion':'reparto_ingresos'},
+      repartoMarca:{'Bariatric Fusion':{socio:'Dr. Mariano',porcentaje:60}}
+    }
+  };
+}
+const MODALIDADES_MARCA={
+  consignacion:{label:'Consignación (pagamos solo lo vendido)',responsableEnvio:'Zona Bariátrica'},
+  compra_directa:{label:'Compra directa (compramos el stock, nosotros enviamos)',responsableEnvio:'Zona Bariátrica'},
+  proveedor_envia:{label:'El proveedor envía al cliente',responsableEnvio:null}, // null = usar el nombre de la marca
+  reparto_ingresos:{label:'Reparto de ingresos (marca de un socio, se le paga % de lo vendido)',responsableEnvio:'Zona Bariátrica'}
+};
+function catalogoInicial(){
+  // Catálogo real de Zona Bariátrica (código, precio de venta y costo tomados de la
+  // hoja de cálculo real del negocio, no inventados). costoPromedio = precioVenta - ganancia.
+  // La CANTIDAD queda en 0 a propósito: el conteo físico de stock no está en la hoja de
+  // precios y hay que volver a registrarlo (ver "Registrar entrega/compra" en Stock).
+  return[
+    {id:nuevoId(),codigo:'BN-PP-VA-15',marca:'Bari&Nutrition',producto:'Proteína polvo vainilla 1.5KG',cantidad:0,unidad:'unidades',min:5,costoPromedio:200,precioVenta:280,proveedor:''},
+    {id:nuevoId(),codigo:'BN-PP-CH-15',marca:'Bari&Nutrition',producto:'Proteína polvo chocolate 1.5KG',cantidad:0,unidad:'unidades',min:5,costoPromedio:200,precioVenta:280,proveedor:''},
+    {id:nuevoId(),codigo:'BN-PL-FR-1L',marca:'Bari&Nutrition',producto:'Proteína líquida fresa 1LT',cantidad:0,unidad:'botellas',min:5,costoPromedio:140,precioVenta:200,proveedor:''},
+    {id:nuevoId(),codigo:'BN-PL-MR-1L',marca:'Bari&Nutrition',producto:'Proteína líquida maracumango 1LT',cantidad:0,unidad:'botellas',min:5,costoPromedio:140,precioVenta:200,proveedor:''},
+    {id:nuevoId(),codigo:'BN-MG-MV-90',marca:'Bari&Nutrition',producto:'Gomitas multivitamínicas 90 und',cantidad:0,unidad:'frascos',min:5,costoPromedio:100,precioVenta:150,proveedor:''},
+    {id:nuevoId(),codigo:'BN-MG-BT-90',marca:'Bari&Nutrition',producto:'Gomitas biotina 90 und',cantidad:0,unidad:'frascos',min:5,costoPromedio:100,precioVenta:150,proveedor:''},
+    {id:nuevoId(),codigo:'BN-MG-HC-30',marca:'Bari&Nutrition',producto:'Gomitas hierro + vitamina C 30 und',cantidad:0,unidad:'frascos',min:5,costoPromedio:100,precioVenta:150,proveedor:''},
+    {id:nuevoId(),codigo:'BN-MG-B12-90',marca:'Bari&Nutrition',producto:'Gomitas B12 + ácido fólico 90 und',cantidad:0,unidad:'frascos',min:5,costoPromedio:100,precioVenta:150,proveedor:''},
+    {id:nuevoId(),codigo:'BN-FB-SB-320',marca:'Bari&Nutrition',producto:'Fibra soluble 320gr',cantidad:0,unidad:'frascos',min:5,costoPromedio:60,precioVenta:85,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-PRO-01',marca:'LVL Drink',producto:'Proteína',cantidad:0,unidad:'unidades',min:5,costoPromedio:179,precioVenta:209,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-COL-01',marca:'LVL Drink',producto:'Colágeno',cantidad:0,unidad:'unidades',min:5,costoPromedio:89,precioVenta:109,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-FIB-01',marca:'LVL Drink',producto:'Fibra',cantidad:0,unidad:'unidades',min:5,costoPromedio:64,precioVenta:79,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-PACK-PF',marca:'LVL Drink',producto:'Pack proteína + fibra + shaker',cantidad:0,unidad:'unidades',min:5,costoPromedio:269,precioVenta:289,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-PACK-PC',marca:'LVL Drink',producto:'Pack proteína + colágeno + shaker',cantidad:0,unidad:'unidades',min:5,costoPromedio:294,precioVenta:319,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-PACK-CF',marca:'LVL Drink',producto:'Pack colágeno + fibra + shaker',cantidad:0,unidad:'unidades',min:5,costoPromedio:171,precioVenta:189,proveedor:''},
+    {id:nuevoId(),codigo:'LVL-PACK-PCF',marca:'LVL Drink',producto:'Pack proteína + colágeno + fibra + shaker',cantidad:0,unidad:'unidades',min:5,costoPromedio:359,precioVenta:389,proveedor:''},
+    // Precio y costo en 0 a propósito: faltan en la hoja de precios real. Completar en Stock → Editar.
+    {id:nuevoId(),codigo:'',marca:'LVL Drink',producto:'Batido Nutricional Balance Fit',cantidad:0,unidad:'unidades',min:5,costoPromedio:0,precioVenta:0,proveedor:''},
+    {id:nuevoId(),codigo:'',marca:'LVL Drink',producto:'Multivitamínico Level Up',cantidad:0,unidad:'unidades',min:5,costoPromedio:0,precioVenta:0,proveedor:''}
+  ];
+}
+function cargar(){
+  const raw=localStorage.getItem(CLAVE);
+  if(raw){
+    try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
+  }else{
+    db=dbVacia();
+  }
+  if(!db.movimientosStock)db.movimientosStock=[];
+  if(!db.pagosProveedor)db.pagosProveedor=[];
+  if(!db.config)db.config=dbVacia().config;
+  if(!db.config.repartoMarca)db.config.repartoMarca={};
+  if(!db.liquidacionesSocio)db.liquidacionesSocio=[];
+  migrarMarcas();
+  if(!db.stock||db.stock.length===0)db.stock=catalogoInicial();
+  migrarModalidadMarcas();
+  migrarActivos();
+  migrarEstadosPedido();
+  migrarCostoMovimientos();
+  migrarEstadosLead();
+  migrarCatalogoLVL();
+  migrarNotasLead();
+  migrarUsuariosRol();
+  migrarRepartoBariatricFusion();
+  selloDisco=JSON.stringify(db);
+  guardar();
+}
+function migrarMarcas(){
+  // Nombres viejos usados antes de alinear con la marca oficial del sitio.
+  const mapa={'B&N':'Bari&Nutrition','Level Drink':'LVL Drink'};
+  db.config.marcas=[...new Set((db.config.marcas||[]).map(m=>mapa[m]||m))];
+  (db.stock||[]).forEach(s=>{if(mapa[s.marca])s.marca=mapa[s.marca];});
+  (db.clientes||[]).forEach(c=>{if(Array.isArray(c.marcas))c.marcas=c.marcas.map(m=>mapa[m]||m);});
+  (db.pedidos||[]).forEach(p=>{(p.items||[]).forEach(it=>{if(mapa[it.marca])it.marca=mapa[it.marca];});});
+}
+function migrarModalidadMarcas(){
+  // Toda marca nueva o existente sin modalidad definida arranca en "consignación"
+  // (comportamiento previo del sistema) hasta que el usuario la ajuste en Config.
+  if(!db.config.modalidadMarca)db.config.modalidadMarca={};
+  (db.config.marcas||[]).forEach(m=>{if(!db.config.modalidadMarca[m])db.config.modalidadMarca[m]='consignacion';});
+}
+function migrarActivos(){
+  (db.clientes||[]).forEach(c=>{if(c.activo===undefined)c.activo=true;});
+  (db.stock||[]).forEach(s=>{if(s.activo===undefined)s.activo=true;});
+}
+function migrarCatalogoLVL(){
+  // Productos que faltaban en el catálogo real de LVL Drink; se agregan sin precio/costo
+  // (no están en la hoja de precios) para completar en Stock → Editar. Solo se agregan
+  // si el stock ya existe y no los tiene (no pisa un catálogo recién sembrado).
+  if(!db.stock||db.stock.length===0)return;
+  const faltantes=[
+    {marca:'LVL Drink',producto:'Batido Nutricional Balance Fit'},
+    {marca:'LVL Drink',producto:'Multivitamínico Level Up'}
+  ];
+  faltantes.forEach(f=>{
+    const existe=db.stock.some(s=>s.marca===f.marca&&s.producto===f.producto);
+    if(!existe)db.stock.push({id:nuevoId(),codigo:'',marca:f.marca,producto:f.producto,cantidad:0,unidad:'unidades',min:5,costoPromedio:0,precioVenta:0,proveedor:'',activo:true});
+  });
+}
+function migrarEstadosPedido(){
+  // Versión vieja: un solo campo "estado" mezclaba pago y envío.
+  // Se separa en estadoPago (pendiente pago/pagado/cancelado) y estadoEnvio (pendiente preparación/preparado/enviado/entregado).
+  (db.pedidos||[]).forEach(p=>{
+    if(p.estadoPago&&p.estadoEnvio)return;
+    const viejo=p.estado||'pagado';
+    if(viejo==='pendiente pago'){p.estadoPago='pendiente pago';p.estadoEnvio='pendiente preparación';}
+    else if(viejo==='enviado'){p.estadoPago='pagado';p.estadoEnvio='enviado';}
+    else if(viejo==='entregado'){p.estadoPago='pagado';p.estadoEnvio='entregado';}
+    else if(viejo==='cancelado'){p.estadoPago='cancelado';p.estadoEnvio=p.estadoEnvio||'pendiente preparación';}
+    else{p.estadoPago='pagado';p.estadoEnvio='pendiente preparación';}
+    delete p.estado;
+  });
+}
+function migrarCostoMovimientos(){
+  // Movimientos de salida guardados antes de registrar costoUnit/proveedor: se
+  // aproximan con los valores actuales del producto (mejor esfuerzo, solo para
+  // datos viejos que no los tenían todavía).
+  (db.movimientosStock||[]).forEach(m=>{
+    if(m.tipo==='salida'){
+      const s=porId(db.stock,m.stockId);
+      if(m.costoUnit==null)m.costoUnit=s?(s.costoPromedio||0):0;
+      if(m.proveedor==null)m.proveedor=s?(s.proveedor||''):'';
+    }
+  });
+}
+function migrarNotasLead(){
+  (db.leads||[]).forEach(l=>{(l.notas||[]).forEach(n=>{if(!n.id)n.id=nuevoId();});});
+}
+function migrarRepartoBariatricFusion(){
+  // Trato real con el Dr. Mariano: Bariatric Fusion es su marca, vendida por el canal
+  // de Zona Bariátrica con reparto 60/40. Se aplica una sola vez si nadie lo configuró
+  // ya a mano en Config → Marcas (no se pisa una elección manual existente).
+  if(!db.config.marcas.includes('Bariatric Fusion'))return;
+  if((db.config.repartoMarca||{})['Bariatric Fusion'])return;
+  if(!db.config.modalidadMarca)db.config.modalidadMarca={};
+  if(!db.config.repartoMarca)db.config.repartoMarca={};
+  db.config.modalidadMarca['Bariatric Fusion']='reparto_ingresos';
+  db.config.repartoMarca['Bariatric Fusion']={socio:'Dr. Mariano',porcentaje:60};
+}
+function migrarUsuariosRol(){
+  // Usuarios de antes de que existiera el rol "socio" (proveedor/doctor con acceso
+  // limitado a su propia cuenta): se asumen admin, igual que se comportaban hasta ahora.
+  (db.usuarios||[]).forEach(u=>{if(!u.rol)u.rol='admin';});
+  if(!db.usuarios.some(u=>u.rol==='socio')){
+    db.usuarios.push({id:'u-socio-demo',nombre:'Dr. Mariano',pin:'0000',color:'#0f766e',rol:'socio',proveedor:'Dr. Mariano'});
+  }
+}
+function migrarEstadosLead(){
+  // El embudo granular de 13 estados se reemplazó por un set fijo de 6 (más simple
+  // para el uso real del negocio). Se remapean los leads que quedaron con un valor viejo.
+  const mapa={
+    'nuevo':'sin contactar',
+    'contactado':'seguimiento','catálogo enviado':'seguimiento','interesado':'seguimiento',
+    'pendiente decisión':'seguimiento','datos solicitados':'seguimiento','pago pendiente':'seguimiento',
+    'pago confirmado':'cliente potencial','no responde':'seguimiento',
+    'no interesado':'no contactar','perdido':'no contactar'
+  };
+  (db.leads||[]).forEach(l=>{if(mapa[l.estado])l.estado=mapa[l.estado];});
+}
+function fusionarConDisco(discoObj){
+  Object.keys(db).forEach(k=>{
+    if(Array.isArray(db[k])&&Array.isArray(discoObj[k])){
+      const ids=new Set(db[k].map(x=>x.id));
+      discoObj[k].forEach(item=>{if(!ids.has(item.id))db[k].push(item);});
+    }
+  });
+}
+function guardar(){
+  const enDisco=localStorage.getItem(CLAVE);
+  if(enDisco&&selloDisco!==null&&enDisco!==selloDisco){
+    try{fusionarConDisco(JSON.parse(enDisco));}catch(e){}
+  }
+  const raw=JSON.stringify(db);
+  localStorage.setItem(CLAVE,raw);
+  selloDisco=raw;
+}
+
+/* ---------- modal genérico ---------- */
+function abrirModal(html){
+  document.getElementById('modalBox').innerHTML=html;
+  document.getElementById('modalOverlay').classList.remove('oculto');
+}
+function cerrarModal(){
+  if(edicionPedidoBackup){
+    // Se abrió edición de un pedido (que revierte su stock en memoria) y se cerró sin guardar: deshacer.
+    edicionPedidoBackup.stockBackup.forEach(b=>{const s=porId(db.stock,b.id);if(s)s.cantidad=b.cantidad;});
+    db.movimientosStock.push(...edicionPedidoBackup.movsBackup);
+    edicionPedidoBackup=null;
+  }
+  document.getElementById('modalOverlay').classList.add('oculto');
+  document.getElementById('modalBox').innerHTML='';
+  pedidoItemsTmp=[];
+  notaEditando=null;
+}
+
+/* ================= LOGIN / PIN ================= */
+function pintarUsuariosLogin(){
+  const cont=document.getElementById('usuariosLogin');
+  cont.innerHTML=db.usuarios.map(u=>`
+    <div class="usuario-card" onclick="elegirUsuario('${u.id}')">
+      <div class="avatar" style="background:${u.color}">${esc(u.nombre[0])}</div>
+      <div class="nombre">${esc(u.nombre)}</div>
+    </div>`).join('');
+}
+function elegirUsuario(id){
+  if(MODO_PRUEBAS){
+    sesion=porId(db.usuarios,id);
+    entrarApp();
+    return;
+  }
+  pinCandidato=porId(db.usuarios,id);
+  pinEscrito='';
+  document.getElementById('pinNombre').textContent=pinCandidato.nombre;
+  document.getElementById('pinError').textContent='';
+  document.documentElement.style.setProperty('--rol',pinCandidato.color);
+  actualizarPinDots();
+  document.getElementById('pinBox').classList.remove('oculto');
+}
+function volverAUsuarios(){
+  document.getElementById('pinBox').classList.add('oculto');
+  pinCandidato=null;pinEscrito='';
+}
+function actualizarPinDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('pd'+i).classList.toggle('on',i<pinEscrito.length);
+  }
+}
+function teclaPin(t){
+  if(!pinCandidato)return;
+  if(t==='borrar'){pinEscrito=pinEscrito.slice(0,-1);actualizarPinDots();return;}
+  if(pinEscrito.length>=4)return;
+  pinEscrito+=t;
+  actualizarPinDots();
+  if(pinEscrito.length===4)setTimeout(validarPin,120);
+}
+document.addEventListener('keydown',e=>{
+  if(!pinCandidato||document.getElementById('pinBox').classList.contains('oculto'))return;
+  if(/^[0-9]$/.test(e.key))teclaPin(e.key);
+  else if(e.key==='Backspace')teclaPin('borrar');
+});
+function validarPin(){
+  if(pinEscrito===pinCandidato.pin){
+    sesion=pinCandidato;
+    entrarApp();
+  }else{
+    document.getElementById('pinError').textContent='PIN incorrecto';
+    pinEscrito='';
+    actualizarPinDots();
+  }
+}
+function entrarApp(){
+  if(MODO_PRUEBAS)sessionStorage.setItem('zbUltimoUsuario',sesion.id);
+  document.getElementById('pantallaLogin').classList.add('oculto');
+  document.getElementById('app').classList.remove('oculto');
+  document.documentElement.style.setProperty('--rol',sesion.color);
+  document.getElementById('sesionNombre').textContent=(MODO_PRUEBAS?'🧪 ':'👋 ')+sesion.nombre;
+  document.getElementById('fechaHoyTxt').textContent=new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long'});
+  document.querySelector('header.app-header').classList.toggle('oculto',sesion.rol==='socio');
+  if(sesion.rol==='socio'){
+    document.getElementById('navTabs').classList.add('oculto');
+    document.getElementById('mainApp').classList.add('oculto');
+    document.getElementById('vistaSocio').classList.remove('oculto');
+    pintarVistaSocio();
+  }else{
+    document.getElementById('navTabs').classList.remove('oculto');
+    document.getElementById('vistaSocio').classList.add('oculto');
+    irA('leads');
+  }
+}
+function cerrarSesion(){
+  sesion=null;pinCandidato=null;pinEscrito='';
+  sessionStorage.removeItem('zbUltimoUsuario');
+  document.getElementById('app').classList.add('oculto');
+  document.getElementById('pantallaLogin').classList.remove('oculto');
+  document.getElementById('pinBox').classList.add('oculto');
+  document.getElementById('mainApp').classList.remove('oculto');
+  document.getElementById('vistaSocio').classList.add('oculto');
+  document.documentElement.style.setProperty('--rol','#2563eb');
+  pintarUsuariosLogin();
+}
+function intentarAutoLogin(){
+  if(!MODO_PRUEBAS)return false;
+  const ultimoId=sessionStorage.getItem('zbUltimoUsuario');
+  const usuario=ultimoId&&porId(db.usuarios,ultimoId);
+  if(!usuario)return false;
+  sesion=usuario;
+  entrarApp();
+  return true;
+}
+
+/* ================= NAVEGACIÓN ================= */
+const SECCIONES=['leads','clientes','stock','proveedores','tareas','reportes','config'];
+function irA(sec){
+  seccionActual=sec;
+  SECCIONES.forEach(s=>{
+    document.getElementById('sec-'+s).classList.toggle('activa',s===sec);
+    document.getElementById('tab-'+s).classList.toggle('activo',s===sec);
+  });
+  if(sec==='leads')pintarLeads();
+  if(sec==='clientes')pintarClientes();
+  if(sec==='stock')pintarStock();
+  if(sec==='proveedores')pintarProveedores();
+  if(sec==='tareas')pintarTareas();
+  if(sec==='reportes'){pintarReportes();pintarPedidos();}
+  if(sec==='config')pintarConfig();
+}
+
+/* ================= LEADS ================= */
+const CANALES_LEAD=['WhatsApp','Facebook','Instagram','TikTok','Recomendación','Otro'];
+const ESTADOS_LEAD=['sin contactar','seguimiento','cliente potencial','renovación','cliente','no contactar'];
+const ESTADOS_LEAD_PERDIDA=['no contactar'];
+// Badges pastel (fondo suave + texto de color), coherentes con el sistema de "chips"
+// del resto del CRM y con la identidad de Zona Bariátrica.
+const ESTADO_COLOR_LEAD={
+  'sin contactar':    {bg:'#fff59d', fg:'#5c4d00'},
+  'seguimiento':      {bg:'var(--warning-suave)', fg:'var(--warning)'},
+  'cliente potencial':{bg:'#ffe8d6', fg:'#c2571a'},
+  'renovación':       {bg:'var(--violeta-suave)', fg:'var(--violeta)'},
+  'cliente':          {bg:'var(--success-suave)', fg:'var(--success)'},
+  'no contactar':     {bg:'var(--danger-suave)', fg:'var(--danger)'}
+};
+function pintarFiltroEstadoLeads(){
+  const sel=document.getElementById('leadsFiltroEstado');
+  const actual=sel.value;
+  sel.innerHTML='<option value="">Todos los estados</option>'+ESTADOS_LEAD.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
+  sel.value=actual;
+}
+function pintarLeads(){
+  pintarFiltroEstadoLeads();
+  const buscar=(document.getElementById('leadsBuscar').value||'').toLowerCase();
+  const filtroEstado=document.getElementById('leadsFiltroEstado').value;
+  let leads=db.leads.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').includes(buscar));
+  if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
+  const cont=document.getElementById('listaLeads');
+  if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
+  const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
+  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular</th><th>Email</th><th>Ciudad / Provincia</th><th>Estatus</th>
+    </tr></thead><tbody>${leads.map(l=>`
+      <tr>
+        <td>${campo(l,'fecha','date')}</td>
+        <td>${campo(l,'hora','time')}</td>
+        <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(l.nombre)||'(sin nombre)'}</button></td>
+        <td>${campo(l,'apellido')}</td>
+        <td>${campo(l,'edad','number')}</td>
+        <td>${campo(l,'dni')}</td>
+        <td>${campo(l,'telefono')}</td>
+        <td>${campo(l,'email')}</td>
+        <td>${campo(l,'distrito')}</td>
+        <td>
+          <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 10px;min-width:168px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
+            ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`).join('')}</tbody></table></div>
+    <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
+}
+function actualizarCampoLead(id,campo,valor){
+  const lead=porId(db.leads,id);
+  lead[campo]=valor;
+  guardar();
+}
+function cambiarEstadoLeadGrid(id,valor){
+  const lead=porId(db.leads,id);
+  if(valor==='cliente'&&!lead.clienteId){
+    pintarLeads(); // deja el desplegable como estaba mientras se completa la conversión
+    abrirFormCliente(id);
+    return;
+  }
+  actualizarCampoLead(id,'estado',valor);
+  pintarLeads();
+}
+function abrirFichaLead(leadId){
+  const l=porId(db.leads,leadId);
+  const notas=(l.notas||[]).slice().reverse();
+  abrirModal(`
+    <div style="margin:-20px -20px 16px;padding:16px 20px;background:var(--primary);color:#fff;border-radius:14px 14px 0 0;position:relative;">
+      <button class="cerrar-x" style="color:#fff;" onclick="cerrarModal()">✕</button>
+      <h3 style="margin:0;color:#fff;">${esc(l.nombre)} ${esc(l.apellido||'')}</h3>
+      <div style="font-size:13px;opacity:.9;margin-top:2px;">${esc(l.telefono||'—')} · ${esc(l.distrito||'—')}</div>
+    </div>
+
+    <div class="fila-2">
+      <div><label>Nombre</label><input id="lf-nombre" value="${esc(l.nombre||'')}" onchange="actualizarCampoLead('${l.id}','nombre',this.value)"></div>
+      <div><label>Apellido</label><input id="lf-apellido" value="${esc(l.apellido||'')}" onchange="actualizarCampoLead('${l.id}','apellido',this.value)"></div>
+    </div>
+    <label>Motivo de consulta (nota comercial, no diagnóstico médico)</label>
+    <input id="lf-diagnostico" value="${esc(l.diagnostico||'')}" onchange="actualizarCampoLead('${l.id}','diagnostico',this.value)">
+    <label>¿Por qué producto preguntó / qué le interesa?</label>
+    <input id="lf-interes" value="${esc(l.interes||'')}" onchange="actualizarCampoLead('${l.id}','interes',this.value)">
+    <label>Fuente de captación</label>
+    <select id="lf-canal" onchange="actualizarCampoLead('${l.id}','canal',this.value)">
+      ${CANALES_LEAD.map(c=>`<option ${c===l.canal?'selected':''}>${esc(c)}</option>`).join('')}
+    </select>
+    ${ESTADOS_LEAD_PERDIDA.includes(l.estado)?`
+    <label>Motivo de pérdida (opcional)</label>
+    <input id="lf-motivoperdida" value="${esc(l.motivoPerdida||'')}" placeholder="Ej. precio, ya compró en otro lugar, no responde hace 2 semanas..." onchange="actualizarCampoLead('${l.id}','motivoPerdida',this.value)">
+    `:''}
+
+    <h4 style="font-size:13.5px;margin:14px 0 6px;">Historial de conversación (lo que se habló por chat)</h4>
+    <form onsubmit="return guardarNota(event,'${l.id}')" style="display:flex;gap:6px;margin-bottom:10px;">
+      <input id="nota-texto" placeholder="¿Qué pasó / qué preguntó?" required style="flex:1;">
+      <button class="btn btn-chico" type="submit">+ Agregar</button>
+    </form>
+    ${notas.length===0?'<div class="vacio">Sin notas todavía.</div>':notas.map(n=>notaEditando===n.id?`
+      <form onsubmit="return guardarEdicionNota(event,'${l.id}','${n.id}')" style="display:flex;gap:6px;margin-bottom:6px;">
+        <input id="nota-edit-texto" value="${esc(n.texto)}" required style="flex:1;">
+        <button class="btn btn-chico" type="submit">Guardar</button>
+        <button type="button" class="btn-secundario btn-chico" onclick="cancelarEdicionNota('${l.id}')">Cancelar</button>
+      </form>`:`
+      <div class="nota-linea">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <span>${esc(n.texto)}</span>
+          <span style="white-space:nowrap;flex-shrink:0;">
+            <button class="btn-icono" onclick="iniciarEdicionNota('${l.id}','${n.id}')" title="Editar">✏️</button>
+            <button class="btn-icono" onclick="eliminarNota('${l.id}','${n.id}')" title="Eliminar">✕</button>
+          </span>
+        </div>
+        <div class="meta">${esc(n.autor)} · ${fechaBonita(n.fecha)}</div>
+      </div>`).join('')}
+
+    <div class="acciones-modal">
+      <button type="button" class="btn-peligro" onclick="eliminarLead('${l.id}')">Eliminar</button>
+      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(l.nombre)}'})">✅ + Seguimiento</button>`}
+      <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+    </div>`);
+}
+function abrirFormLead(){
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Nuevo lead</h3>
+    <form onsubmit="return guardarLead(event)">
+      <div class="fila-2">
+        <div><label>Nombre *</label><input id="ld-nombre" required></div>
+        <div><label>Apellido</label><input id="ld-apellido"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Celular</label><input id="ld-telefono"></div>
+        <div><label>Fuente de captación</label>
+          <select id="ld-canal">${CANALES_LEAD.map(c=>`<option>${esc(c)}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="fila-2">
+        <div><label>DNI/CE</label><input id="ld-dni"></div>
+        <div><label>Edad</label><input type="number" id="ld-edad"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Email</label><input id="ld-email"></div>
+        <div><label>Ciudad / Provincia</label><input id="ld-distrito"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Fecha de contacto</label><input type="date" id="ld-fecha" value="${hoyStr()}"></div>
+        <div><label>Hora</label><input type="time" id="ld-hora" value="${horaAhora()}"></div>
+      </div>
+      <label>Motivo de consulta (nota comercial, no diagnóstico médico)</label><input id="ld-diagnostico">
+      <label>¿Por qué producto preguntó / qué le interesa?</label><input id="ld-interes">
+      <label>Nota inicial (lo que se conversó por chat)</label><textarea id="ld-nota" rows="2"></textarea>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function guardarLead(ev){
+  ev.preventDefault();
+  const nota=document.getElementById('ld-nota').value.trim();
+  const lead={
+    id:nuevoId(),
+    nombre:document.getElementById('ld-nombre').value.trim(),
+    apellido:document.getElementById('ld-apellido').value.trim(),
+    telefono:document.getElementById('ld-telefono').value.trim(),
+    canal:document.getElementById('ld-canal').value,
+    dni:document.getElementById('ld-dni').value.trim(),
+    edad:document.getElementById('ld-edad').value,
+    email:document.getElementById('ld-email').value.trim(),
+    distrito:document.getElementById('ld-distrito').value.trim(),
+    diagnostico:document.getElementById('ld-diagnostico').value.trim(),
+    interes:document.getElementById('ld-interes').value.trim(),
+    fecha:document.getElementById('ld-fecha').value||hoyStr(),
+    hora:document.getElementById('ld-hora').value,
+    estado:'sin contactar',
+    atendidoPor:sesion.nombre,
+    notas:nota?[{id:nuevoId(),texto:nota,autor:sesion.nombre,fecha:hoyStr()}]:[],
+    clienteId:null
+  };
+  db.leads.push(lead);guardar();cerrarModal();pintarLeads();
+  return false;
+}
+function guardarNota(ev,leadId){
+  ev.preventDefault();
+  const lead=porId(db.leads,leadId);
+  if(!lead.notas)lead.notas=[];
+  lead.notas.push({id:nuevoId(),texto:document.getElementById('nota-texto').value.trim(),autor:sesion.nombre,fecha:hoyStr()});
+  guardar();
+  abrirFichaLead(leadId);
+  return false;
+}
+function iniciarEdicionNota(leadId,notaId){
+  notaEditando=notaId;
+  abrirFichaLead(leadId);
+}
+function cancelarEdicionNota(leadId){
+  notaEditando=null;
+  abrirFichaLead(leadId);
+}
+function guardarEdicionNota(ev,leadId,notaId){
+  ev.preventDefault();
+  const lead=porId(db.leads,leadId);
+  const n=(lead.notas||[]).find(x=>x.id===notaId);
+  if(n)n.texto=document.getElementById('nota-edit-texto').value.trim();
+  notaEditando=null;
+  guardar();
+  abrirFichaLead(leadId);
+  return false;
+}
+function eliminarNota(leadId,notaId){
+  if(!confirm('¿Eliminar esta nota?'))return;
+  const lead=porId(db.leads,leadId);
+  lead.notas=(lead.notas||[]).filter(n=>n.id!==notaId);
+  guardar();
+  abrirFichaLead(leadId);
+}
+function eliminarLead(id){
+  if(!confirm('¿Eliminar este lead?'))return;
+  db.leads=db.leads.filter(l=>l.id!==id);guardar();cerrarModal();pintarLeads();
+}
+
+/* ================= CLIENTES ================= */
+function marcasDeCliente(c){
+  const desdePedidos=new Set();
+  db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').forEach(p=>p.items.forEach(it=>desdePedidos.add(it.marca)));
+  return desdePedidos.size?[...desdePedidos]:(c.marcas||[]);
+}
+function pintarClientes(){
+  const buscar=(document.getElementById('clientesBuscar').value||'').toLowerCase();
+  let clientes=db.clientes.slice().sort((a,b)=>(b.creado||'').localeCompare(a.creado||''));
+  clientes=clientes.filter(c=>c.activo!==false);
+  if(buscar)clientes=clientes.filter(c=>[c.nombre,c.apellido,c.telefono,c.dni].join(' ').toLowerCase().includes(buscar));
+  const cont=document.getElementById('listaClientes');
+  if(clientes.length===0){cont.innerHTML='<div class="vacio">No hay clientes todavía.</div>';return;}
+  cont.innerHTML=`<div class="tabla-wrap"><table><thead><tr>
+    <th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Distrito / Depto.</th><th>Marcas</th><th>Pedidos</th>
+    </tr></thead><tbody>${clientes.map(c=>{
+      const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
+      const lugar=[c.ciudad,c.departamento].filter(Boolean).join(' — ')||'—';
+      return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
+        <td><strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}</td>
+        <td>${esc(c.dni||'—')}</td>
+        <td>${esc(c.telefono||'—')}</td>
+        <td>${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">provincia</span>':'<span class="chip chip-gris">local</span>'}</td>
+        <td>${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')}</td>
+        <td>${nPedidos}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div>
+    <p class="vacio" style="text-align:left;">Toca un cliente para ver su historial y registrar una nueva compra.</p>`;
+}
+function direccionCompleta(c){
+  const partes=[c.direccion,c.distrito||c.ciudad,c.provincia,c.departamento].filter(Boolean);
+  let txt=partes.join(', ')||'—';
+  if(c.referencia)txt+=` (Ref: ${c.referencia})`;
+  return txt;
+}
+function abrirFichaCliente(clienteId){
+  const c=porId(db.clientes,clienteId);
+  const pedidos=db.pedidos.filter(p=>p.clienteId===clienteId).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const pedidosValidos=pedidos.filter(p=>p.estadoPago!=='cancelado');
+  const totalComprado=pedidosValidos.reduce((s,p)=>s+p.total,0);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${esc(c.nombre)} ${esc(c.apellido)}</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+      ${esc(c.dni||'sin DNI')} · ${esc(c.telefono||'—')}<br>
+      ${esc(direccionCompleta(c))} ${c.esProvincia?'<span class="chip chip-azul">provincia</span>':'<span class="chip chip-gris">local</span>'}
+    </div>
+    <div class="grid-cards" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stat"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras realizadas</div></div>
+      <div class="stat"><div class="num">${money(totalComprado)}</div><div class="lbl">Total comprado</div></div>
+    </div>
+    <div style="margin:14px 0;"><button class="btn" onclick="cerrarModal();abrirFormPedido('${c.id}')">🧾 Nueva compra</button></div>
+    <h4 style="font-size:13.5px;margin:14px 0 6px;">Historial de compras</h4>
+    ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':pedidos.map(p=>`
+      <div class="card"${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);">
+          <span>${fechaBonita(p.fecha)} · ${esc(p.metodoEnvio)} · ${esc(p.metodoPago||'—')}${p.estadoPago==='cancelado'?' · <span class="chip chip-rojo">cancelado</span>':''}</span>
+          <strong style="color:var(--text);">${money(p.total)}</strong>
+        </div>
+        <div style="margin-top:4px;font-size:13px;">${p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ')}</div>
+        ${p.notas?`<div class="nota-linea" style="margin-top:6px;">${esc(p.notas)}</div>`:''}
+      </div>`).join('')}
+    <div class="acciones-modal">
+      ${c.activo===false?`<button type="button" class="btn" onclick="reactivarCliente('${c.id}')">Reactivar cliente</button>`:''}
+      <button type="button" class="btn-secundario" onclick="abrirFormTarea({clienteId:'${c.id}'})">✅ + Tarea</button>
+      <button type="button" class="btn-secundario" onclick="abrirEditarCliente('${c.id}')">✏️ Editar datos</button>
+      <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+    </div>`);
+}
+function abrirEditarCliente(id){
+  const c=porId(db.clientes,id);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar cliente</h3>
+    <form onsubmit="return guardarEditarCliente(event,'${id}')">
+      <div class="fila-2">
+        <div><label>Nombre *</label><input id="ec-nombre" required value="${esc(c.nombre||'')}"></div>
+        <div><label>Apellido</label><input id="ec-apellido" value="${esc(c.apellido||'')}"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>DNI</label><input id="ec-dni" value="${esc(c.dni||'')}"></div>
+        <div><label>Teléfono</label><input id="ec-telefono" value="${esc(c.telefono||'')}"></div>
+      </div>
+      <label>Dirección de envío</label><input id="ec-direccion" value="${esc(c.direccion||'')}">
+      <div class="fila-2">
+        <div><label>Departamento</label><input id="ec-departamento" value="${esc(c.departamento||'')}" placeholder="Ej. Arequipa"></div>
+        <div><label>Provincia</label><input id="ec-provincianombre" value="${esc(c.provincia||'')}" placeholder="Ej. Arequipa"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Distrito / Ciudad</label><input id="ec-ciudad" value="${esc(c.ciudad||'')}"></div>
+        <div><label>Referencia</label><input id="ec-referencia" value="${esc(c.referencia||'')}" placeholder="Ej. frente al parque, casa celeste"></div>
+      </div>
+      <label>¿Envío a provincia?</label>
+      <select id="ec-provincia"><option value="1" ${c.esProvincia?'selected':''}>Sí (envío Shalom)</option><option value="0" ${!c.esProvincia?'selected':''}>No, es local (InDrive)</option></select>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="abrirFichaCliente('${id}')">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+}
+function guardarEditarCliente(ev,id){
+  ev.preventDefault();
+  const dni=document.getElementById('ec-dni').value.trim();
+  if(dni){
+    const otro=db.clientes.find(c=>c.id!==id&&c.dni&&c.dni===dni);
+    if(otro){alert(`El DNI ${dni} ya está registrado para otro cliente: ${otro.nombre} ${otro.apellido}.`);return false;}
+  }
+  const c=porId(db.clientes,id);
+  c.nombre=document.getElementById('ec-nombre').value.trim();
+  c.apellido=document.getElementById('ec-apellido').value.trim();
+  c.dni=dni;
+  c.telefono=document.getElementById('ec-telefono').value.trim();
+  c.direccion=document.getElementById('ec-direccion').value.trim();
+  c.departamento=document.getElementById('ec-departamento').value.trim();
+  c.provincia=document.getElementById('ec-provincianombre').value.trim();
+  c.ciudad=document.getElementById('ec-ciudad').value.trim();
+  c.referencia=document.getElementById('ec-referencia').value.trim();
+  c.esProvincia=document.getElementById('ec-provincia').value==='1';
+  guardar();pintarClientes();
+  abrirFichaCliente(id);
+  return false;
+}
+function reactivarCliente(id){
+  const c=porId(db.clientes,id);
+  c.activo=true;
+  guardar();cerrarModal();pintarClientes();
+}
+function abrirFormCliente(leadId){
+  const lead=leadId?porId(db.leads,leadId):null;
+  const marcas=db.config.marcas||[];
+  pedidoItemsTmp=[];
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${lead?'Convertir lead en cliente':'Nuevo pedido'}</h3>
+    ${!lead?`
+    <label>¿Ya es cliente? Selecciónalo para registrarle un pedido en vez de crear uno nuevo</label>
+    <select id="cl-existente" onchange="if(this.value){cerrarModal();abrirFormPedido(this.value);}">
+      <option value="">— Es un cliente nuevo —</option>
+      ${db.clientes.filter(c=>c.activo!==false).slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}">${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')}</option>`).join('')}
+    </select>
+    <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
+    `:''}
+    <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})">
+      <div class="fila-2">
+        <div><label>Nombre *</label><input id="cl-nombre" required value="${lead?esc(lead.nombre||''):''}"></div>
+        <div><label>Apellido</label><input id="cl-apellido" value="${lead?esc(lead.apellido||''):''}"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>DNI</label><input id="cl-dni" value="${lead?esc(lead.dni||''):''}"></div>
+        <div><label>Teléfono</label><input id="cl-telefono" value="${lead?esc(lead.telefono||''):''}"></div>
+      </div>
+      <label>Dirección de envío</label><input id="cl-direccion">
+      <div class="fila-2">
+        <div><label>Departamento</label><input id="cl-departamento" placeholder="Ej. Arequipa"></div>
+        <div><label>Provincia</label><input id="cl-provincianombre" placeholder="Ej. Arequipa"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Distrito / Ciudad</label><input id="cl-ciudad" value="${lead?esc(lead.distrito||''):''}"></div>
+        <div><label>Referencia</label><input id="cl-referencia" placeholder="Ej. frente al parque, casa celeste"></div>
+      </div>
+      <label>¿Envío a provincia?</label>
+      <select id="cl-provincia"><option value="1">Sí (envío Shalom)</option><option value="0">No, es local (InDrive)</option></select>
+
+      <hr style="margin:18px 0 10px;border:none;border-top:1px solid var(--border);">
+      <label style="margin-top:0;">🧾 Pedido de este cliente</label>
+      <div class="fila-2">
+        <select id="pi-marca" onchange="pedidoLlenarProductos()">
+          <option value="">Marca...</option>
+          ${marcas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
+        <select id="pi-producto"><option value="">Elige marca primero</option></select>
+      </div>
+      <div class="fila-2" style="align-items:end;">
+        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
+        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar producto</button>
+      </div>
+      <div id="pedidoItemsList" style="margin-top:10px;"></div>
+
+      <div class="fila-2">
+        <div><label>Envío</label>
+          <select id="pd-envio" onchange="pedidoActualizarEnvio()">
+            <option value="shalom">Shalom (provincia)</option>
+            <option value="indrive">InDrive (local)</option>
+          </select>
+        </div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}"></div>
+      </div>
+      <div class="fila-2" id="pedidoShalomCampos">
+        <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
+        <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Método de pago</label>
+          <select id="pd-metodopago"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
+        </div>
+        <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
+      </div>
+      <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
+      <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
+
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">🧾 Generar pedido</button>
+      </div>
+    </form>`);
+  pedidoLlenarProductos();pedidoRenderItems();
+}
+function guardarCliente(ev,leadId){
+  ev.preventDefault();
+  if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto para generar el pedido.');return false;}
+  const dni=document.getElementById('cl-dni').value.trim();
+  if(dni){
+    const existente=db.clientes.find(c=>c.dni&&c.dni===dni);
+    if(existente){
+      if(confirm(`Ya existe un cliente con DNI ${dni}: ${existente.nombre} ${existente.apellido}.\n¿Abrir su ficha para registrarle este pedido en vez de crear un cliente duplicado?`)){
+        cerrarModal();
+        abrirFichaCliente(existente.id);
+      }
+      return false;
+    }
+  }
+  const problema=stockInsuficienteEnPedidoTmp();
+  if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
+  const cliente={
+    id:nuevoId(),
+    nombre:document.getElementById('cl-nombre').value.trim(),
+    apellido:document.getElementById('cl-apellido').value.trim(),
+    dni,
+    telefono:document.getElementById('cl-telefono').value.trim(),
+    direccion:document.getElementById('cl-direccion').value.trim(),
+    departamento:document.getElementById('cl-departamento').value.trim(),
+    provincia:document.getElementById('cl-provincianombre').value.trim(),
+    ciudad:document.getElementById('cl-ciudad').value.trim(),
+    referencia:document.getElementById('cl-referencia').value.trim(),
+    esProvincia:document.getElementById('cl-provincia').value==='1',
+    marcas:[],
+    activo:true,
+    leadId:leadId||null,
+    creado:hoyStr()
+  };
+  db.clientes.push(cliente);
+  if(leadId){
+    const lead=porId(db.leads,leadId);
+    lead.clienteId=cliente.id;
+    lead.estado='cliente';
+  }
+  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const pedido={
+    id:nuevoId(),
+    clienteId:cliente.id,
+    items:pedidoItemsTmp.slice(),
+    subtotal,
+    embalaje,
+    total:subtotal+embalaje,
+    metodoEnvio:document.getElementById('pd-envio').value,
+    numeroOrden:document.getElementById('pd-numeroorden').value.trim(),
+    codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
+    metodoPago:document.getElementById('pd-metodopago').value,
+    pagoReferencia:document.getElementById('pd-referencia').value.trim(),
+    pagoConfirmadoPor:sesion.nombre,
+    estadoPago:'pagado', // solo se registra la venta cuando ya llegó el comprobante de pago: nace pagado
+    estadoEnvio:'pendiente preparación',
+    fecha:document.getElementById('pd-fecha').value||hoyStr(),
+    atendidoPor:sesion.nombre,
+    notas:document.getElementById('pd-notas').value.trim()
+  };
+  db.pedidos.push(pedido);
+  descontarStock(pedido);
+  guardar();
+  pintarClientes();
+  pintarStock();
+  if(leadId)pintarLeads();
+  mostrarTicket(pedido,cliente);
+  return false;
+}
+function mostrarTicket(pedido,cliente){
+  const filas=pedido.items.map(it=>`
+    <div class="item-linea">
+      <span>${it.cantidad}x ${esc(it.producto)} <span class="q">(${esc(it.marca)})</span></span>
+      <span>${money(it.cantidad*it.precioUnit)}</span>
+    </div>`).join('');
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>✅ Cliente y pedido guardados</h3>
+    <div id="ticketImprimible" class="card" style="background:var(--bg-soft);">
+      <div style="text-align:center;margin-bottom:8px;">
+        <strong>Zona Bariátrica</strong><br>
+        <span style="font-size:12px;color:var(--muted);">Ticket de venta · ${fechaBonita(pedido.fecha)}</span>
+      </div>
+      <div style="font-size:13px;margin-bottom:8px;">
+        <strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>
+        ${esc(cliente.dni||'sin DNI')} · ${esc(cliente.telefono||'—')}<br>
+        ${esc(direccionCompleta(cliente))}
+      </div>
+      <div style="border-top:1px dashed var(--border);padding-top:8px;">${filas}</div>
+      <div class="item-linea"><span>Embalaje</span><span>${money(pedido.embalaje)}</span></div>
+      <div class="subtotal-box"><span>TOTAL</span><span>${money(pedido.total)}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+        Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)} · Atendió: ${esc(pedido.atendidoPor)}
+      </div>
+    </div>
+    <div class="acciones-modal">
+      <button type="button" class="btn-secundario" onclick="imprimirTicket('${pedido.id}')">🖨️ Imprimir ticket</button>
+      <button class="btn" onclick="cerrarModal()">Listo</button>
+    </div>`);
+}
+function imprimirTicket(pedidoId){
+  const pedido=porId(db.pedidos,pedidoId);
+  const cliente=porId(db.clientes,pedido.clienteId);
+  const filas=pedido.items.map(it=>`<tr><td>${it.cantidad}x ${esc(it.producto)}</td><td style="text-align:right;">${money(it.cantidad*it.precioUnit)}</td></tr>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket</title>
+    <style>body{font-family:system-ui,sans-serif;font-size:13px;width:280px;margin:10px auto;}
+    table{width:100%;border-collapse:collapse;} td{padding:3px 0;} .tot{font-weight:700;border-top:1px dashed #999;padding-top:6px;}
+    h3{text-align:center;margin:0 0 2px;} .c{text-align:center;color:#555;font-size:11px;margin-bottom:10px;}</style>
+    </head><body>
+    <h3>Zona Bariátrica</h3>
+    <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
+    <div><strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}</div>
+    <table style="margin-top:8px;">${filas}
+      <tr><td>Embalaje</td><td style="text-align:right;">${money(pedido.embalaje)}</td></tr>
+      <tr class="tot"><td>TOTAL</td><td style="text-align:right;">${money(pedido.total)}</td></tr>
+    </table>
+    <div class="c" style="margin-top:10px;">Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)}<br>Atendió: ${esc(pedido.atendidoPor)}<br>¡Gracias por tu compra!</div>
+    </body></html>`;
+  const w=window.open('','_blank','width=340,height=600');
+  if(!w){alert('El navegador bloqueó la ventana de impresión. Habilita las ventanas emergentes para este sitio.');return;}
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+/* ================= PEDIDOS ================= */
+const ESTADO_PAGO_CHIP={'pendiente pago':'chip-naranja',pagado:'chip-azul',cancelado:'chip-rojo'};
+const ESTADO_ENVIO_CHIP={'pendiente preparación':'chip-gris',preparado:'chip-azul',enviado:'chip-naranja',entregado:'chip-verde'};
+const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
+const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','entregado'];
+let edicionPedidoBackup=null; // respaldo de stock/movimientos mientras se edita un pedido, para poder deshacer si se cancela la edición
+function responsableEnvioPedido(pedido){
+  for(const it of pedido.items){
+    if((db.config.modalidadMarca||{})[it.marca]==='proveedor_envia')return it.marca;
+  }
+  return 'Zona Bariátrica';
+}
+function stockInsuficienteEnPedidoTmp(){
+  const necesarios={};
+  pedidoItemsTmp.forEach(it=>{necesarios[it.stockId]=(necesarios[it.stockId]||0)+it.cantidad;});
+  for(const stockId in necesarios){
+    const s=porId(db.stock,stockId);
+    const disponible=s?(s.cantidad||0):0;
+    if(necesarios[stockId]>disponible)return{producto:s?s.producto:'(producto eliminado)',disponible,solicitado:necesarios[stockId]};
+  }
+  return null;
+}
+function pintarFiltroMarcaPedidos(){
+  const sel=document.getElementById('pedidosFiltroMarca');
+  const actual=sel.value;
+  sel.innerHTML='<option value="">Todas las marcas</option>'+(db.config.marcas||[]).map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.value=actual;
+}
+function pintarPedidos(){
+  pintarFiltroMarcaPedidos();
+  const filtroMarca=document.getElementById('pedidosFiltroMarca').value;
+  const filtroDesde=document.getElementById('pedidosFiltroDesde').value;
+  const filtroHasta=document.getElementById('pedidosFiltroHasta').value;
+  let pedidos=db.pedidos.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if(filtroMarca)pedidos=pedidos.filter(p=>p.items.some(it=>it.marca===filtroMarca));
+  if(filtroDesde)pedidos=pedidos.filter(p=>p.fecha>=filtroDesde);
+  if(filtroHasta)pedidos=pedidos.filter(p=>p.fecha<=filtroHasta);
+  const cont=document.getElementById('listaPedidos');
+  if(pedidos.length===0){cont.innerHTML='<div class="vacio">No hay pedidos todavía.</div>';return;}
+  cont.innerHTML=`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+    <th>Fecha</th><th>Cliente</th><th>Marca</th><th>Productos</th><th>Total</th><th>Estado</th><th>Acciones</th>
+    </tr></thead><tbody>${pedidos.map(p=>{
+    const cliente=porId(db.clientes,p.clienteId);
+    const responsable=responsableEnvioPedido(p);
+    const marcasPedido=[...new Set(p.items.map(it=>it.marca))].join(', ');
+    return `<tr>
+      <td>${fechaCelda(p.fecha)}</td>
+      <td style="text-align:left;white-space:normal;min-width:170px;">
+        <div>${cliente?esc(cliente.nombre+' '+cliente.apellido):'Cliente eliminado'}</div>
+        <div style="font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px;">${esc(p.metodoEnvio)} · ${esc(p.metodoPago||'—')}${p.pagoReferencia?' (ref. '+esc(p.pagoReferencia)+')':''} · atendió ${esc(p.atendidoPor||'—')}</div>
+        ${responsable!=='Zona Bariátrica'?`<div style="font-size:10.5px;color:var(--warning);font-weight:400;margin-top:2px;">envía ${esc(responsable)}</div>`:''}
+        ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px;">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
+        ${p.notas?`<div style="font-size:10.5px;color:var(--muted);font-style:italic;font-weight:400;margin-top:2px;">"${esc(p.notas)}"</div>`:''}
+      </td>
+      <td>${esc(marcasPedido)}</td>
+      <td style="text-align:left;white-space:normal;min-width:170px;">${p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ')}</td>
+      <td>${money(p.total)}<div style="font-size:10px;color:var(--muted);font-weight:400;">embalaje S/${Number(p.embalaje||0).toFixed(2)}</div></td>
+      <td><span class="chip ${ESTADO_PAGO_CHIP[p.estadoPago]||'chip-gris'}" style="display:inline-block;margin-bottom:4px;">${esc(p.estadoPago)}</span><br><span class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" style="display:inline-block;">${esc(p.estadoEnvio)}</span></td>
+      <td>
+        ${p.estadoPago!=='cancelado'?`
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <button class="btn-secundario btn-chico" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>
+            <button class="btn-peligro btn-chico" onclick="eliminarPedido('${p.id}')">Cancelar</button>
+          </div>
+        `:'<span class="chip chip-rojo">Cancelado</span>'}
+      </td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+function abrirFormPedido(clienteIdPre){
+  pedidoItemsTmp=[];
+  const clientes=db.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const marcas=db.config.marcas||[];
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Nuevo pedido</h3>
+    <form onsubmit="return guardarPedido(event)">
+      <label>Cliente *</label>
+      <select id="pd-cliente" required>
+        <option value="">Selecciona un cliente...</option>
+        ${clientes.map(c=>`<option value="${c.id}" ${c.id===clienteIdPre?'selected':''}>${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')} — ${esc(c.ciudad||'')}</option>`).join('')}
+      </select>
+      ${clientes.length===0?'<div class="pin-error" style="color:var(--warning);height:auto;">No hay clientes creados. Crea uno primero.</div>':''}
+
+      <label>Agregar producto</label>
+      <div class="fila-2">
+        <select id="pi-marca" onchange="pedidoLlenarProductos()">
+          <option value="">Marca...</option>
+          ${marcas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
+        <select id="pi-producto"><option value="">Elige marca primero</option></select>
+      </div>
+      <div class="fila-2" style="align-items:end;">
+        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
+        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
+      </div>
+      <div id="pedidoItemsList" style="margin-top:10px;"></div>
+
+      <div class="fila-2">
+        <div><label>Envío</label>
+          <select id="pd-envio" onchange="pedidoActualizarEnvio()">
+            <option value="shalom">Shalom (provincia)</option>
+            <option value="indrive">InDrive (local)</option>
+          </select>
+        </div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}"></div>
+      </div>
+      <div class="fila-2" id="pedidoShalomCampos">
+        <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
+        <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Método de pago</label>
+          <select id="pd-metodopago"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
+        </div>
+        <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
+      </div>
+      <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
+      <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
+
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar pedido</button>
+      </div>
+    </form>`);
+  pedidoLlenarProductos();
+  pedidoRenderItems();
+}
+function pedidoLlenarProductos(){
+  const marca=document.getElementById('pi-marca').value;
+  const sel=document.getElementById('pi-producto');
+  const opciones=db.stock.filter(s=>s.marca===marca&&s.activo!==false);
+  sel.innerHTML=opciones.length
+    ?opciones.map(s=>`<option value="${s.id}">${esc(s.producto)} (stock: ${s.cantidad})</option>`).join('')
+    :'<option value="">Sin productos en esta marca</option>';
+}
+function pedidoActualizarEnvio(){
+  const envio=document.getElementById('pd-envio').value;
+  document.getElementById('pd-embalaje').value=envio==='shalom'?(db.config.embalajeDefault||0):0;
+  const camposShalom=document.getElementById('pedidoShalomCampos');
+  if(camposShalom)camposShalom.classList.toggle('oculto',envio!=='shalom');
+}
+function pedidoAgregarItem(){
+  const stockId=document.getElementById('pi-producto').value;
+  const cantidad=parseFloat(document.getElementById('pi-cantidad').value)||0;
+  const stockItem=porId(db.stock,stockId);
+  if(!stockItem||cantidad<=0){alert('Elige un producto y una cantidad válida.');return;}
+  const yaEnPedido=pedidoItemsTmp.filter(it=>it.stockId===stockId).reduce((s,it)=>s+it.cantidad,0);
+  const disponible=stockItem.cantidad||0;
+  if(yaEnPedido+cantidad>disponible){
+    alert(`No hay stock suficiente de "${stockItem.producto}". Disponible: ${disponible} unidad(es)${yaEnPedido?` (ya agregaste ${yaEnPedido} a este pedido)`:''}.`);
+    return;
+  }
+  const item={stockId:stockItem.id,marca:stockItem.marca,producto:stockItem.producto,cantidad,precioUnit:stockItem.precioVenta||0};
+  // Si la marca es "reparto de ingresos", se congela el socio y el % vigentes en este
+  // momento dentro del propio ítem: si más adelante cambia el % en Config, las ventas
+  // ya hechas no deben recalcularse con el valor nuevo.
+  if((db.config.modalidadMarca||{})[stockItem.marca]==='reparto_ingresos'){
+    const reparto=(db.config.repartoMarca||{})[stockItem.marca];
+    if(reparto&&reparto.socio){
+      item.socioReparto=reparto.socio;
+      item.porcentajeReparto=reparto.porcentaje||60;
+    }
+  }
+  pedidoItemsTmp.push(item);
+  pedidoRenderItems();
+}
+function pedidoQuitarItem(i){pedidoItemsTmp.splice(i,1);pedidoRenderItems();}
+function pedidoRenderItems(){
+  const cont=document.getElementById('pedidoItemsList');
+  if(!cont)return;
+  if(pedidoItemsTmp.length===0){cont.innerHTML='<div class="vacio" style="padding:10px;">Aún no agregas productos.</div>';return;}
+  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  cont.innerHTML=pedidoItemsTmp.map((it,i)=>`
+    <div class="item-linea">
+      <span>${it.cantidad}x ${esc(it.producto)} <span class="q">(${esc(it.marca)} · ${money(it.precioUnit)} c/u)</span></span>
+      <span><strong>${money(it.cantidad*it.precioUnit)}</strong> <button type="button" class="btn-icono" onclick="pedidoQuitarItem(${i})">✕</button></span>
+    </div>`).join('')+`<div class="subtotal-box"><span>Subtotal</span><span>${money(subtotal)}</span></div>`;
+}
+function guardarPedido(ev){
+  ev.preventDefault();
+  const clienteId=document.getElementById('pd-cliente').value;
+  if(!clienteId){alert('Selecciona un cliente.');return false;}
+  if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto al pedido.');return false;}
+  const problema=stockInsuficienteEnPedidoTmp();
+  if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
+  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const pedido={
+    id:nuevoId(),
+    clienteId,
+    items:pedidoItemsTmp.slice(),
+    subtotal,
+    embalaje,
+    total:subtotal+embalaje,
+    metodoEnvio:document.getElementById('pd-envio').value,
+    numeroOrden:document.getElementById('pd-numeroorden').value.trim(),
+    codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
+    metodoPago:document.getElementById('pd-metodopago').value,
+    pagoReferencia:document.getElementById('pd-referencia').value.trim(),
+    pagoConfirmadoPor:sesion.nombre,
+    estadoPago:'pagado', // solo se registra el pedido cuando ya llegó el comprobante de pago
+    estadoEnvio:'pendiente preparación',
+    fecha:document.getElementById('pd-fecha').value||hoyStr(),
+    atendidoPor:sesion.nombre,
+    notas:document.getElementById('pd-notas').value.trim()
+  };
+  db.pedidos.push(pedido);
+  descontarStock(pedido);
+  guardar();cerrarModal();pintarPedidos();pintarStock();
+  return false;
+}
+function descontarStock(pedido){
+  pedido.items.forEach(it=>{
+    const stockItem=porId(db.stock,it.stockId);
+    if(stockItem){
+      stockItem.cantidad=(stockItem.cantidad||0)-it.cantidad;
+      db.movimientosStock.push({id:nuevoId(),tipo:'salida',stockId:stockItem.id,cantidad:it.cantidad,costoUnit:stockItem.costoPromedio||0,proveedor:stockItem.proveedor||'',motivo:'Venta',pedidoId:pedido.id,fecha:pedido.fecha,usuario:sesion?sesion.nombre:''});
+    }
+  });
+}
+function revertirStockPedido(pedido){
+  pedido.items.forEach(it=>{
+    const stockItem=porId(db.stock,it.stockId);
+    if(stockItem)stockItem.cantidad=(stockItem.cantidad||0)+it.cantidad;
+  });
+  db.movimientosStock=db.movimientosStock.filter(m=>m.pedidoId!==pedido.id);
+}
+function abrirEditarPedido(id){
+  const p=porId(db.pedidos,id);
+  if(p.estadoPago==='cancelado'){alert('Este pedido está cancelado y no se puede editar.');return;}
+  edicionPedidoBackup={
+    pedidoId:id,
+    stockBackup:p.items.map(it=>{const s=porId(db.stock,it.stockId);return s?{id:s.id,cantidad:s.cantidad}:null;}).filter(Boolean),
+    movsBackup:db.movimientosStock.filter(m=>m.pedidoId===id).map(m=>({...m}))
+  };
+  revertirStockPedido(p);
+  pedidoItemsTmp=p.items.map(it=>({...it}));
+  const clientes=db.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const marcas=db.config.marcas||[];
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar pedido</h3>
+    <form onsubmit="return guardarEditarPedido(event,'${id}')">
+      <label>Cliente *</label>
+      <select id="pd-cliente" required>
+        <option value="">Selecciona un cliente...</option>
+        ${clientes.map(c=>`<option value="${c.id}" ${c.id===p.clienteId?'selected':''}>${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')} — ${esc(c.ciudad||'')}</option>`).join('')}
+      </select>
+
+      <label>Agregar producto</label>
+      <div class="fila-2">
+        <select id="pi-marca" onchange="pedidoLlenarProductos()">
+          <option value="">Marca...</option>
+          ${marcas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
+        <select id="pi-producto"><option value="">Elige marca primero</option></select>
+      </div>
+      <div class="fila-2" style="align-items:end;">
+        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
+        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
+      </div>
+      <div id="pedidoItemsList" style="margin-top:10px;"></div>
+
+      <div class="fila-2">
+        <div><label>Envío</label>
+          <select id="pd-envio" onchange="pedidoActualizarEnvio()">
+            <option value="shalom" ${p.metodoEnvio==='shalom'?'selected':''}>Shalom (provincia)</option>
+            <option value="indrive" ${p.metodoEnvio==='indrive'?'selected':''}>InDrive (local)</option>
+          </select>
+        </div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${p.embalaje}"></div>
+      </div>
+      <div class="fila-2 ${p.metodoEnvio!=='shalom'?'oculto':''}" id="pedidoShalomCampos">
+        <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden" value="${esc(p.numeroOrden||'')}"></div>
+        <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Método de pago</label>
+          <select id="pd-metodopago">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${m===p.metodoPago?'selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div><label>Fecha</label><input type="date" id="pd-fecha" value="${p.fecha}"></div>
+      </div>
+      <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" value="${esc(p.pagoReferencia||'')}" placeholder="Ej. últimos 4 dígitos, código Yape...">
+      <div class="fila-2">
+        <div><label>Estado de pago</label>
+          <select id="pd-estadopago">${ESTADOS_PAGO.map(e=>`<option value="${e}" ${e===p.estadoPago?'selected':''}>${e}</option>`).join('')}</select>
+        </div>
+        <div><label>Estado de envío</label>
+          <select id="pd-estadoenvio">${ESTADOS_ENVIO.map(e=>`<option value="${e}" ${e===p.estadoEnvio?'selected':''}>${e}</option>`).join('')}</select>
+        </div>
+      </div>
+      <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2">${esc(p.notas||'')}</textarea>
+
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+  pedidoLlenarProductos();
+  pedidoRenderItems();
+}
+function guardarEditarPedido(ev,id){
+  ev.preventDefault();
+  const clienteId=document.getElementById('pd-cliente').value;
+  if(!clienteId){alert('Selecciona un cliente.');return false;}
+  if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto al pedido.');return false;}
+  const nuevoEstadoPago=document.getElementById('pd-estadopago').value;
+  if(nuevoEstadoPago!=='cancelado'){
+    const problema=stockInsuficienteEnPedidoTmp();
+    if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
+  }
+  const p=porId(db.pedidos,id);
+  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  p.clienteId=clienteId;
+  p.items=pedidoItemsTmp.slice();
+  p.subtotal=subtotal;
+  p.embalaje=embalaje;
+  p.total=subtotal+embalaje;
+  p.metodoEnvio=document.getElementById('pd-envio').value;
+  p.numeroOrden=document.getElementById('pd-numeroorden').value.trim();
+  p.codigoEnvio=document.getElementById('pd-codigoenvio').value.trim();
+  p.metodoPago=document.getElementById('pd-metodopago').value;
+  p.pagoReferencia=document.getElementById('pd-referencia').value.trim();
+  p.estadoPago=nuevoEstadoPago;
+  p.estadoEnvio=document.getElementById('pd-estadoenvio').value;
+  p.fecha=document.getElementById('pd-fecha').value||hoyStr();
+  p.notas=document.getElementById('pd-notas').value.trim();
+  // El stock ya fue revertido al abrir el formulario (abrirEditarPedido); solo se vuelve a
+  // reservar si el pedido sigue vigente. Si se cancela desde aquí, el stock queda liberado.
+  if(nuevoEstadoPago!=='cancelado')descontarStock(p);
+  edicionPedidoBackup=null;
+  guardar();cerrarModal();pintarPedidos();pintarStock();
+  return false;
+}
+function eliminarPedido(id){
+  const p=porId(db.pedidos,id);
+  if(p.estadoPago==='cancelado'){alert('Este pedido ya está cancelado.');return;}
+  if(!confirm('¿Cancelar este pedido? El stock vendido se devolverá. El pedido se conserva en el historial marcado como cancelado.'))return;
+  revertirStockPedido(p);
+  p.estadoPago='cancelado';
+  p.canceladoPor=sesion.nombre;
+  p.canceladoFecha=hoyStr();
+  guardar();cerrarModal();pintarPedidos();pintarStock();
+}
+/* ================= STOCK ================= */
+function filaStock(s,conMarca){
+  const archivado=s.activo===false;
+  const esReparto=(db.config.modalidadMarca||{})[s.marca]==='reparto_ingresos';
+  const socioMarca=esReparto?((db.config.repartoMarca||{})[s.marca]||{}).socio:null;
+  const proveedorCelda=esReparto
+    ?`${esc(socioMarca||'—')}${!socioMarca?' <span class="chip chip-naranja">falta asignar socio en Config → Marcas</span>':''}`
+    :`${esc(s.proveedor||'—')}${!s.proveedor?' <span class="chip chip-naranja">falta asignar</span>':''}`;
+  return `<tr style="${archivado?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
+        ${conMarca?`<td>${esc(s.marca)}</td>`:''}
+        <td style="font-size:11px;color:var(--muted);">${esc(s.codigo||'—')}</td>
+        <td>${esc(s.producto)}${archivado?' <span class="chip chip-gris">archivado</span>':''}</td>
+        <td class="${s.cantidad<=s.min?'stock-bajo':''}">${s.cantidad} ${esc(s.unidad||'')}${s.cantidad<=s.min?' ⚠':''}</td>
+        <td>${s.min}</td>
+        <td>${money(s.costoPromedio)}</td>
+        <td>${money(s.precioVenta)}</td>
+        <td>${proveedorCelda}</td>
+      </tr>`;
+}
+let menuContextualEl=null;
+function cerrarMenuContextual(){
+  if(menuContextualEl){menuContextualEl.remove();menuContextualEl=null;}
+}
+document.addEventListener('click',cerrarMenuContextual);
+document.addEventListener('scroll',cerrarMenuContextual,true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')cerrarMenuContextual();});
+function abrirMenuContextualStock(ev,id){
+  ev.preventDefault();
+  cerrarMenuContextual();
+  const s=porId(db.stock,id);
+  if(!s)return false;
+  const archivado=s.activo===false;
+  const div=document.createElement('div');
+  div.className='menu-contextual';
+  div.innerHTML=`
+    <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar</button>
+    <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'♻️ Reactivar':'🗄️ Archivar'}</button>
+  `;
+  document.body.appendChild(div);
+  const maxLeft=window.innerWidth-div.offsetWidth-8;
+  const maxTop=window.innerHeight-div.offsetHeight-8;
+  div.style.left=Math.min(ev.clientX,maxLeft)+'px';
+  div.style.top=Math.min(ev.clientY,maxTop)+'px';
+  menuContextualEl=div;
+  return false;
+}
+function pintarStock(){
+  const marcas=db.config.marcas||[];
+  const verArchivados=document.getElementById('stockVerArchivados')&&document.getElementById('stockVerArchivados').checked;
+  const buscar=(document.getElementById('stockBuscar')&&document.getElementById('stockBuscar').value||'').toLowerCase();
+  let stockVisible=verArchivados?db.stock:db.stock.filter(s=>s.activo!==false);
+  if(buscar)stockVisible=stockVisible.filter(s=>(s.producto||'').toLowerCase().includes(buscar)||(s.codigo||'').toLowerCase().includes(buscar));
+  const cont=document.getElementById('listaStock');
+  if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${buscar?'Ningún producto coincide con la búsqueda.':'No hay productos en stock todavía.'}</div>`;return;}
+  cont.innerHTML=marcas.map(marca=>{
+    const items=stockVisible.filter(s=>s.marca===marca);
+    if(items.length===0)return '';
+    return `<h4 style="margin:16px 0 6px;">${esc(marca)}</h4>
+    <div class="tabla-wrap"><table><thead><tr>
+      <th>Código</th><th>Producto</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio venta</th><th>Proveedor</th>
+    </tr></thead><tbody>${items.map(s=>filaStock(s,false)).join('')}</tbody></table></div>`;
+  }).join('');
+  const otros=stockVisible.filter(s=>!marcas.includes(s.marca));
+  if(otros.length){
+    cont.innerHTML+=`<h4 style="margin:16px 0 6px;">Otras marcas</h4>
+    <div class="tabla-wrap"><table><thead><tr>
+      <th>Marca</th><th>Código</th><th>Producto</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio venta</th><th>Proveedor</th>
+    </tr></thead><tbody>${otros.map(s=>filaStock(s,true)).join('')}</tbody></table></div>`;
+  }
+  cont.innerHTML+='<p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar o archivar.</p>';
+}
+function stockToggleNuevoProveedor(sel){
+  document.getElementById('st-proveedor-nuevo').classList.toggle('oculto',sel.value!=='__nuevo__');
+}
+function valorProveedorForm(){
+  const sel=document.getElementById('st-proveedor').value;
+  if(sel==='__nuevo__')return document.getElementById('st-proveedor-nuevo').value.trim();
+  return sel;
+}
+function abrirFormStock(){
+  const marcas=db.config.marcas||[];
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Nuevo producto de stock</h3>
+    <form onsubmit="return guardarStock(event)">
+      <div class="fila-2">
+        <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+        <div><label>Producto *</label><input id="st-producto" required></div>
+      </div>
+      <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
+      <label>Código (opcional)</label><input id="st-codigo" placeholder="Ej. BN-PP-VA-15">
+      <div class="fila-2">
+        <div><label>Cantidad inicial</label><input type="number" id="st-cantidad" value="0" min="0"></div>
+        <div><label>Unidad</label><input id="st-unidad" value="unidades"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Stock mínimo (alerta)</label><input type="number" id="st-min" value="5" min="0"></div>
+        <div id="st-fila-proveedor"><label>Proveedor</label>
+          <select id="st-proveedor" onchange="stockToggleNuevoProveedor(this)">
+            <option value="">— Sin asignar —</option>
+            ${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+            <option value="__nuevo__">+ Nuevo proveedor...</option>
+          </select>
+          <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
+        </div>
+      </div>
+      <div class="fila-2">
+        <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="0"></div>
+        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+  actualizarCamposMarcaStock();
+}
+function actualizarCamposMarcaStock(){
+  const marca=document.getElementById('st-marca').value;
+  const esReparto=(db.config.modalidadMarca||{})[marca]==='reparto_ingresos';
+  const filaProveedor=document.getElementById('st-fila-proveedor');
+  const filaCosto=document.getElementById('st-fila-costo');
+  const info=document.getElementById('st-info-reparto');
+  filaProveedor.classList.toggle('oculto',esReparto);
+  filaCosto.classList.toggle('oculto',esReparto);
+  if(esReparto){
+    const r=(db.config.repartoMarca||{})[marca]||{};
+    info.classList.remove('oculto');
+    info.textContent=`🤝 Marca de socio (${r.socio||'sin asignar en Config → Marcas'}) · reparto de ingresos ${r.porcentaje!=null?r.porcentaje:60}%. No necesita proveedor ni precio de compra: se calcula sobre el precio de venta al vender.`;
+    document.getElementById('st-proveedor').value='';
+    document.getElementById('st-proveedor-nuevo').value='';
+    document.getElementById('st-proveedor-nuevo').classList.add('oculto');
+    document.getElementById('st-costo').value='0';
+  }else{
+    info.classList.add('oculto');
+  }
+}
+function datosStockValidos(){
+  const campos=['st-cantidad','st-min','st-costo','st-venta'];
+  for(const id of campos){
+    const v=parseFloat(document.getElementById(id).value);
+    if(!isNaN(v)&&v<0){alert('Las cantidades, costos y precios no pueden ser negativos.');return false;}
+  }
+  return true;
+}
+function guardarStock(ev){
+  ev.preventDefault();
+  if(!datosStockValidos())return false;
+  db.stock.push({
+    id:nuevoId(),
+    marca:document.getElementById('st-marca').value,
+    codigo:document.getElementById('st-codigo').value.trim(),
+    producto:document.getElementById('st-producto').value.trim(),
+    cantidad:parseFloat(document.getElementById('st-cantidad').value)||0,
+    unidad:document.getElementById('st-unidad').value.trim(),
+    min:parseFloat(document.getElementById('st-min').value)||0,
+    proveedor:valorProveedorForm(),
+    costoPromedio:parseFloat(document.getElementById('st-costo').value)||0,
+    precioVenta:parseFloat(document.getElementById('st-venta').value)||0,
+    activo:true
+  });
+  guardar();cerrarModal();pintarStock();
+}
+function abrirEditarStock(id){
+  const s=porId(db.stock,id);
+  const marcas=db.config.marcas||[];
+  const opcionesMarca=marcas.includes(s.marca)?marcas:[s.marca,...marcas];
+  const proveedores=listaProveedoresUnicos();
+  const opcionesProveedor=s.proveedor&&!proveedores.includes(s.proveedor)?[s.proveedor,...proveedores]:proveedores;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar producto</h3>
+    <form onsubmit="return guardarEditarStock(event,'${id}')">
+      <div class="fila-2">
+        <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${opcionesMarca.map(m=>`<option ${m===s.marca?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+        <div><label>Producto *</label><input id="st-producto" required value="${esc(s.producto)}"></div>
+      </div>
+      <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
+      <label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15">
+      <div class="fila-2">
+        <div><label>Cantidad en stock</label><input type="number" id="st-cantidad" value="${s.cantidad}" min="0"></div>
+        <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Stock mínimo (alerta)</label><input type="number" id="st-min" value="${s.min}" min="0"></div>
+        <div id="st-fila-proveedor"><label>Proveedor</label>
+          <select id="st-proveedor" onchange="stockToggleNuevoProveedor(this)">
+            <option value="">— Sin asignar —</option>
+            ${opcionesProveedor.map(p=>`<option value="${esc(p)}" ${p===s.proveedor?'selected':''}>${esc(p)}</option>`).join('')}
+            <option value="__nuevo__">+ Nuevo proveedor...</option>
+          </select>
+          <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
+        </div>
+      </div>
+      <div class="fila-2">
+        <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="${s.costoPromedio}">
+          <small style="display:block;color:var(--muted);font-size:11px;margin-top:2px;">Se actualiza solo al registrar compras; edítalo aquí solo para corregirlo.</small>
+        </div>
+        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+  actualizarCamposMarcaStock();
+}
+function guardarEditarStock(ev,id){
+  ev.preventDefault();
+  if(!datosStockValidos())return false;
+  const s=porId(db.stock,id);
+  const cantidadAntes=s.cantidad||0;
+  s.marca=document.getElementById('st-marca').value;
+  s.codigo=document.getElementById('st-codigo').value.trim();
+  s.producto=document.getElementById('st-producto').value.trim();
+  s.cantidad=parseFloat(document.getElementById('st-cantidad').value)||0;
+  s.unidad=document.getElementById('st-unidad').value.trim();
+  s.min=parseFloat(document.getElementById('st-min').value)||0;
+  s.proveedor=valorProveedorForm();
+  // El precio de compra normalmente se recalcula solo (promedio ponderado al
+  // registrar entregas/compras, ver aplicarCompra), pero aquí se puede corregir a mano.
+  s.costoPromedio=parseFloat(document.getElementById('st-costo').value)||0;
+  s.precioVenta=parseFloat(document.getElementById('st-venta').value)||0;
+  if(s.cantidad!==cantidadAntes){
+    db.movimientosStock.push({
+      id:nuevoId(),tipo:'ajuste',stockId:s.id,cantidad:s.cantidad-cantidadAntes,
+      costoUnit:s.costoPromedio||0,motivo:'Ajuste manual de cantidad ('+cantidadAntes+' → '+s.cantidad+')',
+      fecha:hoyStr(),usuario:sesion?sesion.nombre:''
+    });
+  }
+  guardar();cerrarModal();pintarStock();
+  return false;
+}
+function eliminarStock(id){
+  if(!confirm('¿Archivar este producto? Dejará de estar disponible para nuevos pedidos/compras, pero su historial de ventas y costos se conserva.'))return;
+  porId(db.stock,id).activo=false;
+  guardar();pintarStock();
+}
+function reactivarStock(id){
+  porId(db.stock,id).activo=true;
+  guardar();pintarStock();
+}
+function abrirFormCompra(){
+  const stockActivo=db.stock.filter(s=>s.activo!==false);
+  if(stockActivo.length===0){alert('Primero crea al menos un producto activo en Stock.');return;}
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar entrega o compra</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 4px;">Úsalo tanto para compras pagadas de una vez como para lo que un proveedor deja en consignación (ej. el doctor que deja productos y se le paga conforme se venden).</p>
+    <form onsubmit="return guardarCompra(event)">
+      <label>Producto *</label>
+      <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(s.producto)}</option>`).join('')}</select>
+      <div class="fila-2">
+        <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="1" min="1"></div>
+        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="0"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Proveedor / doctor</label><input id="cp-proveedor" list="cp-lista-proveedores"></div>
+        <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${hoyStr()}"></div>
+      </div>
+      <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Registrar</button>
+      </div>
+    </form>`);
+}
+function aplicarCompra(stockItem,cantidad,costoUnit){
+  const cantidadPrevia=stockItem.cantidad||0;
+  const costoPrevioTotal=cantidadPrevia*(stockItem.costoPromedio||0);
+  const nuevaCantidad=cantidadPrevia+cantidad;
+  stockItem.costoPromedio=nuevaCantidad>0?(costoPrevioTotal+cantidad*costoUnit)/nuevaCantidad:costoUnit;
+  stockItem.cantidad=nuevaCantidad;
+}
+function revertirCompra(mov){
+  const s=porId(db.stock,mov.stockId);
+  if(!s)return;
+  const costoUnitEntrada=mov.cantidad>0?(mov.monto||0)/mov.cantidad:0;
+  const cantidadPrevia=s.cantidad||0;
+  const valorPrevio=cantidadPrevia*(s.costoPromedio||0);
+  const nuevaCantidad=cantidadPrevia-mov.cantidad;
+  s.cantidad=nuevaCantidad;
+  s.costoPromedio=nuevaCantidad>0?(valorPrevio-mov.cantidad*costoUnitEntrada)/nuevaCantidad:0;
+}
+function guardarCompra(ev){
+  ev.preventDefault();
+  const stockItem=porId(db.stock,document.getElementById('cp-producto').value);
+  const cantidad=parseFloat(document.getElementById('cp-cantidad').value)||0;
+  const costoUnit=parseFloat(document.getElementById('cp-costo').value)||0;
+  if(cantidad<=0){alert('La cantidad entregada debe ser mayor a 0.');return false;}
+  if(costoUnit<0){alert('El costo unitario no puede ser negativo.');return false;}
+  const proveedor=document.getElementById('cp-proveedor').value.trim();
+  const fecha=document.getElementById('cp-fecha').value||hoyStr();
+  aplicarCompra(stockItem,cantidad,costoUnit);
+  if(proveedor)stockItem.proveedor=proveedor;
+  db.movimientosStock.push({
+    id:nuevoId(),tipo:'entrada',stockId:stockItem.id,cantidad,
+    proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:''
+  });
+  guardar();cerrarModal();pintarStock();
+  return false;
+}
+function abrirEditarCompra(id){
+  const mov=porId(db.movimientosStock,id);
+  const s=porId(db.stock,mov.stockId);
+  const costoUnitActual=mov.cantidad>0?(mov.monto||0)/mov.cantidad:0;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar entrega o compra</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 4px;">${s?esc(s.marca+' — '+s.producto):'(producto ya no existe en Stock)'}</p>
+    <form onsubmit="return guardarEditarCompra(event,'${id}')">
+      <div class="fila-2">
+        <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="${mov.cantidad}" min="1"></div>
+        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="${costoUnitActual}"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Proveedor / doctor</label><input id="cp-proveedor" value="${esc(mov.proveedor||'')}" list="cp-lista-proveedores"></div>
+        <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
+      </div>
+      <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+}
+function guardarEditarCompra(ev,id){
+  ev.preventDefault();
+  const mov=porId(db.movimientosStock,id);
+  const s=porId(db.stock,mov.stockId);
+  if(!s){alert('El producto de esta compra ya no existe en Stock.');return false;}
+  const cantidad=parseFloat(document.getElementById('cp-cantidad').value)||0;
+  const costoUnit=parseFloat(document.getElementById('cp-costo').value)||0;
+  if(cantidad<=0){alert('La cantidad entregada debe ser mayor a 0.');return false;}
+  if(costoUnit<0){alert('El costo unitario no puede ser negativo.');return false;}
+  const proveedor=document.getElementById('cp-proveedor').value.trim();
+  const fecha=document.getElementById('cp-fecha').value||hoyStr();
+  revertirCompra(mov);
+  aplicarCompra(s,cantidad,costoUnit);
+  if(proveedor)s.proveedor=proveedor;
+  mov.cantidad=cantidad;mov.monto=cantidad*costoUnit;mov.proveedor=proveedor;mov.fecha=fecha;
+  guardar();cerrarModal();pintarStock();pintarProveedores();
+  return false;
+}
+function eliminarCompra(id){
+  if(!confirm('¿Eliminar este registro de entrega/compra? Se revertirá su efecto en el stock y el costo promedio del producto. Si esas unidades ya se vendieron, el stock puede quedar en negativo (señal de que hay que revisar el conteo real).'))return;
+  const mov=porId(db.movimientosStock,id);
+  revertirCompra(mov);
+  db.movimientosStock=db.movimientosStock.filter(m=>m.id!==id);
+  guardar();pintarStock();pintarProveedores();
+}
+
+/* ================= PROVEEDORES ================= */
+function listaProveedoresUnicos(){
+  const set=new Set();
+  (db.stock||[]).forEach(s=>{if(s.proveedor)set.add(s.proveedor);});
+  (db.movimientosStock||[]).forEach(m=>{if((m.tipo==='entrada'||m.tipo==='salida')&&m.proveedor)set.add(m.proveedor);});
+  (db.pagosProveedor||[]).forEach(p=>{if(p.proveedor)set.add(p.proveedor);});
+  (db.usuarios||[]).forEach(u=>{if(u.rol==='socio'&&u.proveedor)set.add(u.proveedor);});
+  return[...set].sort();
+}
+function pagosDeEntrega(entregaId){
+  return (db.pagosProveedor||[]).filter(p=>p.entregaId===entregaId).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function saldoEntrega(entrega,excluirPagoId){
+  const pagado=(db.pagosProveedor||[]).filter(p=>p.entregaId===entrega.id&&p.id!==excluirPagoId).reduce((s,p)=>s+(p.monto||0),0);
+  return Math.max(0,(entrega.monto||0)-pagado);
+}
+/* ================= VISTA SOCIO (acceso de proveedor/doctor a su propia cuenta) ================= */
+function pintarVistaSocio(){
+  const proveedor=sesion.proveedor||'';
+
+  // El socio (ej. Dr. Mariano/Bariatric Fusion) solo opera bajo reparto de ingresos:
+  // ve únicamente lo esencial de su marca, nunca el modelo de compra propia/consignación
+  // que sí usan Roberto y Genesis en Stock/Proveedores para otros proveedores.
+  const marcas=marcasRepartoDeSocio(proveedor);
+  document.getElementById('socioNombreTitulo').textContent=sesion.nombre;
+  document.getElementById('socioMarcaTitulo').textContent=marcas.length?marcas.join(', '):proveedor;
+  document.getElementById('socioFechaTxt').textContent='Zona Bariátrica · '+new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long'});
+  const bloqueReparto=document.getElementById('socioBloqueReparto');
+  if(marcas.length===0){
+    bloqueReparto.classList.add('oculto');
+  }else{
+    bloqueReparto.classList.remove('oculto');
+    const ventas=ventasRepartoDeSocio(proveedor);
+    const liquidaciones=liquidacionesDeSocio(proveedor);
+    const saldo=saldoRepartoSocio(proveedor);
+    const stockMarca=db.stock.filter(s=>s.activo!==false&&marcas.includes(s.marca));
+    const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
+    const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
+    document.getElementById('socioResumenReparto').innerHTML=`
+      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Stock disponible</div><div class="eq-resumen-val">${unidadesEnStock} unidades</div></div>
+      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Saldo pendiente</div><div class="eq-resumen-val" style="${saldo>0.005?'color:var(--warning);':''}">${money(saldo)}</div></div>
+      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Total pagado</div><div class="eq-resumen-val">${money(totalPagado)}</div></div>`;
+    const contStock=document.getElementById('socioStockDetalle');
+    contStock.innerHTML=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+      <th>Producto</th><th>Marca</th><th>Cantidad</th>
+      </tr></thead><tbody>${stockMarca.map(s=>`<tr><td>${esc(s.producto)}</td><td>${esc(s.marca)}</td><td>${s.cantidad} ${esc(s.unidad||'')}</td></tr>`).join('')}</tbody></table></div>`;
+    const contVentas=document.getElementById('socioVentasReparto');
+    if(ventas.length===0){
+      contVentas.innerHTML='<div class="vacio">Todavía no se ha vendido tu marca.</div>';
+    }else{
+      if(socioMesFiltro===null)socioMesFiltro=mesDe(hoyStr());
+      const meses=[...new Set([mesDe(hoyStr()),...ventas.map(f=>mesDe(f.fecha))])].sort().reverse();
+      const ventasFiltradas=socioMesFiltro?ventas.filter(f=>mesDe(f.fecha)===socioMesFiltro):ventas;
+      const totalPeriodo=ventasFiltradas.reduce((s,f)=>s+f.monto,0);
+      contVentas.innerHTML=`
+        <div class="filtros" style="margin-bottom:10px;align-items:center;">
+          <select id="socioVentasMes" onchange="cambiarMesSocio(this.value)">
+            <option value="" ${socioMesFiltro?'':'selected'}>Todos los meses</option>
+            ${meses.map(m=>`<option value="${m}" ${m===socioMesFiltro?'selected':''}>${esc(mesLabel(m))}</option>`).join('')}
+          </select>
+          <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
+        </div>
+        ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Fecha</th><th>Marca</th><th>Producto</th><th>Unidades</th><th>Monto</th>
+        </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marca)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.monto)}</td>
+        </tr>`).join('')}</tbody></table></div>`}`;
+    }
+    const contLiq=document.getElementById('socioLiquidaciones');
+    contLiq.innerHTML=liquidaciones.length===0?'<div class="vacio">Todavía no has recibido pagos.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+      <th>Fecha</th><th>Concepto</th><th>Monto</th>
+      </tr></thead><tbody>${liquidaciones.map(l=>`<tr>
+        <td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  document.getElementById('socioSinDatos').classList.toggle('oculto',marcas.length>0);
+}
+function cambiarMesSocio(valor){
+  socioMesFiltro=valor||'';
+  pintarVistaSocio();
+}
+function pintarProveedores(){
+  const compras=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const proveedores=listaProveedoresUnicos();
+  const deudaTotal=compras.filter(c=>c.proveedor).reduce((s,c)=>s+saldoEntrega(c),0);
+  document.getElementById('resumenProveedores').innerHTML=`
+    <div class="stat"><div class="num">${compras.length}</div><div class="lbl">Compras</div></div>
+    <div class="stat"><div class="num" style="color:${deudaTotal>0?'var(--danger)':'var(--primary)'};">${money(deudaTotal)}</div><div class="lbl">Deuda</div></div>
+    <div class="stat"><div class="num">${proveedores.length}</div><div class="lbl">Proveedores</div></div>`;
+
+  let html='<h3 style="font-size:15px;margin:4px 0 8px;">Compras</h3>';
+  html+='<p class="vacio" style="text-align:left;padding:0 0 8px;">Mercadería que Zona Bariátrica compra y vende como propia (stock propio).</p>';
+  if(compras.length===0){
+    html+='<div class="vacio">No hay compras registradas. Usa "Registrar entrega/compra" en Stock.</div>';
+  }else{
+    html+=`<div class="tabla-wrap"><table><thead><tr>
+      <th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Valor de la entrega</th><th></th>
+      </tr></thead><tbody>${compras.map(c=>{
+        const s=porId(db.stock,c.stockId);
+        const saldo=saldoEntrega(c);
+        const pagada=saldo<=0.005;
+        return `<tr>
+          <td>${fechaBonita(c.fecha)}</td>
+          <td>${s?esc(s.marca+' — '+s.producto):'—'}</td>
+          <td>${esc(c.proveedor||'—')}</td>
+          <td>${c.cantidad}</td>
+          <td>${pagada?`<span class="chip chip-verde">Pagado</span>`:(c.proveedor?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedor('${c.id}')" title="Registrar pago">${money(saldo)}</button>`:money(saldo))}</td>
+          <td style="white-space:nowrap;font-size:11px;">
+            <span id="corregir-link-${c.id}"><button type="button" class="link-historial" onclick="mostrarAccionesCompra('${c.id}')">¿Error? Corregir</button></span>
+            <span id="corregir-acciones-${c.id}" class="oculto">
+              <button class="btn-secundario btn-chico" onclick="abrirEditarCompra('${c.id}')">Editar</button>
+              <button class="btn-peligro btn-chico" onclick="eliminarCompra('${c.id}')">Eliminar</button>
+            </span>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+  document.getElementById('listaProveedores').innerHTML=html;
+  pintarRepartoIngresos();
+}
+function ventasRepartoDeSocio(proveedor){
+  const filas=[];
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      if(it.socioReparto===proveedor){
+        filas.push({
+          pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,
+          ventaTotal:it.cantidad*it.precioUnit,porcentaje:it.porcentajeReparto,
+          monto:it.cantidad*it.precioUnit*(it.porcentajeReparto/100)
+        });
+      }
+    });
+  });
+  return filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function liquidacionesDeSocio(proveedor){
+  return (db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function saldoRepartoSocio(proveedor,excluirLiqId){
+  const ganado=ventasRepartoDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
+  const liquidado=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&l.id!==excluirLiqId).reduce((s,l)=>s+(l.monto||0),0);
+  return Math.max(0,ganado-liquidado);
+}
+function marcasRepartoDeSocio(proveedor){
+  return (db.config.marcas||[]).filter(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos'&&(db.config.repartoMarca||{})[m]&&(db.config.repartoMarca||{})[m].socio===proveedor);
+}
+function sociosConReparto(){
+  const set=new Set();
+  Object.values(db.config.repartoMarca||{}).forEach(r=>{if(r&&r.socio)set.add(r.socio);});
+  return[...set].sort();
+}
+function pintarRepartoIngresos(){
+  const socios=sociosConReparto();
+  const cont=document.getElementById('listaReparto');
+  if(!cont)return;
+  if(socios.length===0){cont.innerHTML='';return;}
+  let html='<h3 style="font-size:15px;margin:22px 0 8px;">Reparto de ingresos (marcas de socios)</h3>';
+  html+='<p class="vacio" style="text-align:left;padding:0 0 10px;">El producto es del socio; Zona Bariátrica solo vende por su canal y se queda con su % de comisión. Se configura en Config → Marcas.</p>';
+  html+=socios.map(socio=>{
+    const marcas=marcasRepartoDeSocio(socio);
+    const ventas=ventasRepartoDeSocio(socio);
+    const liquidaciones=liquidacionesDeSocio(socio);
+    const totalVendido=ventas.reduce((s,f)=>s+f.ventaTotal,0);
+    const saldo=saldoRepartoSocio(socio);
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <strong>${esc(socio)}</strong>
+        <span class="chip chip-gris">${marcas.map(m=>esc(m)).join(', ')||'sin marca asignada'}</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Vendido: ${money(totalVendido)} · Le corresponde: ${money(ventas.reduce((s,f)=>s+f.monto,0))} · Ya liquidado: ${money(liquidaciones.reduce((s,l)=>s+(l.monto||0),0))}</div>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span class="chip ${saldo>0.005?'chip-naranja':'chip-verde'}">${saldo>0.005?'Le debemos '+money(saldo):'Al día'}</span>
+        ${saldo>0.005?`<button class="btn btn-chico" onclick="abrirFormLiquidacion('${escJs(socio)}')">+ Registrar liquidación</button>`:''}
+      </div>
+      ${ventas.length?`<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Ventas de su marca (${ventas.length})</summary>
+        <ul class="lista-simple">${ventas.map(f=>`<li><span>${fechaBonita(f.fecha)} — ${esc(f.producto)} x${f.cantidad} (${money(f.ventaTotal)} · ${f.porcentaje}%)</span><strong>${money(f.monto)}</strong></li>`).join('')}</ul>
+      </details>`:''}
+      ${liquidaciones.length?`<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Liquidaciones pagadas (${liquidaciones.length})</summary>
+        <ul class="lista-simple">${liquidaciones.map(l=>`<li>
+          <span>${fechaBonita(l.fecha)} — ${money(l.monto)} ${l.nota?'· '+esc(l.nota):''}</span>
+          <span style="white-space:nowrap;">
+            <button class="btn-icono" onclick="abrirEditarLiquidacion('${l.id}')" title="Editar">✏️</button>
+            <button class="btn-icono" onclick="eliminarLiquidacion('${l.id}')" title="Eliminar">✕</button>
+          </span>
+        </li>`).join('')}</ul>
+      </details>`:''}
+    </div>`;
+  }).join('');
+  cont.innerHTML=html;
+}
+function abrirFormLiquidacion(proveedor){
+  const saldo=saldoRepartoSocio(proveedor);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar liquidación</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${esc(proveedor)} · Le corresponde: <strong>${money(saldo)}</strong></p>
+    <form onsubmit="return guardarLiquidacion(event,'${escJs(proveedor)}')">
+      <div class="fila-2">
+        <div><label>Monto a liquidar (S/) *</label><input type="number" id="lq-monto" step="0.01" min="0.01" required></div>
+        <div><label>Fecha</label><input type="date" id="lq-fecha" value="${hoyStr()}"></div>
+      </div>
+      <label>Nota (opcional)</label><input id="lq-nota" placeholder="Ej. liquidación de julio">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function guardarLiquidacion(ev,proveedor){
+  ev.preventDefault();
+  const monto=parseFloat(document.getElementById('lq-monto').value)||0;
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
+  const saldo=saldoRepartoSocio(proveedor);
+  if(monto>saldo+0.005){
+    alert(`El monto (${money(monto)}) supera lo que le corresponde a ${proveedor} (${money(saldo)}). Ajusta el monto.`);
+    return false;
+  }
+  if(!db.liquidacionesSocio)db.liquidacionesSocio=[];
+  db.liquidacionesSocio.push({
+    id:nuevoId(),proveedor,monto,
+    fecha:document.getElementById('lq-fecha').value||hoyStr(),
+    nota:document.getElementById('lq-nota').value.trim(),
+    usuario:sesion?sesion.nombre:''
+  });
+  guardar();cerrarModal();pintarProveedores();
+  return false;
+}
+function abrirEditarLiquidacion(id){
+  const l=porId(db.liquidacionesSocio,id);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar liquidación</h3>
+    <form onsubmit="return guardarEditarLiquidacion(event,'${id}')">
+      <div class="fila-2">
+        <div><label>Monto a liquidar (S/) *</label><input type="number" id="lq-monto" step="0.01" min="0.01" required value="${l.monto}"></div>
+        <div><label>Fecha</label><input type="date" id="lq-fecha" value="${l.fecha}"></div>
+      </div>
+      <label>Nota (opcional)</label><input id="lq-nota" value="${esc(l.nota||'')}" placeholder="Ej. liquidación de julio">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+}
+function guardarEditarLiquidacion(ev,id){
+  ev.preventDefault();
+  const l=porId(db.liquidacionesSocio,id);
+  const monto=parseFloat(document.getElementById('lq-monto').value)||0;
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
+  const saldo=saldoRepartoSocio(l.proveedor,id);
+  if(monto>saldo+0.005){
+    alert(`El monto (${money(monto)}) supera lo que le corresponde a ${l.proveedor} (${money(saldo)}). Ajusta el monto.`);
+    return false;
+  }
+  l.monto=monto;
+  l.fecha=document.getElementById('lq-fecha').value||hoyStr();
+  l.nota=document.getElementById('lq-nota').value.trim();
+  guardar();cerrarModal();pintarProveedores();
+  return false;
+}
+function eliminarLiquidacion(id){
+  if(!confirm('¿Eliminar esta liquidación? Lo que le debemos al socio aumentará.'))return;
+  db.liquidacionesSocio=db.liquidacionesSocio.filter(l=>l.id!==id);
+  guardar();pintarProveedores();
+}
+function mostrarAccionesCompra(id){
+  document.getElementById('corregir-link-'+id).classList.add('oculto');
+  document.getElementById('corregir-acciones-'+id).classList.remove('oculto');
+}
+function abrirFormPagoProveedor(entregaId){
+  const entrega=porId(db.movimientosStock,entregaId);
+  if(!entrega)return;
+  const s=porId(db.stock,entrega.stockId);
+  const saldo=saldoEntrega(entrega);
+  const pagos=pagosDeEntrega(entregaId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar pago</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">
+      ${esc(entrega.proveedor||'—')} · ${s?esc(s.marca+' — '+s.producto):''}<br>
+      Valor de la entrega: ${money(entrega.monto||0)} · Saldo pendiente: <strong style="color:var(--danger);">${money(saldo)}</strong>
+    </p>
+    <form onsubmit="return guardarPagoProveedor(event,'${entregaId}')">
+      <div class="fila-2">
+        <div><label>Monto pagado (S/) *</label><input type="number" id="pp-monto" step="0.01" min="0.01" required></div>
+        <div><label>Fecha</label><input type="date" id="pp-fecha" value="${hoyStr()}"></div>
+      </div>
+      <label>Nota (opcional)</label><input id="pp-nota" placeholder="Ej. pago parcial">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar pago</button>
+      </div>
+    </form>
+    ${pagos.length?`<details style="margin-top:16px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Historial de pagos de esta entrega (${pagos.length})</summary>
+      <ul class="lista-simple">${pagos.map(pg=>`<li>
+        <span>${fechaBonita(pg.fecha)} — ${money(pg.monto)} ${pg.nota?'· '+esc(pg.nota):''}</span>
+        <span style="white-space:nowrap;">
+          <button class="btn-icono" onclick="abrirEditarPagoProveedor('${pg.id}')" title="Editar">✏️</button>
+          <button class="btn-icono" onclick="eliminarPagoProveedor('${pg.id}')" title="Eliminar">✕</button>
+        </span>
+      </li>`).join('')}</ul>
+    </details>`:''}`);
+}
+function guardarPagoProveedor(ev,entregaId){
+  ev.preventDefault();
+  const entrega=porId(db.movimientosStock,entregaId);
+  if(!entrega){alert('Esta entrega ya no existe.');return false;}
+  const monto=parseFloat(document.getElementById('pp-monto').value)||0;
+  if(monto<=0){alert('El monto pagado debe ser mayor a 0.');return false;}
+  const saldo=saldoEntrega(entrega);
+  if(monto>saldo+0.005){
+    alert(`El pago (${money(monto)}) supera el saldo pendiente de esta entrega (${money(saldo)}). Ajusta el monto.`);
+    return false;
+  }
+  db.pagosProveedor.push({
+    id:nuevoId(),
+    entregaId,
+    proveedor:entrega.proveedor||'',
+    monto,
+    fecha:document.getElementById('pp-fecha').value||hoyStr(),
+    nota:document.getElementById('pp-nota').value.trim(),
+    usuario:sesion?sesion.nombre:''
+  });
+  guardar();cerrarModal();pintarProveedores();
+  return false;
+}
+function abrirEditarPagoProveedor(id){
+  const pg=porId(db.pagosProveedor,id);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Editar pago</h3>
+    <form onsubmit="return guardarEditarPagoProveedor(event,'${id}')">
+      <div class="fila-2">
+        <div><label>Monto pagado (S/) *</label><input type="number" id="pp-monto" step="0.01" min="0.01" required value="${pg.monto}"></div>
+        <div><label>Fecha</label><input type="date" id="pp-fecha" value="${pg.fecha}"></div>
+      </div>
+      <label>Nota (opcional)</label><input id="pp-nota" value="${esc(pg.nota||'')}" placeholder="Ej. pago parcial">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cambios</button>
+      </div>
+    </form>`);
+}
+function guardarEditarPagoProveedor(ev,id){
+  ev.preventDefault();
+  const pg=porId(db.pagosProveedor,id);
+  const entrega=porId(db.movimientosStock,pg.entregaId);
+  const monto=parseFloat(document.getElementById('pp-monto').value)||0;
+  if(monto<=0){alert('El monto pagado debe ser mayor a 0.');return false;}
+  if(entrega){
+    const saldo=saldoEntrega(entrega,id);
+    if(monto>saldo+0.005){
+      alert(`El pago (${money(monto)}) supera el saldo pendiente de esta entrega (${money(saldo)}). Ajusta el monto.`);
+      return false;
+    }
+  }
+  pg.monto=monto;
+  pg.fecha=document.getElementById('pp-fecha').value||hoyStr();
+  pg.nota=document.getElementById('pp-nota').value.trim();
+  guardar();cerrarModal();pintarProveedores();
+  return false;
+}
+function eliminarPagoProveedor(id){
+  if(!confirm('¿Eliminar este pago? El saldo pendiente con el proveedor aumentará.'))return;
+  db.pagosProveedor=db.pagosProveedor.filter(p=>p.id!==id);
+  guardar();pintarProveedores();
+}
+
+/* ================= TAREAS ================= */
+function vinculoTarea(t){
+  if(t.leadId){const l=porId(db.leads,t.leadId);return l?{tipo:'lead',id:l.id,nombre:(l.nombre+' '+(l.apellido||'')).trim()}:null;}
+  if(t.clienteId){const c=porId(db.clientes,t.clienteId);return c?{tipo:'cliente',id:c.id,nombre:(c.nombre+' '+(c.apellido||'')).trim()}:null;}
+  return null;
+}
+function pintarTareas(){
+  const cols=[['pendiente','Pendiente'],['en progreso','En progreso'],['hecho','Hecho']];
+  const cont=document.getElementById('tableroTareas');
+  cont.innerHTML=cols.map(([clave,titulo])=>{
+    const tareas=db.tareas.filter(t=>t.estado===clave).sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
+    return `<div class="kanban-col"><h4>${titulo} (${tareas.length})</h4>${
+      tareas.length===0?'<div class="vacio">Sin tareas</div>':tareas.map(t=>{
+        const v=vinculoTarea(t);
+        return `
+      <div class="kanban-card">
+        <div>${esc(t.texto)}</div>
+        <div class="asignado">👤 ${esc(t.asignadoA)}${t.fechaLimite?' · vence '+fechaBonita(t.fechaLimite):''}</div>
+        ${v?`<button type="button" class="link-lead" style="padding:2px 0;font-size:12px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">🔗 ${esc(v.nombre)} (${v.tipo})</button>`:''}
+        <div class="mover">
+          ${cols.filter(([c])=>c!==clave).map(([c,tit])=>`<button class="btn-secundario btn-chico" onclick="moverTarea('${t.id}','${c}')">→ ${tit}</button>`).join('')}
+          <button class="btn-icono" onclick="abrirFormTarea('${t.id}')" title="Editar">✏️</button>
+          <button class="btn-icono" onclick="eliminarTarea('${t.id}')" title="Eliminar">✕</button>
+        </div>
+      </div>`;
+      }).join('')
+    }</div>`;
+  }).join('');
+}
+function abrirFormTarea(prefill){
+  if(typeof prefill==='string'){
+    const t=porId(db.tareas,prefill);
+    prefill={id:t.id,texto:t.texto,asignadoA:t.asignadoA,fechaLimite:t.fechaLimite,leadId:t.leadId,clienteId:t.clienteId};
+  }
+  prefill=prefill||{};
+  const editando=!!prefill.id;
+  const leads=db.leads.slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  const clientes=db.clientes.filter(c=>c.activo!==false).slice().sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  const vinculoActual=prefill.leadId?'lead:'+prefill.leadId:(prefill.clienteId?'cliente:'+prefill.clienteId:'');
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${editando?'Editar tarea':'Nueva tarea'}</h3>
+    <form onsubmit="return guardarTarea(event${editando?`,'${prefill.id}'`:''})">
+      <label>Tarea *</label><textarea id="tr-texto" rows="2" required>${esc(prefill.texto||'')}</textarea>
+      <div class="fila-2">
+        <div><label>Asignada a</label>
+          <select id="tr-asignado">${db.usuarios.map(u=>`<option value="${esc(u.nombre)}" ${u.nombre===(prefill.asignadoA||sesion.nombre)?'selected':''}>${esc(u.nombre)}</option>`).join('')}</select>
+        </div>
+        <div><label>Fecha límite (opcional)</label><input type="date" id="tr-fecha" value="${esc(prefill.fechaLimite||'')}"></div>
+      </div>
+      <label>Vincular a lead o cliente (opcional)</label>
+      <select id="tr-vinculo">
+        <option value="">Ninguno</option>
+        ${leads.length?`<optgroup label="Leads">${leads.map(l=>`<option value="lead:${l.id}" ${vinculoActual==='lead:'+l.id?'selected':''}>${esc(l.nombre)} ${esc(l.apellido||'')} — ${esc(l.estado)}</option>`).join('')}</optgroup>`:''}
+        ${clientes.length?`<optgroup label="Clientes">${clientes.map(c=>`<option value="cliente:${c.id}" ${vinculoActual==='cliente:'+c.id?'selected':''}>${esc(c.nombre)} ${esc(c.apellido||'')}</option>`).join('')}</optgroup>`:''}
+      </select>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function guardarTarea(ev,id){
+  ev.preventDefault();
+  const vinculo=document.getElementById('tr-vinculo').value;
+  const [vTipo,vId]=vinculo?vinculo.split(':'):[null,null];
+  const datos={
+    texto:document.getElementById('tr-texto').value.trim(),
+    asignadoA:document.getElementById('tr-asignado').value,
+    fechaLimite:document.getElementById('tr-fecha').value||null,
+    leadId:vTipo==='lead'?vId:null,
+    clienteId:vTipo==='cliente'?vId:null
+  };
+  if(id){
+    Object.assign(porId(db.tareas,id),datos);
+  }else{
+    db.tareas.push({id:nuevoId(),...datos,estado:'pendiente',creadoPor:sesion.nombre,creado:hoyStr()});
+  }
+  guardar();cerrarModal();pintarTareas();
+  return false;
+}
+function moverTarea(id,estado){
+  const t=porId(db.tareas,id);t.estado=estado;guardar();pintarTareas();
+}
+function eliminarTarea(id){
+  if(!confirm('¿Eliminar esta tarea?'))return;
+  db.tareas=db.tareas.filter(t=>t.id!==id);guardar();pintarTareas();
+}
+
+/* ================= REPORTES ================= */
+function pintarReportes(){
+  if(!document.getElementById('repDesde').value)document.getElementById('repDesde').value=primerDiaMes();
+  if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
+  const desde=document.getElementById('repDesde').value;
+  const hasta=document.getElementById('repHasta').value;
+  const pedidosRango=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta);
+  const pedidosFacturables=pedidosRango.filter(p=>p.estadoPago==='pagado');
+
+  const totalLeads=db.leads.length;
+  const convertidos=db.leads.filter(l=>l.clienteId).length;
+  const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
+  const ingresoDeLeads=db.pedidos.filter(p=>{
+    const c=porId(db.clientes,p.clienteId);
+    return c&&c.leadId&&p.estadoPago==='pagado';
+  }).reduce((s,p)=>s+p.total,0);
+  const gastoPauta=db.config.gastoPauta||0;
+
+  const ventasPorMarca={};
+  pedidosFacturables.forEach(p=>p.items.forEach(it=>{
+    ventasPorMarca[it.marca]=(ventasPorMarca[it.marca]||0)+it.cantidad*it.precioUnit;
+  }));
+  const productos={};
+  pedidosFacturables.forEach(p=>p.items.forEach(it=>{
+    productos[it.producto]=(productos[it.producto]||0)+it.cantidad;
+  }));
+  const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
+  const gastosCompras=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.fecha>=desde&&m.fecha<=hasta).reduce((s,m)=>s+(m.monto||0),0);
+
+  document.getElementById('repContenido').innerHTML=`
+    <h3 style="font-size:15px;">Retorno de la pauta publicitaria</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 4px;">Leads, convertidos y tasa de conversión son de todo el historial (no solo del rango de fechas elegido). El gasto en pauta y la ganancia neta también son un total histórico: se configura una sola cifra en Config, no por periodo.</p>
+    <div class="grid-cards">
+      <div class="stat"><div class="num">${totalLeads}</div><div class="lbl">Leads totales (histórico)</div></div>
+      <div class="stat"><div class="num">${convertidos}</div><div class="lbl">Convertidos a cliente (histórico)</div></div>
+      <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Tasa de conversión (histórico)</div></div>
+      <div class="stat"><div class="num">${money(gastoPauta)}</div><div class="lbl">Gastado en pauta (total histórico)</div></div>
+      <div class="stat"><div class="num" style="color:${ingresoDeLeads-gastoPauta>=0?'var(--primary)':'var(--danger)'};">${money(ingresoDeLeads-gastoPauta)}</div><div class="lbl">Ganancia neta de leads (vs. gasto histórico)</div></div>
+    </div>
+
+    <h3 style="font-size:15px;">Ventas del periodo (${fechaBonita(desde)} — ${fechaBonita(hasta)})</h3>
+    <div class="grid-cards">
+      <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ingresos (pedidos pagados+)</div></div>
+      <div class="stat"><div class="num">${money(gastosCompras)}</div><div class="lbl">Comprado a proveedores</div></div>
+      <div class="stat"><div class="num" style="color:${ingresos-gastosCompras>=0?'var(--primary)':'var(--danger)'};">${money(ingresos-gastosCompras)}</div><div class="lbl">Balance</div></div>
+      <div class="stat"><div class="num">${pedidosRango.length}</div><div class="lbl">Pedidos en el periodo</div></div>
+    </div>
+
+    <div class="fila-2">
+      <div>
+        <h4 style="font-size:13.5px;">Ventas por marca</h4>
+        ${Object.keys(ventasPorMarca).length===0?'<div class="vacio">Sin ventas en el periodo</div>':`<ul class="lista-simple">${Object.entries(ventasPorMarca).map(([m,v])=>`<li>${esc(m)}<strong>${money(v)}</strong></li>`).join('')}</ul>`}
+      </div>
+      <div>
+        <h4 style="font-size:13.5px;">Productos más vendidos</h4>
+        ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo</div>':`<ul class="lista-simple">${topProductos.map(([p,q])=>`<li>${esc(p)}<strong>${q}</strong></li>`).join('')}</ul>`}
+      </div>
+    </div>`;
+}
+function exportarCSV(tipo){
+  let filas=[],nombre='';
+  if(tipo==='pedidos'){
+    nombre='pedidos_zonabariatrica.csv';
+    filas=[['fecha','cliente','dni','items','total','envio','pago','estado_pago','estado_envio','atendio']];
+    db.pedidos.forEach(p=>{
+      const c=porId(db.clientes,p.clienteId);
+      filas.push([p.fecha,c?c.nombre+' '+c.apellido:'',c?c.dni:'',p.items.map(it=>it.cantidad+'x '+it.producto).join(' | '),p.total,p.metodoEnvio,p.metodoPago,p.estadoPago,p.estadoEnvio,p.atendidoPor]);
+    });
+  }else{
+    nombre='leads_zonabariatrica.csv';
+    filas=[['fecha','nombre','telefono','canal','estado','atendio']];
+    db.leads.forEach(l=>filas.push([l.fecha,l.nombre,l.telefono,l.canal,l.estado,l.atendidoPor]));
+  }
+  const csv=filas.map(f=>f.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  descargarTexto(csv,nombre,'text/csv');
+}
+
+/* ================= CONFIG ================= */
+function pintarConfig(){
+  const selProveedorUsuario=document.getElementById('nu-proveedor');
+  if(selProveedorUsuario){
+    selProveedorUsuario.innerHTML=`<option value="">— Elige un proveedor existente o crea uno nuevo —</option>
+      ${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+      <option value="__nuevo__">+ Nuevo proveedor...</option>`;
+  }
+  document.getElementById('listaUsuariosConfig').innerHTML=db.usuarios.map(u=>`
+    <li>
+      <span>${esc(u.nombre)} ${u.rol==='socio'?`<span class="chip chip-azul">socio · ${esc(u.proveedor||'—')}</span>`:'<span class="chip chip-gris">admin</span>'}</span>
+      <span style="display:flex;gap:6px;align-items:center;">
+        PIN: <input value="${esc(u.pin)}" maxlength="4" style="width:70px;padding:4px 6px;" onchange="cambiarPin('${u.id}',this.value)">
+        <button class="btn-icono" onclick="eliminarUsuario('${u.id}')" title="Eliminar usuario">✕</button>
+      </span>
+    </li>`).join('');
+  document.getElementById('listaMarcasConfig').innerHTML=(db.config.marcas||[]).map(m=>{
+    const mEsc=escJs(m);
+    const modalidad=(db.config.modalidadMarca||{})[m]||'consignacion';
+    const reparto=(db.config.repartoMarca||{})[m]||{};
+    return `<li style="flex-wrap:wrap;gap:8px;">
+      <span style="min-width:140px;">${esc(m)}</span>
+      <span style="display:flex;gap:6px;align-items:center;flex:1;">
+        <select style="width:auto;flex:1;min-width:220px;" onchange="cambiarModalidadMarca('${mEsc}',this.value)">
+          ${Object.entries(MODALIDADES_MARCA).map(([k,v])=>`<option value="${k}" ${k===modalidad?'selected':''}>${esc(v.label)}</option>`).join('')}
+        </select>
+        <button class="btn-icono" onclick="quitarMarca('${mEsc}')">✕</button>
+      </span>
+      ${modalidad==='reparto_ingresos'?`
+      <span style="display:flex;gap:6px;align-items:center;width:100%;">
+        <select style="width:auto;flex:1;min-width:160px;" onchange="cambiarRepartoMarca('${mEsc}','socio',this.value)">
+          <option value="">Elige el socio dueño de esta marca...</option>
+          ${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}" ${p===reparto.socio?'selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+        <span style="display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);white-space:nowrap;">
+          % para el socio
+          <input type="number" min="1" max="99" value="${reparto.porcentaje!=null?reparto.porcentaje:60}" style="width:64px;padding:5px 6px;" onchange="cambiarRepartoMarca('${mEsc}','porcentaje',this.value)">
+        </span>
+      </span>`:''}
+    </li>`;
+  }).join('');
+  document.getElementById('cfgEmbalaje').value=db.config.embalajeDefault||0;
+  document.getElementById('cfgGastoPauta').value=db.config.gastoPauta||0;
+  document.getElementById('impResultado').textContent='';
+}
+function cambiarPin(id,valor){
+  const v=valor.replace(/\D/g,'').slice(0,4);
+  if(v.length!==4){alert('El PIN debe tener 4 dígitos.');pintarConfig();return;}
+  porId(db.usuarios,id).pin=v;guardar();
+}
+const COLORES_USUARIO=['#15557f','#8e3b8e','#0f766e','#b45309','#7c3aed','#be185d','#0369a1','#4d7c0f'];
+function nuToggleNuevoProveedor(sel){
+  document.getElementById('nu-proveedor-nuevo').classList.toggle('oculto',sel.value!=='__nuevo__');
+}
+function valorProveedorNuevoUsuario(){
+  const sel=document.getElementById('nu-proveedor').value;
+  if(sel==='__nuevo__')return document.getElementById('nu-proveedor-nuevo').value.trim();
+  return sel;
+}
+function agregarUsuario(){
+  const nombre=document.getElementById('nu-nombre').value.trim();
+  const rol=document.getElementById('nu-rol').value;
+  const proveedor=valorProveedorNuevoUsuario();
+  const pin=document.getElementById('nu-pin').value.replace(/\D/g,'').slice(0,4);
+  if(!nombre){alert('Escribe el nombre del usuario.');return;}
+  if(rol==='socio'&&!proveedor){alert('Elige o escribe el proveedor/marca al que representa este socio (debe coincidir con el que uses en Stock, para que vea su información correcta).');return;}
+  if(pin.length!==4){alert('El PIN debe tener 4 dígitos.');return;}
+  db.usuarios.push({
+    id:nuevoId(),nombre,pin,color:COLORES_USUARIO[db.usuarios.length%COLORES_USUARIO.length],
+    rol,proveedor:rol==='socio'?proveedor:undefined
+  });
+  document.getElementById('nu-nombre').value='';
+  document.getElementById('nu-proveedor-nuevo').value='';
+  document.getElementById('nu-proveedor-nuevo').classList.add('oculto');
+  document.getElementById('nu-pin').value='';
+  guardar();pintarConfig();
+  alert(`Usuario "${nombre}" creado. Ya puede iniciar sesión desde la pantalla de inicio.`);
+}
+function eliminarUsuario(id){
+  if(db.usuarios.length<=1){alert('Debe quedar al menos un usuario.');return;}
+  const u=porId(db.usuarios,id);
+  if(!confirm(`¿Eliminar el usuario "${u.nombre}"? Ya no podrá iniciar sesión.`))return;
+  db.usuarios=db.usuarios.filter(x=>x.id!==id);
+  guardar();pintarConfig();
+}
+function agregarMarca(){
+  const input=document.getElementById('nuevaMarcaInput');
+  const valor=input.value.trim();
+  if(!valor)return;
+  if(!db.config.marcas.includes(valor))db.config.marcas.push(valor);
+  if(!db.config.modalidadMarca)db.config.modalidadMarca={};
+  if(!db.config.modalidadMarca[valor])db.config.modalidadMarca[valor]='consignacion';
+  input.value='';guardar();pintarConfig();
+}
+function quitarMarca(nombre){
+  if(!confirm('¿Quitar la marca "'+nombre+'"? (los productos y pedidos ya creados no se borran)'))return;
+  db.config.marcas=db.config.marcas.filter(m=>m!==nombre);guardar();pintarConfig();
+}
+function cambiarModalidadMarca(marca,valor){
+  if(!db.config.modalidadMarca)db.config.modalidadMarca={};
+  db.config.modalidadMarca[marca]=valor;
+  if(valor==='reparto_ingresos'){
+    if(!db.config.repartoMarca)db.config.repartoMarca={};
+    if(!db.config.repartoMarca[marca])db.config.repartoMarca[marca]={socio:'',porcentaje:60};
+  }
+  guardar();
+  pintarConfig();
+}
+function cambiarRepartoMarca(marca,campo,valor){
+  if(!db.config.repartoMarca)db.config.repartoMarca={};
+  if(!db.config.repartoMarca[marca])db.config.repartoMarca[marca]={socio:'',porcentaje:60};
+  if(campo==='porcentaje'){
+    db.config.repartoMarca[marca].porcentaje=Math.min(99,Math.max(1,parseFloat(valor)||60));
+  }else{
+    db.config.repartoMarca[marca][campo]=valor;
+  }
+  guardar();
+}
+function guardarCfgNumero(campo,valor){
+  db.config[campo]=parseFloat(valor)||0;guardar();
+}
+
+/* ---- importar leads / clientes pegados ---- */
+function parsearFilas(texto){
+  // Los tabuladores se pierden fácil al copiar/pegar desde un chat o PDF, así que se acepta
+  // también ";;" como separador de columnas (no aparece nunca dentro del texto normal),
+  // y solo al final se usa la coma (arriesgado: puede aparecer dentro del propio texto).
+  return texto.split('\n').map(l=>l.trim()).filter(Boolean).map(linea=>{
+    let cols;
+    if(linea.includes('\t'))cols=linea.split('\t');
+    else if(linea.includes(';;'))cols=linea.split(';;');
+    else cols=linea.split(',');
+    return cols.map(c=>c.trim());
+  });
+}
+function importarLeadsPegados(){
+  const texto=document.getElementById('impLeadsTexto').value;
+  if(!texto.trim())return;
+  const filas=parsearFilas(texto);
+  let n=0;
+  filas.forEach(cols=>{
+    if(!cols[0]||cols[0].toLowerCase()==='nombre')return;
+    db.leads.push({
+      id:nuevoId(),
+      nombre:cols[0]||'',
+      telefono:cols[1]||'',
+      canal:cols[2]||'Pauta Instagram/Facebook',
+      fecha:cols[3]||hoyStr(),
+      estado:'sin contactar',
+      atendidoPor:sesion.nombre,
+      notas:cols[4]?[{id:nuevoId(),texto:cols[4],autor:sesion.nombre,fecha:hoyStr()}]:[],
+      clienteId:null
+    });
+    n++;
+  });
+  guardar();
+  document.getElementById('impResultado').textContent=n+' leads importados.';
+  document.getElementById('impLeadsTexto').value='';
+}
+function importarClientesPegados(){
+  const texto=document.getElementById('impClientesTexto').value;
+  if(!texto.trim())return;
+  const filas=parsearFilas(texto);
+  let n=0;
+  filas.forEach(cols=>{
+    if(!cols[0]||cols[0].toLowerCase()==='nombre')return;
+    db.clientes.push({
+      id:nuevoId(),
+      nombre:cols[0]||'',
+      apellido:cols[1]||'',
+      dni:cols[2]||'',
+      direccion:cols[3]||'',
+      ciudad:cols[4]||'',
+      esProvincia:!!(cols[4]),
+      telefono:cols[5]||'',
+      marcas:cols[6]?[cols[6]]:[],
+      leadId:null,
+      creado:hoyStr()
+    });
+    n++;
+  });
+  guardar();
+  document.getElementById('impResultado').textContent=n+' clientes importados.';
+  document.getElementById('impClientesTexto').value='';
+}
+
+/* ---- respaldo ---- */
+function descargarTexto(contenido,nombre,tipo){
+  const blob=new Blob([contenido],{type:tipo});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nombre;document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+function descargarRespaldo(){
+  descargarTexto(JSON.stringify(db,null,2),'respaldo_zonabariatrica_'+hoyStr()+'.json','application/json');
+}
+function respaldoValido(obj){
+  if(!obj||typeof obj!=='object')return false;
+  return ['leads','clientes','pedidos','stock','usuarios'].every(k=>Array.isArray(obj[k]));
+}
+function restaurarRespaldo(ev){
+  const file=ev.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    let nuevo;
+    try{
+      nuevo=JSON.parse(e.target.result);
+    }catch(err){alert('El archivo no es un JSON válido. No se modificó la información actual.');return;}
+    if(!respaldoValido(nuevo)){
+      alert('El archivo no tiene la estructura de un respaldo de Zona Bariátrica (faltan leads/clientes/pedidos/stock/usuarios). No se modificó la información actual.');
+      return;
+    }
+    if(!confirm('Esto reemplaza todos los datos actuales por los del respaldo. ¿Continuar?'))return;
+    db=nuevo;
+    // Completa con valores por defecto cualquier campo que el respaldo no traiga (respaldos de versiones anteriores)
+    // y corre las mismas migraciones que al cargar normalmente, para no perder integridad de datos.
+    const vacia=dbVacia();
+    Object.keys(vacia).forEach(k=>{if(db[k]==null)db[k]=vacia[k];});
+    if(!db.config)db.config=vacia.config;
+    if(db.config.modalidadMarca==null)db.config.modalidadMarca={};
+    if(db.config.repartoMarca==null)db.config.repartoMarca={};
+    migrarMarcas();
+    migrarModalidadMarcas();
+    migrarActivos();
+    migrarEstadosPedido();
+    migrarCostoMovimientos();
+    migrarEstadosLead();
+  migrarCatalogoLVL();
+  migrarNotasLead();
+  migrarUsuariosRol();
+    guardar();
+    irA(seccionActual);
+    pintarConfig();
+    alert('Respaldo restaurado.');
+  };
+  reader.readAsText(file);
+  ev.target.value='';
+}
+function restaurarDeFabrica(){
+  if(!confirm('Esto borra TODOS los datos (leads, clientes, pedidos, stock, tareas) y vuelve al estado inicial. ¿Seguro?'))return;
+  if(!confirm('Última confirmación: se perderá todo lo que no hayas respaldado. ¿Continuar?'))return;
+  db=dbVacia();
+  db.stock=catalogoInicial();
+  guardar();
+  cerrarSesion();
+}
+
+/* ================= INICIO ================= */
+cargar();
+pintarUsuariosLogin();
+intentarAutoLogin();
+</script>
+</body>
+</html>
