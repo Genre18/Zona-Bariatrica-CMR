@@ -101,13 +101,15 @@ main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .link-historial{background:none;border:none;padding:0;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer;}
 .tabla-excel{border:1px solid var(--border);border-radius:var(--r-md);overflow:auto;background:var(--card);}
 .tabla-excel table{border-collapse:collapse;width:100%;}
-.tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;}
-.tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);}
-.tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:12.5px;width:100%;border-radius:0;min-width:90px;}
-.tabla-excel td input[type=date],.tabla-excel td input[type=time]{min-width:0;width:92px;font-size:11.5px;padding:7px 6px;}
+.tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;text-align:center;}
+.tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;}
+.tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:12.5px;width:100%;border-radius:0;min-width:90px;text-align:center;}
+.tabla-excel td input[type=date],.tabla-excel td input[type=time]{min-width:0;width:80px;font-size:11.5px;padding:7px 4px;}
+.tabla-excel td input[type=date]::-webkit-calendar-picker-indicator,
+.tabla-excel td input[type=time]::-webkit-calendar-picker-indicator{display:none;-webkit-appearance:none;}
 .tabla-excel td input:focus,.tabla-excel td select:focus{background:var(--primary-suave);box-shadow:inset 0 0 0 1px var(--primary);position:relative;z-index:1;}
 .tabla-excel tbody tr:hover{background:var(--bg-soft);}
-.link-lead{background:none;border:none;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:left;width:100%;}
+.link-lead{background:none;border:none;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:center;width:100%;}
 .link-lead:hover{text-decoration:underline;}
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-xs);}
@@ -118,7 +120,7 @@ main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .grid-cards.chico .stat .lbl{font-size:10.5px;}
 
 table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--r-md);overflow:hidden;}
-table th,table td{padding:10px 12px;text-align:left;font-size:13.5px;border-bottom:1px solid var(--border-light);}
+table th,table td{padding:10px 12px;text-align:center;font-size:13.5px;border-bottom:1px solid var(--border-light);}
 table th{background:var(--bg-soft);color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
 table tr:last-child td{border-bottom:none;}
 table tbody tr:hover{background:var(--bg-soft);}
@@ -911,12 +913,12 @@ const ESTADOS_LEAD_PERDIDA=['no contactar'];
 // Badges pastel (fondo suave + texto de color), coherentes con el sistema de "chips"
 // del resto del CRM y con la identidad de Zona Bariátrica.
 const ESTADO_COLOR_LEAD={
-  'sin contactar':    {bg:'#eab308', fg:'#ffffff'},
-  'seguimiento':      {bg:'var(--warning)', fg:'#ffffff'},
-  'cliente potencial':{bg:'#c2571a', fg:'#ffffff'},
-  'renovación':       {bg:'var(--violeta)', fg:'#ffffff'},
-  'cliente':          {bg:'var(--success)', fg:'#ffffff'},
-  'no contactar':     {bg:'var(--danger)', fg:'#ffffff'}
+  'sin contactar':    {bg:'#64748b', fg:'#ffffff'},
+  'seguimiento':      {bg:'#2563eb', fg:'#ffffff'},
+  'cliente potencial':{bg:'#ea580c', fg:'#ffffff'},
+  'renovación':       {bg:'#8b5cf6', fg:'#ffffff'},
+  'cliente':          {bg:'#16a34a', fg:'#ffffff'},
+  'no contactar':     {bg:'#ef4444', fg:'#ffffff'}
 };
 function pintarFiltroEstadoLeads(){
   const sel=document.getElementById('leadsFiltroEstado');
@@ -1138,18 +1140,19 @@ function pintarClientes(){
   if(buscar)clientes=clientes.filter(c=>[c.nombre,c.apellido,c.telefono,c.dni].join(' ').toLowerCase().includes(buscar));
   const cont=document.getElementById('listaClientes');
   if(clientes.length===0){cont.innerHTML='<div class="vacio">No hay clientes todavía.</div>';return;}
-  cont.innerHTML=`<div class="tabla-wrap"><table><thead><tr>
+  const pad='padding:7px 10px;';
+  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
     <th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Distrito / Depto.</th><th>Marcas</th><th>Pedidos</th>
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
       const lugar=[c.ciudad,c.departamento].filter(Boolean).join(' — ')||'—';
       return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
-        <td><strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}</td>
-        <td>${esc(c.dni||'—')}</td>
-        <td>${esc(c.telefono||'—')}</td>
-        <td>${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">provincia</span>':'<span class="chip chip-gris">local</span>'}</td>
-        <td>${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')}</td>
-        <td>${nPedidos}</td>
+        <td style="${pad}"><strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}</td>
+        <td style="${pad}">${esc(c.dni||'—')}</td>
+        <td style="${pad}">${esc(c.telefono||'—')}</td>
+        <td style="${pad}">${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">provincia</span>':'<span class="chip chip-gris">local</span>'}</td>
+        <td style="${pad}">${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')}</td>
+        <td style="${pad}">${nPedidos}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca un cliente para ver su historial y registrar una nueva compra.</p>`;
@@ -1822,15 +1825,16 @@ function filaStock(s,conMarca){
   const proveedorCelda=esReparto
     ?`${esc(socioMarca||'—')}${!socioMarca?' <span class="chip chip-naranja">falta asignar socio en Config → Marcas</span>':''}`
     :`${esc(s.proveedor||'—')}${!s.proveedor?' <span class="chip chip-naranja">falta asignar</span>':''}`;
+  const pad='padding:7px 10px;';
   return `<tr style="${archivado?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
-        ${conMarca?`<td>${esc(s.marca)}</td>`:''}
-        <td style="font-size:11px;color:var(--muted);">${esc(s.codigo||'—')}</td>
-        <td>${esc(s.producto)}${archivado?' <span class="chip chip-gris">archivado</span>':''}</td>
-        <td class="${s.cantidad<=s.min?'stock-bajo':''}">${s.cantidad}</td>
-        <td>${s.min}</td>
-        <td>${money(s.costoPromedio)}</td>
-        <td>${money(s.precioVenta)}</td>
-        <td>${proveedorCelda}</td>
+        ${conMarca?`<td style="${pad}">${esc(s.marca)}</td>`:''}
+        <td style="${pad}font-size:11px;color:var(--muted);">${esc(s.codigo||'—')}</td>
+        <td style="${pad}">${esc(s.producto)}${archivado?' <span class="chip chip-gris">archivado</span>':''}</td>
+        <td style="${pad}" class="${s.cantidad<=s.min?'stock-bajo':''}">${s.cantidad}</td>
+        <td style="${pad}">${s.min}</td>
+        <td style="${pad}">${money(s.costoPromedio)}</td>
+        <td style="${pad}">${money(s.precioVenta)}</td>
+        <td style="${pad}">${proveedorCelda}</td>
       </tr>`;
 }
 let menuContextualEl=null;
@@ -1861,29 +1865,17 @@ function abrirMenuContextualStock(ev,id){
   return false;
 }
 function pintarStock(){
-  const marcas=db.config.marcas||[];
   const verArchivados=document.getElementById('stockVerArchivados')&&document.getElementById('stockVerArchivados').checked;
   const buscar=(document.getElementById('stockBuscar')&&document.getElementById('stockBuscar').value||'').toLowerCase();
   let stockVisible=verArchivados?db.stock:db.stock.filter(s=>s.activo!==false);
   if(buscar)stockVisible=stockVisible.filter(s=>(s.producto||'').toLowerCase().includes(buscar)||(s.codigo||'').toLowerCase().includes(buscar));
   const cont=document.getElementById('listaStock');
   if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${buscar?'Ningún producto coincide con la búsqueda.':'No hay productos en stock todavía.'}</div>`;return;}
-  cont.innerHTML=marcas.map(marca=>{
-    const items=stockVisible.filter(s=>s.marca===marca);
-    if(items.length===0)return '';
-    return `<h4 style="margin:16px 0 6px;">${esc(marca)}</h4>
-    <div class="tabla-wrap"><table><thead><tr>
-      <th>Código</th><th>Producto</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio venta</th><th>Proveedor</th>
-    </tr></thead><tbody>${items.map(s=>filaStock(s,false)).join('')}</tbody></table></div>`;
-  }).join('');
-  const otros=stockVisible.filter(s=>!marcas.includes(s.marca));
-  if(otros.length){
-    cont.innerHTML+=`<h4 style="margin:16px 0 6px;">Otras marcas</h4>
-    <div class="tabla-wrap"><table><thead><tr>
+  stockVisible=stockVisible.slice().sort((a,b)=>a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
+  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
       <th>Marca</th><th>Código</th><th>Producto</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio venta</th><th>Proveedor</th>
-    </tr></thead><tbody>${otros.map(s=>filaStock(s,true)).join('')}</tbody></table></div>`;
-  }
-  cont.innerHTML+='<p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar o archivar.</p>';
+    </tr></thead><tbody>${stockVisible.map(s=>filaStock(s,true)).join('')}</tbody></table></div>
+    <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar o archivar.</p>`;
 }
 function stockToggleNuevoProveedor(sel){
   document.getElementById('st-proveedor-nuevo').classList.toggle('oculto',sel.value!=='__nuevo__');
@@ -2323,35 +2315,46 @@ function pintarRepartoIngresos(){
   if(!cont)return;
   if(socios.length===0){cont.innerHTML='';return;}
   let html='<h3 style="font-size:15px;margin:22px 0 8px;">Reparto de ingresos (marcas de socios)</h3>';
+  html+=`<div class="tabla-wrap"><table><thead><tr>
+    <th>Socio</th><th>Marca</th><th>Vendido</th><th>Le corresponde</th><th>Liquidado</th><th>Saldo</th><th></th>
+    </tr></thead><tbody>${socios.map(socio=>{
+      const marcas=marcasRepartoDeSocio(socio);
+      const ventas=ventasRepartoDeSocio(socio);
+      const liquidaciones=liquidacionesDeSocio(socio);
+      const totalVendido=ventas.reduce((s,f)=>s+f.ventaTotal,0);
+      const corresponde=ventas.reduce((s,f)=>s+f.monto,0);
+      const totalLiquidado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
+      const saldo=saldoRepartoSocio(socio);
+      return `<tr>
+        <td>${esc(socio)}</td>
+        <td>${marcas.map(m=>esc(m)).join(', ')||'sin marca asignada'}</td>
+        <td>${money(totalVendido)}</td>
+        <td>${money(corresponde)}</td>
+        <td>${money(totalLiquidado)}</td>
+        <td><span class="chip ${saldo>0.005?'chip-naranja':'chip-verde'}">${saldo>0.005?money(saldo):'Al día'}</span></td>
+        <td>${saldo>0.005?`<button class="btn-secundario btn-chico" onclick="abrirFormLiquidacion('${escJs(socio)}')">+ Liquidación</button>`:''}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
   html+=socios.map(socio=>{
-    const marcas=marcasRepartoDeSocio(socio);
     const ventas=ventasRepartoDeSocio(socio);
     const liquidaciones=liquidacionesDeSocio(socio);
-    const totalVendido=ventas.reduce((s,f)=>s+f.ventaTotal,0);
-    const saldo=saldoRepartoSocio(socio);
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <strong>${esc(socio)}</strong>
-        <span class="chip chip-gris">${marcas.map(m=>esc(m)).join(', ')||'sin marca asignada'}</span>
-      </div>
-      <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Vendido: ${money(totalVendido)} · Le corresponde: ${money(ventas.reduce((s,f)=>s+f.monto,0))} · Ya liquidado: ${money(liquidaciones.reduce((s,l)=>s+(l.monto||0),0))}</div>
-      <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-        <span class="chip ${saldo>0.005?'chip-naranja':'chip-verde'}">${saldo>0.005?'Le debemos '+money(saldo):'Al día'}</span>
-        ${saldo>0.005?`<button class="btn btn-chico" onclick="abrirFormLiquidacion('${escJs(socio)}')">+ Registrar liquidación</button>`:''}
-      </div>
-      ${ventas.length?`<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Ventas de su marca (${ventas.length})</summary>
-        <ul class="lista-simple">${ventas.map(f=>`<li><span>${fechaBonita(f.fecha)} — ${esc(f.producto)} x${f.cantidad} (${money(f.ventaTotal)} · ${f.porcentaje}%)</span><strong>${money(f.monto)}</strong></li>`).join('')}</ul>
-      </details>`:''}
-      ${liquidaciones.length?`<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Liquidaciones pagadas (${liquidaciones.length})</summary>
-        <ul class="lista-simple">${liquidaciones.map(l=>`<li>
-          <span>${fechaBonita(l.fecha)} — ${money(l.monto)} ${l.nota?'· '+esc(l.nota):''}</span>
-          <span style="white-space:nowrap;">
-            <button class="btn-icono" onclick="abrirEditarLiquidacion('${l.id}')" title="Editar">✏️</button>
-            <button class="btn-icono" onclick="eliminarLiquidacion('${l.id}')" title="Eliminar">✕</button>
-          </span>
-        </li>`).join('')}</ul>
-      </details>`:''}
-    </div>`;
+    if(ventas.length===0&&liquidaciones.length===0)return '';
+    return `<details style="margin-top:8px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Detalle de ${esc(socio)}</summary>
+      ${ventas.length?`<p class="vacio" style="text-align:left;padding:8px 0 2px;">Ventas de su marca</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Fecha</th><th>Producto</th><th>Cant.</th><th>Venta</th><th>%</th><th>Le corresponde</th>
+        </tr></thead><tbody>${ventas.map(f=>`<tr>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.ventaTotal)}</td><td>${f.porcentaje}%</td><td>${money(f.monto)}</td>
+        </tr>`).join('')}</tbody></table></div>`:''}
+      ${liquidaciones.length?`<p class="vacio" style="text-align:left;padding:8px 0 2px;">Liquidaciones pagadas</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Fecha</th><th>Concepto</th><th>Monto</th><th></th>
+        </tr></thead><tbody>${liquidaciones.map(l=>`<tr>
+          <td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td>
+          <td><button class="btn-icono" onclick="abrirEditarLiquidacion('${l.id}')" title="Editar">✏️</button><button class="btn-icono" onclick="eliminarLiquidacion('${l.id}')" title="Eliminar">✕</button></td>
+        </tr>`).join('')}</tbody></table></div>`:''}
+    </details>`;
   }).join('');
   cont.innerHTML=html;
 }
