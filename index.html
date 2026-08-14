@@ -21,7 +21,7 @@
 
   --text:#111827; --muted:#6b7280; --text-light:#9ca3af;
   --bg:#f8fafc; --card:#ffffff; --bg-soft:#f1f5f9;
-  --border:#e5e7eb; --border-light:#f1f5f9;
+  --border:#c7cdd6; --border-light:#dbe1e8;
   --dark:#111827;
 
   --rol:#2563eb; --rol-suave:#eff6ff; /* color del usuario activo: se sobreescribe al iniciar sesión */
@@ -104,6 +104,7 @@ main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;}
 .tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);}
 .tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:12.5px;width:100%;border-radius:0;min-width:90px;}
+.tabla-excel td input[type=date],.tabla-excel td input[type=time]{min-width:0;width:92px;font-size:11.5px;padding:7px 6px;}
 .tabla-excel td input:focus,.tabla-excel td select:focus{background:var(--primary-suave);box-shadow:inset 0 0 0 1px var(--primary);position:relative;z-index:1;}
 .tabla-excel tbody tr:hover{background:var(--bg-soft);}
 .link-lead{background:none;border:none;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:left;width:100%;}
@@ -512,8 +513,8 @@ function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'
 // Para incrustar texto de usuario dentro de un argumento de string simple en onclick="fn('...')"
 function escJs(t){return esc(t).replace(/'/g,"\\'");}
 function money(n){return 'S/ '+Number(n||0).toFixed(2);}
-function hoyStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function horaAhora(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
+function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
 function fechaBonita(str){if(!str)return '—';const d=new Date(str+(str.length<=10?'T00:00:00':''));return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});}
 function fechaCorta(str){if(!str)return '—';const d=new Date(str+(str.length<=10?'T00:00:00':''));return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(-2);}
 // Celda de fecha para la vista socio: en pantallas angostas se ve la versión corta para que la tabla de Ventas quepa sin scroll.
@@ -910,12 +911,12 @@ const ESTADOS_LEAD_PERDIDA=['no contactar'];
 // Badges pastel (fondo suave + texto de color), coherentes con el sistema de "chips"
 // del resto del CRM y con la identidad de Zona Bariátrica.
 const ESTADO_COLOR_LEAD={
-  'sin contactar':    {bg:'#fff59d', fg:'#5c4d00'},
-  'seguimiento':      {bg:'var(--warning-suave)', fg:'var(--warning)'},
-  'cliente potencial':{bg:'#ffe8d6', fg:'#c2571a'},
-  'renovación':       {bg:'var(--violeta-suave)', fg:'var(--violeta)'},
-  'cliente':          {bg:'var(--success-suave)', fg:'var(--success)'},
-  'no contactar':     {bg:'var(--danger-suave)', fg:'var(--danger)'}
+  'sin contactar':    {bg:'#eab308', fg:'#ffffff'},
+  'seguimiento':      {bg:'var(--warning)', fg:'#ffffff'},
+  'cliente potencial':{bg:'#c2571a', fg:'#ffffff'},
+  'renovación':       {bg:'var(--violeta)', fg:'#ffffff'},
+  'cliente':          {bg:'var(--success)', fg:'#ffffff'},
+  'no contactar':     {bg:'var(--danger)', fg:'#ffffff'}
 };
 function pintarFiltroEstadoLeads(){
   const sel=document.getElementById('leadsFiltroEstado');
@@ -1034,7 +1035,7 @@ function abrirFormLead(){
         <div><label>Apellido</label><input id="ld-apellido"></div>
       </div>
       <div class="fila-2">
-        <div><label>Celular</label><input id="ld-telefono"></div>
+        <div><label>Celular *</label><input id="ld-telefono" required></div>
         <div><label>Fuente de captación</label>
           <select id="ld-canal">${CANALES_LEAD.map(c=>`<option>${esc(c)}</option>`).join('')}</select>
         </div>
@@ -1045,7 +1046,7 @@ function abrirFormLead(){
       </div>
       <div class="fila-2">
         <div><label>Email</label><input id="ld-email"></div>
-        <div><label>Ciudad / Provincia</label><input id="ld-distrito"></div>
+        <div><label>Ciudad / Provincia *</label><input id="ld-distrito" required></div>
       </div>
       <div class="fila-2">
         <div><label>Fecha de contacto</label><input type="date" id="ld-fecha" value="${hoyStr()}"></div>
@@ -1269,20 +1270,20 @@ function abrirFormCliente(leadId){
     <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})">
       <div class="fila-2">
         <div><label>Nombre *</label><input id="cl-nombre" required value="${lead?esc(lead.nombre||''):''}"></div>
-        <div><label>Apellido</label><input id="cl-apellido" value="${lead?esc(lead.apellido||''):''}"></div>
+        <div><label>Apellido *</label><input id="cl-apellido" required value="${lead?esc(lead.apellido||''):''}"></div>
       </div>
       <div class="fila-2">
-        <div><label>DNI</label><input id="cl-dni" value="${lead?esc(lead.dni||''):''}"></div>
-        <div><label>Teléfono</label><input id="cl-telefono" value="${lead?esc(lead.telefono||''):''}"></div>
+        <div><label>DNI *</label><input id="cl-dni" required value="${lead?esc(lead.dni||''):''}"></div>
+        <div><label>Teléfono *</label><input id="cl-telefono" required value="${lead?esc(lead.telefono||''):''}"></div>
       </div>
-      <label>Dirección de envío</label><input id="cl-direccion">
+      <label>Dirección de envío *</label><input id="cl-direccion" required>
       <div class="fila-2">
-        <div><label>Departamento</label><input id="cl-departamento" placeholder="Ej. Arequipa"></div>
-        <div><label>Provincia</label><input id="cl-provincianombre" placeholder="Ej. Arequipa"></div>
+        <div><label>Departamento *</label><input id="cl-departamento" required placeholder="Ej. Arequipa"></div>
+        <div><label>Provincia *</label><input id="cl-provincianombre" required placeholder="Ej. Arequipa"></div>
       </div>
       <div class="fila-2">
-        <div><label>Distrito / Ciudad</label><input id="cl-ciudad" value="${lead?esc(lead.distrito||''):''}"></div>
-        <div><label>Referencia</label><input id="cl-referencia" placeholder="Ej. frente al parque, casa celeste"></div>
+        <div><label>Distrito / Ciudad *</label><input id="cl-ciudad" required value="${lead?esc(lead.distrito||''):''}"></div>
+        <div><label>Referencia *</label><input id="cl-referencia" required placeholder="Ej. frente al parque, casa celeste"></div>
       </div>
       <label>¿Envío a provincia?</label>
       <select id="cl-provincia"><option value="1">Sí (envío Shalom)</option><option value="0">No, es local (InDrive)</option></select>
@@ -1408,7 +1409,7 @@ function mostrarTicket(pedido,cliente){
     </div>`).join('');
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>✅ Cliente y pedido guardados</h3>
+    <h3>✅ Pedido guardado</h3>
     <div id="ticketImprimible" class="card" style="background:var(--bg-soft);">
       <div style="text-align:center;margin-bottom:8px;">
         <strong>Zona Bariátrica</strong><br>
@@ -1528,18 +1529,27 @@ function pintarPedidos(){
 }
 function abrirFormPedido(clienteIdPre){
   pedidoItemsTmp=[];
+  const clientePre=clienteIdPre?porId(db.clientes,clienteIdPre):null;
   const clientes=db.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
   const marcas=db.config.marcas||[];
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>Nuevo pedido</h3>
+    <h3>🧾 Nueva compra (recompra)</h3>
     <form onsubmit="return guardarPedido(event)">
+      ${clientePre?`
+      <div class="card" style="background:var(--bg-soft);margin-bottom:12px;">
+        <strong>${esc(clientePre.nombre)} ${esc(clientePre.apellido)}</strong>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">${esc(clientePre.dni||'sin DNI')} · ${esc(clientePre.telefono||'—')}<br>${esc(direccionCompleta(clientePre))}</div>
+      </div>
+      <input type="hidden" id="pd-cliente" value="${clientePre.id}">
+      `:`
       <label>Cliente *</label>
       <select id="pd-cliente" required>
         <option value="">Selecciona un cliente...</option>
-        ${clientes.map(c=>`<option value="${c.id}" ${c.id===clienteIdPre?'selected':''}>${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')} — ${esc(c.ciudad||'')}</option>`).join('')}
+        ${clientes.map(c=>`<option value="${c.id}">${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')} — ${esc(c.ciudad||'')}</option>`).join('')}
       </select>
       ${clientes.length===0?'<div class="pin-error" style="color:var(--warning);height:auto;">No hay clientes creados. Crea uno primero.</div>':''}
+      `}
 
       <label>Agregar producto</label>
       <div class="fila-2">
@@ -1666,7 +1676,8 @@ function guardarPedido(ev){
   };
   db.pedidos.push(pedido);
   descontarStock(pedido);
-  guardar();cerrarModal();pintarPedidos();pintarStock();
+  guardar();pintarPedidos();pintarStock();pintarClientes();
+  mostrarTicket(pedido,porId(db.clientes,clienteId));
   return false;
 }
 function descontarStock(pedido){
@@ -1815,7 +1826,7 @@ function filaStock(s,conMarca){
         ${conMarca?`<td>${esc(s.marca)}</td>`:''}
         <td style="font-size:11px;color:var(--muted);">${esc(s.codigo||'—')}</td>
         <td>${esc(s.producto)}${archivado?' <span class="chip chip-gris">archivado</span>':''}</td>
-        <td class="${s.cantidad<=s.min?'stock-bajo':''}">${s.cantidad} ${esc(s.unidad||'')}${s.cantidad<=s.min?' ⚠':''}</td>
+        <td class="${s.cantidad<=s.min?'stock-bajo':''}">${s.cantidad}</td>
         <td>${s.min}</td>
         <td>${money(s.costoPromedio)}</td>
         <td>${money(s.precioVenta)}</td>
@@ -2051,7 +2062,6 @@ function abrirFormCompra(){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Registrar entrega o compra</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 4px;">Úsalo tanto para compras pagadas de una vez como para lo que un proveedor deja en consignación (ej. el doctor que deja productos y se le paga conforme se venden).</p>
     <form onsubmit="return guardarCompra(event)">
       <label>Producto *</label>
       <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(s.producto)}</option>`).join('')}</select>
@@ -2247,7 +2257,6 @@ function pintarProveedores(){
     <div class="stat"><div class="num">${proveedores.length}</div><div class="lbl">Proveedores</div></div>`;
 
   let html='<h3 style="font-size:15px;margin:4px 0 8px;">Compras</h3>';
-  html+='<p class="vacio" style="text-align:left;padding:0 0 8px;">Mercadería que Zona Bariátrica compra y vende como propia (stock propio).</p>';
   if(compras.length===0){
     html+='<div class="vacio">No hay compras registradas. Usa "Registrar entrega/compra" en Stock.</div>';
   }else{
@@ -2314,7 +2323,6 @@ function pintarRepartoIngresos(){
   if(!cont)return;
   if(socios.length===0){cont.innerHTML='';return;}
   let html='<h3 style="font-size:15px;margin:22px 0 8px;">Reparto de ingresos (marcas de socios)</h3>';
-  html+='<p class="vacio" style="text-align:left;padding:0 0 10px;">El producto es del socio; Zona Bariátrica solo vende por su canal y se queda con su % de comisión. Se configura en Config → Marcas.</p>';
   html+=socios.map(socio=>{
     const marcas=marcasRepartoDeSocio(socio);
     const ventas=ventasRepartoDeSocio(socio);
