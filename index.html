@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   /* Identidad de Zona Bariátrica (zonabariatrica.com): azul eléctrico como
@@ -213,8 +214,26 @@ details.config-block summary:hover{color:var(--primary);}
 </head>
 <body>
 
+<!-- ================= LOGIN NUBE (correo/contraseña de Supabase) ================= -->
+<div id="pantallaLoginNube" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;padding:20px;background:linear-gradient(180deg,var(--bg) 0%,#eef2fa 100%);">
+  <div class="marca-login">
+    <h1>Zona Bariátrica</h1>
+    <p>Iniciá sesión para continuar</p>
+  </div>
+  <div class="pin-box" style="width:280px;">
+    <form onsubmit="return iniciarSesionNube(event)">
+      <label style="margin-top:0;">Correo</label>
+      <input type="email" id="nubeEmail" required autocomplete="username">
+      <label>Contraseña</label>
+      <input type="password" id="nubePass" required autocomplete="current-password">
+      <div class="pin-error" id="nubeError" style="height:auto;margin-top:4px;"></div>
+      <button class="btn" type="submit" style="width:100%;margin-top:14px;">Entrar</button>
+    </form>
+  </div>
+</div>
+
 <!-- ================= LOGIN ================= -->
-<div id="pantallaLogin">
+<div id="pantallaLogin" class="oculto">
   <div class="marca-login">
     <h1>Zona Bariátrica</h1>
     <p>Panel interno — CRM, ventas, stock y tareas</p>
@@ -398,6 +417,12 @@ details.config-block summary:hover{color:var(--primary);}
       </details>
 
       <details class="config-block">
+        <summary>Cuenta de este dispositivo</summary>
+        <p class="vacio" style="text-align:left;padding:0 0 6px;">Los datos se sincronizan automáticamente entre dispositivos. Si este dispositivo va a cambiar de dueño o dejó de ser de confianza, cerrá la sesión.</p>
+        <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
+      </details>
+
+      <details class="config-block">
         <summary>Respaldo de datos</summary>
         <p class="vacio" style="text-align:left;padding:0 0 6px;">Todo se guarda solo en este navegador. Descarga un respaldo seguido para no perder información.</p>
         <div class="fila-2">
@@ -466,8 +491,13 @@ details.config-block summary:hover{color:var(--primary);}
 
 const CLAVE='zbdb_v1';
 const MODO_PRUEBAS=true; // ⚠️ poner en false antes de usar con datos reales de clientes: reactiva el PIN
+const SUPABASE_URL='https://zuispovrhevalznsrdax.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_PhNcFR421xTZxfXhSr6wfg_t1HJA2rf';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let db=null;
 let selloDisco=null;
+let ultimoEnviadoNube=null; // último JSON que este dispositivo mandó a la nube, para no reprocesar su propio eco
+let guardarNubeTimeout=null;
 let sesion=null;          // usuario actual {id,nombre,pin,color}
 let seccionActual='leads';
 let pinCandidato=null;
@@ -547,9 +577,16 @@ function catalogoInicial(){
     {id:nuevoId(),codigo:'',marca:'LVL Drink',producto:'Multivitamínico Level Up',cantidad:0,unidad:'unidades',min:5,costoPromedio:0,precioVenta:0,proveedor:''}
   ];
 }
-function cargar(){
+async function cargar(){
+  let remoto=null;
+  try{
+    const{data,error}=await sb.from('crm_estado').select('data').eq('id',1).single();
+    if(!error&&data)remoto=data.data;
+  }catch(e){console.error('No se pudo leer la nube, se usa el respaldo local',e);}
   const raw=localStorage.getItem(CLAVE);
-  if(raw){
+  if(remoto&&Object.keys(remoto).length>0){
+    db=remoto;
+  }else if(raw){
     try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
   }else{
     db=dbVacia();
@@ -681,6 +718,34 @@ function guardar(){
   const raw=JSON.stringify(db);
   localStorage.setItem(CLAVE,raw);
   selloDisco=raw;
+  guardarEnNube(raw);
+}
+function guardarEnNube(raw){
+  clearTimeout(guardarNubeTimeout);
+  guardarNubeTimeout=setTimeout(async()=>{
+    ultimoEnviadoNube=raw;
+    try{
+      await sb.from('crm_estado').update({data:JSON.parse(raw),actualizado_en:new Date().toISOString(),actualizado_por:sesion?sesion.nombre:null}).eq('id',1);
+    }catch(e){console.error('No se pudo guardar en la nube (queda a salvo en este dispositivo, se reintentará al recargar)',e);}
+  },400);
+}
+function suscribirCambiosNube(){
+  sb.channel('crm_estado_cambios')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'crm_estado',filter:'id=eq.1'},payload=>{
+      const nuevo=payload.new.data;
+      const raw=JSON.stringify(nuevo);
+      if(raw===ultimoEnviadoNube)return; // es el eco de nuestro propio guardado
+      db=nuevo;
+      selloDisco=raw;
+      localStorage.setItem(CLAVE,raw);
+      rerenderizarSeccionActual();
+    })
+    .subscribe();
+}
+function rerenderizarSeccionActual(){
+  if(!sesion)return;
+  if(sesion.rol==='socio'){pintarVistaSocio();return;}
+  irA(seccionActual);
 }
 
 /* ---------- modal genérico ---------- */
@@ -699,6 +764,31 @@ function cerrarModal(){
   document.getElementById('modalBox').innerHTML='';
   pedidoItemsTmp=[];
   notaEditando=null;
+}
+
+/* ================= LOGIN NUBE (Supabase Auth) ================= */
+async function iniciarSesionNube(ev){
+  ev.preventDefault();
+  const email=document.getElementById('nubeEmail').value.trim();
+  const pass=document.getElementById('nubePass').value;
+  const errBox=document.getElementById('nubeError');
+  errBox.textContent='';
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){errBox.textContent='Correo o contraseña incorrectos.';return false;}
+  await continuarLuegoDeLoginNube();
+  return false;
+}
+async function continuarLuegoDeLoginNube(){
+  document.getElementById('pantallaLoginNube').classList.add('oculto');
+  document.getElementById('pantallaLogin').classList.remove('oculto');
+  await cargar();
+  if(!intentarAutoLogin())pintarUsuariosLogin();
+  suscribirCambiosNube();
+}
+async function cerrarSesionNube(){
+  if(!confirm('¿Cerrar sesión de este dispositivo? La próxima vez van a tener que volver a ingresar correo y contraseña acá.'))return;
+  await sb.auth.signOut();
+  location.reload();
 }
 
 /* ================= LOGIN / PIN ================= */
@@ -2854,9 +2944,14 @@ function restaurarDeFabrica(){
 }
 
 /* ================= INICIO ================= */
-cargar();
-pintarUsuariosLogin();
-intentarAutoLogin();
+(async function iniciar(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(session){
+    await continuarLuegoDeLoginNube();
+  }else{
+    document.getElementById('pantallaLoginNube').classList.remove('oculto');
+  }
+})();
 </script>
 </body>
 </html>
