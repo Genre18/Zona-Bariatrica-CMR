@@ -718,14 +718,14 @@ function guardar(){
   const raw=JSON.stringify(db);
   localStorage.setItem(CLAVE,raw);
   selloDisco=raw;
-  guardarEnNube(raw);
+  guardarEnNube(raw,sesion?sesion.nombre:null);
 }
-function guardarEnNube(raw){
+function guardarEnNube(raw,autor){
   clearTimeout(guardarNubeTimeout);
   guardarNubeTimeout=setTimeout(async()=>{
     ultimoEnviadoNube=raw;
     try{
-      await sb.from('crm_estado').update({data:JSON.parse(raw),actualizado_en:new Date().toISOString(),actualizado_por:sesion?sesion.nombre:null}).eq('id',1);
+      await sb.from('crm_estado').update({data:JSON.parse(raw),actualizado_en:new Date().toISOString(),actualizado_por:autor}).eq('id',1);
     }catch(e){console.error('No se pudo guardar en la nube (queda a salvo en este dispositivo, se reintentará al recargar)',e);}
   },400);
 }
