@@ -330,6 +330,7 @@ details.config-block summary:hover{color:var(--primary);}
       <div id="resumenProveedores" class="grid-cards chico"></div>
       <div id="listaProveedores"></div>
       <div id="listaConsignacionBajoPedido"></div>
+      <div id="listaPagosSinClasificar"></div>
       <div id="listaReparto"></div>
     </section>
 
@@ -627,6 +628,7 @@ async function cargar(){
   migrarRepartoBariatricFusion();
   migrarModelosComercialesReales();
   migrarProveedorPorDefectoStock();
+  migrarModalidadEntradasStock();
   migrarModalidadPagosProveedor();
   migrarCongelamientoEconomicoItems();
   selloDisco=JSON.stringify(db);
@@ -749,14 +751,48 @@ function migrarRepartoBariatricFusion(){
   db.config.modalidadMarca['Bariatric Fusion']='reparto_ingresos';
   db.config.repartoMarca['Bariatric Fusion']={socio:'Dr. Mariano',porcentaje:60};
 }
+function migrarModalidadEntradasStock(){
+  // Una entrada física (movimientosStock tipo 'entrada') no siempre es deuda: en consignación
+  // recibir stock NO genera obligación (nace al vender), solo en compra_directa. Se congela
+  // la modalidad vigente de la marca en el momento de la entrada para que Proveedores nunca
+  // tenga que volver a mirar la config actual para decidir si esa entrada es deuda o no.
+  (db.movimientosStock||[]).forEach(m=>{
+    if(m.tipo!=='entrada')return;
+    if(m.modalidadComercial!==undefined)return; // ya congelada (entrada nueva o ya migrada)
+    const s=porId(db.stock,m.stockId);
+    const modalidad=s?(db.config.modalidadMarca||{})[s.marca]:null;
+    if(modalidad){
+      m.modalidadComercial=modalidad;
+      m.modalidadHistoricaEstimada=true; // reconstruida desde la config actual, no congelada en su momento real
+    }
+    // Si no se puede inferir (producto eliminado o marca sin modalidad configurada) se deja
+    // sin modalidadComercial a propósito: no se inventa un valor, y esa entrada simplemente
+    // no cuenta como deuda de compra directa (el filtro de Proveedores la excluye).
+  });
+}
 function migrarModalidadPagosProveedor(){
-  // Todo pago viejo estaba ligado a una entrega concreta (movimientosStock tipo 'entrada'),
-  // lo cual solo tiene sentido para compra_directa. Se les marca esa modalidad explícita para
-  // que las nuevas funciones de saldo por (proveedor,modalidad) los puedan filtrar igual que
-  // a los pagos nuevos. No se toca ni se borra ningún pago existente, solo se le agrega el
-  // campo si le faltaba.
+  // CORREGIDO (2026-08-14): la primera versión de esta migración asumía que todo pago ligado
+  // a una entrega era compra_directa — incorrecto, esa misma estructura también se usaba para
+  // pagar entregas de consignación en el sistema viejo. Ahora se infiere la modalidad real
+  // siguiendo la cadena: pago.entregaId → movimientoStock → su modalidadComercial (ya
+  // congelada por migrarModalidadEntradasStock, que debe correr ANTES que esta función).
   (db.pagosProveedor||[]).forEach(pg=>{
-    if(!pg.modalidad)pg.modalidad='compra_directa';
+    if(pg.modalidad!==undefined)return; // ya clasificado (incluye null = ya evaluado, sin poder determinarse)
+    if(pg.entregaId){
+      const entrega=(db.movimientosStock||[]).find(m=>m.id===pg.entregaId);
+      if(entrega&&entrega.modalidadComercial){
+        pg.modalidad=entrega.modalidadComercial;
+        pg.modalidadHistoricaEstimada=!!entrega.modalidadHistoricaEstimada;
+        return;
+      }
+    }
+    // No hay evidencia suficiente (sin entrega ligada, o la entrega tampoco tiene modalidad
+    // resoluble): a propósito NO se asume compra_directa por defecto — mejor dejar visible la
+    // incertidumbre que asignar una modalidad que podría estar mal. Queda como "sin
+    // clasificar" (modalidad:null) y aparece en Proveedores → "Pagos históricos por revisar"
+    // hasta que alguien lo confirme a mano; no se suma a ninguna cuenta mientras tanto.
+    pg.modalidad=null;
+    pg.modalidadHistoricaEstimada=true;
   });
 }
 function migrarCongelamientoEconomicoItems(){
@@ -772,14 +808,26 @@ function migrarCongelamientoEconomicoItems(){
   // distinguirlos en el futuro de una venta realmente congelada en su momento (false).
   (db.pedidos||[]).forEach(p=>{
     (p.items||[]).forEach(it=>{
-      if(it.modalidadComercial)return; // ya congelado con el código nuevo, no tocar
-      const movSalida=(db.movimientosStock||[]).find(m=>m.tipo==='salida'&&m.pedidoId===p.id&&m.stockId===it.stockId);
-      const s=porId(db.stock,it.stockId);
-      it.modalidadComercial=(db.config.modalidadMarca||{})[it.marca]||'consignacion';
-      it.responsableDespacho=(db.config.responsableDespachoMarca||{})[it.marca]||'zona_bariatrica';
-      it.proveedorVenta=movSalida?(movSalida.proveedor||''):(s?(s.proveedor||''):'');
-      it.costoProveedorVenta=movSalida?(movSalida.costoUnit||0):(s?(s.costoPromedio||0):0);
-      it.costoHistoricoEstimado=true;
+      if(!it.modalidadComercial){
+        const movSalida=(db.movimientosStock||[]).find(m=>m.tipo==='salida'&&m.pedidoId===p.id&&m.stockId===it.stockId);
+        const s=porId(db.stock,it.stockId);
+        it.modalidadComercial=(db.config.modalidadMarca||{})[it.marca]||'consignacion';
+        it.responsableDespacho=(db.config.responsableDespachoMarca||{})[it.marca]||'zona_bariatrica';
+        it.proveedorVenta=movSalida?(movSalida.proveedor||''):(s?(s.proveedor||''):'');
+        it.costoProveedorVenta=movSalida?(movSalida.costoUnit||0):(s?(s.costoPromedio||0):0);
+        it.costoHistoricoEstimado=true;
+      }
+      // Reparto histórico que quedó sin socio/porcentaje congelado (ítems de antes de que
+      // existiera ese congelamiento): best-effort con la configuración de reparto ACTUAL de
+      // la marca. No se toca un ítem que ya tenga estos dos campos (no se pisa un valor real).
+      if(it.modalidadComercial==='reparto_ingresos'&&(!it.socioReparto||it.porcentajeReparto==null)){
+        const reparto=(db.config.repartoMarca||{})[it.marca];
+        if(reparto&&reparto.socio){
+          it.socioReparto=reparto.socio;
+          it.porcentajeReparto=reparto.porcentaje||60;
+          it.costoHistoricoEstimado=true;
+        }
+      }
     });
   });
 }
@@ -1721,6 +1769,18 @@ function pedidoAgregarItem(){
   if(!stockItem||cantidad<=0){alert('Elige un producto y una cantidad válida.');return;}
   const modalidad=(db.config.modalidadMarca||{})[stockItem.marca];
   if(!modalidad){alert(`La marca "${stockItem.marca}" todavía no tiene un modelo comercial configurado. Configúralo en Config → Marcas antes de venderla.`);return;}
+  // Sin proveedor/socio asignado no hay a quién imputarle la obligación económica de la
+  // venta: mejor bloquear acá que terminar con una obligación "huérfana" imposible de pagar.
+  if(modalidad==='reparto_ingresos'){
+    const repartoCheck=(db.config.repartoMarca||{})[stockItem.marca];
+    if(!repartoCheck||!repartoCheck.socio){
+      alert(`La marca "${stockItem.marca}" todavía no tiene un socio configurado para el reparto de ingresos. Configúralo en Config → Marcas antes de venderla.`);
+      return;
+    }
+  }else if(!stockItem.proveedor){
+    alert('Este producto no tiene proveedor asignado. Asígnalo en Stock antes de vender.');
+    return;
+  }
   // El stock físico de Zona Bariátrica solo bloquea la venta en consignación/compra directa.
   // Bajo pedido no depende del stock físico (puede venderse con cantidad 0): el producto
   // nunca pasa físicamente por acá, así que tampoco hay que reservar/descontar nada.
@@ -2228,6 +2288,10 @@ function guardarCompra(ev){
   if(proveedor)stockItem.proveedor=proveedor;
   db.movimientosStock.push({
     id:nuevoId(),tipo:'entrada',stockId:stockItem.id,cantidad,
+    // Se congela la modalidad vigente AHORA: una entrada de consignación no genera deuda al
+    // recibirla (solo al vender), a diferencia de una entrada de compra directa.
+    modalidadComercial:(db.config.modalidadMarca||{})[stockItem.marca]||null,
+    modalidadHistoricaEstimada:false,
     proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:''
   });
   guardar();cerrarModal();pintarStock();
@@ -2344,6 +2408,14 @@ function saldoProveedorModalidad(proveedor,modalidad,excluirPagoId){
   const pagado=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor&&pg.modalidad===modalidad&&pg.id!==excluirPagoId).reduce((s,pg)=>s+(pg.monto||0),0);
   return Math.max(0,obligacion-pagado);
 }
+function saldoAFavorProveedorModalidad(proveedor,modalidad,excluirPagoId){
+  // Puede pasar si se pagó una venta y esa venta se canceló después: el pago ya hecho queda
+  // sin obligación que cubrir. No se oculta con Math.max(0,...) del lado del saldo pendiente
+  // — se muestra aparte como plata a favor de Zona Bariátrica, sin tocar el pago original.
+  const obligacion=obligacionVentaProveedor(proveedor,modalidad);
+  const pagado=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor&&pg.modalidad===modalidad&&pg.id!==excluirPagoId).reduce((s,pg)=>s+(pg.monto||0),0);
+  return Math.max(0,pagado-obligacion);
+}
 function pintarCuentasConsignacionBajoPedido(){
   const cuentas=cuentasConsignacionBajoPedido();
   if(cuentas.length===0)return '';
@@ -2355,12 +2427,13 @@ function pintarCuentasConsignacionBajoPedido(){
       const obligacion=obligacionVentaProveedor(c.proveedor,c.modalidad);
       const pagado=pagosProveedorModalidad(c.proveedor,c.modalidad).reduce((s,pg)=>s+(pg.monto||0),0);
       const saldo=Math.max(0,obligacion-pagado);
+      const aFavor=Math.max(0,pagado-obligacion);
       return `<tr>
         <td>${esc(c.proveedor)}</td>
         <td><span class="chip chip-gris">${MODALIDAD_LABEL_CORTO[c.modalidad]||c.modalidad}</span></td>
         <td>${money(obligacion)}</td>
         <td>${money(pagado)}</td>
-        <td>${saldo>0.005?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedorModalidad('${escJs(c.proveedor)}','${c.modalidad}')" title="Registrar pago">${money(saldo)}</button>`:`<span class="chip chip-verde">Al día</span>`}</td>
+        <td>${saldo>0.005?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedorModalidad('${escJs(c.proveedor)}','${c.modalidad}')" title="Registrar pago">${money(saldo)}</button>`:(aFavor>0.005?`<span class="chip chip-azul" title="Zona Bariátrica pagó de más en esta cuenta (ej. una venta pagada que después se canceló)">Saldo a favor: ${money(aFavor)}</span>`:`<span class="chip chip-verde">Al día</span>`)}</td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
   return html;
@@ -2434,13 +2507,15 @@ function pintarVistaSocio(){
     const ventas=ventasRepartoDeSocio(proveedor);
     const liquidaciones=liquidacionesDeSocio(proveedor);
     const saldo=saldoRepartoSocio(proveedor);
+    const aCompensar=saldoAFavorSocio(proveedor);
     const stockMarca=db.stock.filter(s=>s.activo!==false&&marcas.includes(s.marca));
     const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
     const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
     document.getElementById('socioResumenReparto').innerHTML=`
       <div class="eq-resumen-item"><div class="eq-resumen-lbl">Stock disponible</div><div class="eq-resumen-val">${unidadesEnStock} unidades</div></div>
       <div class="eq-resumen-item"><div class="eq-resumen-lbl">Saldo pendiente</div><div class="eq-resumen-val" style="${saldo>0.005?'color:var(--warning);':''}">${money(saldo)}</div></div>
-      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Total pagado</div><div class="eq-resumen-val">${money(totalPagado)}</div></div>`;
+      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Total pagado</div><div class="eq-resumen-val">${money(totalPagado)}</div></div>
+      ${aCompensar>0.005?`<div class="eq-resumen-item"><div class="eq-resumen-lbl">Monto a compensar</div><div class="eq-resumen-val" style="color:var(--primary);">${money(aCompensar)}</div></div>`:''}`;
     const contStock=document.getElementById('socioStockDetalle');
     contStock.innerHTML=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
       <th>Producto</th><th>Marca</th><th>Cantidad</th>
@@ -2482,32 +2557,41 @@ function cambiarMesSocio(valor){
   pintarVistaSocio();
 }
 function pintarProveedores(){
-  const compras=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  const entradas=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   const proveedores=listaProveedoresUnicos();
-  const deudaCompraDirecta=compras.filter(c=>c.proveedor).reduce((s,c)=>s+saldoEntrega(c),0);
+  // Solo las entradas de compra_directa son deuda por RECIBIR el stock. Una entrada de
+  // consignación es puro movimiento físico — su obligación (si la hay) nace al venderla, no
+  // acá (ver cuentasConsignacionBajoPedido/obligacionVentaProveedor).
+  const deudaCompraDirecta=entradas.filter(c=>c.proveedor&&c.modalidadComercial==='compra_directa').reduce((s,c)=>s+saldoEntrega(c),0);
   const deudaConsignacionBajoPedido=cuentasConsignacionBajoPedido().reduce((s,c)=>s+saldoProveedorModalidad(c.proveedor,c.modalidad),0);
   const deudaTotal=deudaCompraDirecta+deudaConsignacionBajoPedido;
   document.getElementById('resumenProveedores').innerHTML=`
-    <div class="stat"><div class="num">${compras.length}</div><div class="lbl">Compras</div></div>
+    <div class="stat"><div class="num">${entradas.length}</div><div class="lbl">Entregas/compras</div></div>
     <div class="stat"><div class="num" style="color:${deudaTotal>0?'var(--danger)':'var(--primary)'};">${money(deudaTotal)}</div><div class="lbl">Deuda</div></div>
     <div class="stat"><div class="num">${proveedores.length}</div><div class="lbl">Proveedores</div></div>`;
 
-  let html='<h3 style="font-size:15px;margin:4px 0 8px;">Compras</h3>';
-  if(compras.length===0){
-    html+='<div class="vacio">No hay compras registradas. Usa "Registrar entrega/compra" en Stock.</div>';
+  let html='<h3 style="font-size:15px;margin:4px 0 8px;">Entregas y compras</h3>';
+  html+='<p class="vacio" style="text-align:left;padding:0 0 8px;">Acá se ve todo el movimiento físico recibido. Solo "Compra directa" genera deuda al recibirla — consignación y bajo pedido generan su obligación al vender (ver la sección de abajo).</p>';
+  if(entradas.length===0){
+    html+='<div class="vacio">No hay entregas ni compras registradas. Usa "Registrar entrega/compra" en Stock.</div>';
   }else{
     html+=`<div class="tabla-wrap"><table><thead><tr>
-      <th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Valor de la entrega</th><th></th>
-      </tr></thead><tbody>${compras.map(c=>{
+      <th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Modalidad</th><th>Deuda</th><th></th>
+      </tr></thead><tbody>${entradas.map(c=>{
         const s=porId(db.stock,c.stockId);
-        const saldo=saldoEntrega(c);
+        const esCompraDirecta=c.modalidadComercial==='compra_directa';
+        const saldo=esCompraDirecta?saldoEntrega(c):0;
         const pagada=saldo<=0.005;
+        const modalidadChip=!c.modalidadComercial
+          ?'<span class="chip chip-naranja">modalidad sin determinar</span>'
+          :(esCompraDirecta?'<span class="chip chip-azul">Compra directa</span>':`<span class="chip chip-gris">${MODALIDAD_LABEL_CORTO[c.modalidadComercial]||c.modalidadComercial} · no genera deuda al recibir</span>`);
         return `<tr>
           <td>${fechaBonita(c.fecha)}</td>
           <td>${s?esc(s.marca+' — '+s.producto):'—'}</td>
           <td>${esc(c.proveedor||'—')}</td>
           <td>${c.cantidad}</td>
-          <td>${pagada?`<span class="chip chip-verde">Pagado</span>`:(c.proveedor?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedor('${c.id}')" title="Registrar pago">${money(saldo)}</button>`:money(saldo))}</td>
+          <td>${modalidadChip}</td>
+          <td>${esCompraDirecta?(pagada?`<span class="chip chip-verde">Pagado</span>`:(c.proveedor?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedor('${c.id}')" title="Registrar pago">${money(saldo)}</button>`:money(saldo))):'—'}</td>
           <td style="white-space:nowrap;font-size:11px;">
             <span id="corregir-link-${c.id}"><button type="button" class="link-historial" onclick="mostrarAccionesCompra('${c.id}')">¿Error? Corregir</button></span>
             <span id="corregir-acciones-${c.id}" class="oculto">
@@ -2520,7 +2604,22 @@ function pintarProveedores(){
   }
   document.getElementById('listaProveedores').innerHTML=html;
   document.getElementById('listaConsignacionBajoPedido').innerHTML=pintarCuentasConsignacionBajoPedido();
+  document.getElementById('listaPagosSinClasificar').innerHTML=pintarPagosSinClasificar();
   pintarRepartoIngresos();
+}
+function pagosHistoricosSinClasificar(){
+  return (db.pagosProveedor||[]).filter(pg=>!pg.modalidad).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function pintarPagosSinClasificar(){
+  const pagos=pagosHistoricosSinClasificar();
+  if(pagos.length===0)return '';
+  return `<h3 style="font-size:15px;margin:22px 0 8px;">Pagos históricos por revisar</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">Pagos viejos donde no se pudo determinar con seguridad a qué modalidad correspondían. No están sumados a ninguna cuenta hasta que alguien los clasifique a mano.</p>
+    <div class="tabla-wrap"><table><thead><tr>
+      <th>Proveedor</th><th>Fecha</th><th>Monto</th><th>Nota</th>
+      </tr></thead><tbody>${pagos.map(pg=>`<tr>
+        <td>${esc(pg.proveedor||'—')}</td><td>${fechaBonita(pg.fecha)}</td><td>${money(pg.monto)}</td><td>${esc(pg.nota||'—')}</td>
+      </tr>`).join('')}</tbody></table></div>`;
 }
 function ventasRepartoDeSocio(proveedor){
   const filas=[];
@@ -2546,6 +2645,14 @@ function saldoRepartoSocio(proveedor,excluirLiqId){
   const liquidado=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&l.id!==excluirLiqId).reduce((s,l)=>s+(l.monto||0),0);
   return Math.max(0,ganado-liquidado);
 }
+function saldoAFavorSocio(proveedor,excluirLiqId){
+  // Igual que saldoAFavorProveedorModalidad: si se liquidó una venta y esa venta se canceló
+  // después, la liquidación ya hecha queda sin obligación que cubrir. Se muestra aparte, sin
+  // tocar ni borrar la liquidación original.
+  const ganado=ventasRepartoDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
+  const liquidado=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&l.id!==excluirLiqId).reduce((s,l)=>s+(l.monto||0),0);
+  return Math.max(0,liquidado-ganado);
+}
 function marcasRepartoDeSocio(proveedor){
   return (db.config.marcas||[]).filter(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos'&&(db.config.repartoMarca||{})[m]&&(db.config.repartoMarca||{})[m].socio===proveedor);
 }
@@ -2570,13 +2677,14 @@ function pintarRepartoIngresos(){
       const corresponde=ventas.reduce((s,f)=>s+f.monto,0);
       const totalLiquidado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
       const saldo=saldoRepartoSocio(socio);
+      const aFavor=saldoAFavorSocio(socio);
       return `<tr>
         <td>${esc(socio)}</td>
         <td>${marcas.map(m=>esc(m)).join(', ')||'sin marca asignada'}</td>
         <td>${money(totalVendido)}</td>
         <td>${money(corresponde)}</td>
         <td>${money(totalLiquidado)}</td>
-        <td><span class="chip ${saldo>0.005?'chip-naranja':'chip-verde'}">${saldo>0.005?money(saldo):'Al día'}</span></td>
+        <td><span class="chip ${saldo>0.005?'chip-naranja':(aFavor>0.005?'chip-azul':'chip-verde')}">${saldo>0.005?money(saldo):(aFavor>0.005?'Saldo a favor: '+money(aFavor):'Al día')}</span></td>
         <td>${saldo>0.005?`<button class="btn-secundario btn-chico" onclick="abrirFormLiquidacion('${escJs(socio)}')">+ Liquidación</button>`:''}</td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
@@ -2909,7 +3017,7 @@ function pintarReportes(){
   const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,6);
 
   const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
-  const gastosCompras=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.fecha>=desde&&m.fecha<=hasta).reduce((s,m)=>s+(m.monto||0),0);
+  const gastosCompras=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.fecha>=desde&&m.fecha<=hasta).reduce((s,m)=>s+(m.monto||0),0);
 
   document.getElementById('repContenido').innerHTML=`
     <h3 style="font-size:15px;">Retorno de la pauta publicitaria</h3>
