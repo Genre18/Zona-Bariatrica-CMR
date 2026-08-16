@@ -1873,10 +1873,14 @@ function descontarStock(pedido){
     const stockItem=porId(db.stock,it.stockId);
     if(stockItem){
       stockItem.cantidad=(stockItem.cantidad||0)-it.cantidad;
-      db.movimientosStock.push({id:nuevoId(),tipo:'salida',stockId:stockItem.id,cantidad:it.cantidad,costoUnit:it.costoProveedorVenta!=null?it.costoProveedorVenta:(stockItem.costoPromedio||0),proveedor:it.proveedorVenta||stockItem.proveedor||'',motivo:'Venta',pedidoId:pedido.id,fecha:pedido.fecha,usuario:sesion?sesion.nombre:''});
+      db.movimientosStock.push({id:nuevoId(),tipo:'salida',stockId:stockItem.id,cantidad:it.cantidad,costoUnit:it.costoProveedorVenta!=null?it.costoProveedorVenta:(stockItem.costoPromedio||0),proveedor:it.proveedorVenta||stockItem.proveedor||'',motivo:'Venta',pedidoId:pedido.id,fecha:pedido.fecha,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()});
     }
   });
 }
+// Revierte el efecto físico de un pedido SOLO en memoria, de forma completamente reversible:
+// se usa exclusivamente mientras el modal "Editar pedido" está abierto (ver abrirEditarPedido/
+// cerrarModal), nunca para una cancelación real ni para confirmar una edición — esos casos
+// usan revertirVentaTrazable(), que no borra el historial confirmado.
 function revertirStockPedido(pedido){
   pedido.items.forEach(it=>{
     if(it.modalidadComercial==='bajo_pedido')return; // nunca hubo salida física que revertir
@@ -1884,6 +1888,23 @@ function revertirStockPedido(pedido){
     if(stockItem)stockItem.cantidad=(stockItem.cantidad||0)+it.cantidad;
   });
   db.movimientosStock=db.movimientosStock.filter(m=>m.pedidoId!==pedido.id);
+}
+// Revierte físicamente una venta ya CONFIRMADA sin borrar el movimiento de salida original:
+// agrega un movimiento compensatorio (+cantidad). tipo es 'devolucion_cancelacion' para una
+// cancelación real, o 'correccion_pedido' para una edición que cambió productos/cantidades.
+// Bajo pedido nunca genera esto (nunca hubo movimiento físico que devolver).
+function revertirVentaTrazable(items,pedidoId,tipo,motivo){
+  items.forEach(it=>{
+    if(it.modalidadComercial==='bajo_pedido')return;
+    const stockItem=porId(db.stock,it.stockId);
+    if(stockItem){
+      stockItem.cantidad=(stockItem.cantidad||0)+it.cantidad;
+      db.movimientosStock.push({id:nuevoId(),tipo,stockId:stockItem.id,cantidad:it.cantidad,costoUnit:it.costoProveedorVenta!=null?it.costoProveedorVenta:(stockItem.costoPromedio||0),motivo,pedidoId,fecha:hoyStr(),usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()});
+    }
+  });
+}
+function firmaItemsPedido(items){
+  return items.map(it=>it.stockId+':'+it.cantidad).sort().join('|');
 }
 function abrirEditarPedido(id){
   const p=porId(db.pedidos,id);
@@ -1970,8 +1991,16 @@ function guardarEditarPedido(ev,id){
     if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
   }
   const p=porId(db.pedidos,id);
+  const itemsAntesDeEditar=p.items; // referencia a los items reales confirmados, antes de reasignar más abajo
   const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
   const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  // Deshace el efecto TEMPORAL que dejó abrirEditarPedido() al abrir el modal (solo en
+  // memoria), para volver exactamente al estado real confirmado antes de editar — desde ahí
+  // se aplica el cambio de forma trazable, sin borrar ese historial.
+  if(edicionPedidoBackup&&edicionPedidoBackup.pedidoId===id){
+    edicionPedidoBackup.stockBackup.forEach(b=>{const s=porId(db.stock,b.id);if(s)s.cantidad=b.cantidad;});
+    db.movimientosStock.push(...edicionPedidoBackup.movsBackup);
+  }
   p.clienteId=clienteId;
   p.items=pedidoItemsTmp.slice();
   p.subtotal=subtotal;
@@ -1986,9 +2015,14 @@ function guardarEditarPedido(ev,id){
   p.estadoEnvio=document.getElementById('pd-estadoenvio').value;
   p.fecha=document.getElementById('pd-fecha').value||hoyStr();
   p.notas=document.getElementById('pd-notas').value.trim();
-  // El stock ya fue revertido al abrir el formulario (abrirEditarPedido); solo se vuelve a
-  // reservar si el pedido sigue vigente. Si se cancela desde aquí, el stock queda liberado.
-  if(nuevoEstadoPago!=='cancelado')descontarStock(p);
+  if(nuevoEstadoPago==='cancelado'){
+    revertirVentaTrazable(itemsAntesDeEditar,p.id,'devolucion_cancelacion','Cancelación de pedido (vía edición)');
+  }else if(firmaItemsPedido(itemsAntesDeEditar)!==firmaItemsPedido(p.items)){
+    // Solo si de verdad cambiaron productos/cantidades: se corrige de forma trazable (no se
+    // borra la salida original). Si solo cambió envío/notas/estado, no se toca nada físico.
+    revertirVentaTrazable(itemsAntesDeEditar,p.id,'correccion_pedido','Corrección de pedido: productos/cantidades editados');
+    descontarStock(p);
+  }
   edicionPedidoBackup=null;
   guardar();cerrarModal();pintarPedidos();pintarStock();
   return false;
@@ -1997,7 +2031,7 @@ function eliminarPedido(id){
   const p=porId(db.pedidos,id);
   if(p.estadoPago==='cancelado'){alert('Este pedido ya está cancelado.');return;}
   if(!confirm('¿Cancelar este pedido? El stock vendido se devolverá. El pedido se conserva en el historial marcado como cancelado.'))return;
-  revertirStockPedido(p);
+  revertirVentaTrazable(p.items,p.id,'devolucion_cancelacion','Cancelación de pedido');
   p.estadoPago='cancelado';
   p.canceladoPor=sesion.nombre;
   p.canceladoFecha=hoyStr();
@@ -2040,6 +2074,7 @@ function abrirMenuContextualStock(ev,id){
   div.className='menu-contextual';
   div.innerHTML=`
     <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirKardexStock('${id}')">📋 Ver movimientos</button>
     <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'♻️ Reactivar':'🗄️ Archivar'}</button>
   `;
   document.body.appendChild(div);
@@ -2140,19 +2175,34 @@ function datosStockValidos(){
 function guardarStock(ev){
   ev.preventDefault();
   if(!datosStockValidos())return false;
-  db.stock.push({
+  const marca=document.getElementById('st-marca').value;
+  const cantidadInicial=parseFloat(document.getElementById('st-cantidad').value)||0;
+  const costoInicial=parseFloat(document.getElementById('st-costo').value)||0;
+  const nuevo={
     id:nuevoId(),
-    marca:document.getElementById('st-marca').value,
+    marca,
     codigo:document.getElementById('st-codigo').value.trim(),
     producto:document.getElementById('st-producto').value.trim(),
-    cantidad:parseFloat(document.getElementById('st-cantidad').value)||0,
+    cantidad:cantidadInicial,
     unidad:document.getElementById('st-unidad').value.trim(),
     min:parseFloat(document.getElementById('st-min').value)||0,
     proveedor:valorProveedorForm(),
-    costoPromedio:parseFloat(document.getElementById('st-costo').value)||0,
+    costoPromedio:costoInicial,
     precioVenta:parseFloat(document.getElementById('st-venta').value)||0,
     activo:true
-  });
+  };
+  db.stock.push(nuevo);
+  if(cantidadInicial>0){
+    // Alta de producto con cantidad inicial = saldo de apertura conocido, NO una compra
+    // nueva: no genera deuda con nadie. Para una compra real (que sí puede generar
+    // obligación en compra_directa) se usa "Registrar entrega/compra".
+    db.movimientosStock.push({
+      id:nuevoId(),tipo:'entrada_inicial',stockId:nuevo.id,cantidad:cantidadInicial,
+      costoUnit:costoInicial,proveedor:nuevo.proveedor||'',
+      modalidadComercial:(db.config.modalidadMarca||{})[marca]||null,
+      motivo:'Stock inicial',fecha:hoyStr(),usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
+    });
+  }
   guardar();cerrarModal();pintarStock();
 }
 function abrirEditarStock(id){
@@ -2172,7 +2222,10 @@ function abrirEditarStock(id){
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
       <label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15">
       <div class="fila-2">
-        <div><label>Cantidad en stock</label><input type="number" id="st-cantidad" value="${s.cantidad}" min="0"></div>
+        <div><label>Cantidad en stock</label>
+          <input type="number" id="st-cantidad" value="${s.cantidad}" disabled style="background:var(--bg-soft);color:var(--muted);">
+          <button type="button" class="link-historial" style="margin-top:4px;" onclick="cerrarModal();abrirFormAjusteStock('${id}')">Ajustar stock</button>
+        </div>
         <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
       </div>
       <div class="fila-2">
@@ -2187,8 +2240,9 @@ function abrirEditarStock(id){
         </div>
       </div>
       <div class="fila-2">
-        <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="${s.costoPromedio}">
-          <small style="display:block;color:var(--muted);font-size:11px;margin-top:2px;">Se actualiza solo al registrar compras; edítalo aquí solo para corregirlo.</small>
+        <div id="st-fila-costo"><label>Costo actual (S/)</label>
+          <input type="number" id="st-costo" value="${s.costoPromedio}" disabled style="background:var(--bg-soft);color:var(--muted);">
+          <button type="button" class="link-historial" style="margin-top:4px;" onclick="cerrarModal();abrirFormCorregirCosto('${id}')">Corregir costo actual</button>
         </div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
       </div>
@@ -2203,25 +2257,15 @@ function guardarEditarStock(ev,id){
   ev.preventDefault();
   if(!datosStockValidos())return false;
   const s=porId(db.stock,id);
-  const cantidadAntes=s.cantidad||0;
+  // Cantidad y costo NO se tocan acá: solo cambian vía entradas/ventas/ajustes (cantidad) o
+  // "Corregir costo actual" (costo) — ver abrirFormAjusteStock/abrirFormCorregirCosto.
   s.marca=document.getElementById('st-marca').value;
   s.codigo=document.getElementById('st-codigo').value.trim();
   s.producto=document.getElementById('st-producto').value.trim();
-  s.cantidad=parseFloat(document.getElementById('st-cantidad').value)||0;
   s.unidad=document.getElementById('st-unidad').value.trim();
   s.min=parseFloat(document.getElementById('st-min').value)||0;
   s.proveedor=valorProveedorForm();
-  // El precio de compra normalmente se recalcula solo (promedio ponderado al
-  // registrar entregas/compras, ver aplicarCompra), pero aquí se puede corregir a mano.
-  s.costoPromedio=parseFloat(document.getElementById('st-costo').value)||0;
   s.precioVenta=parseFloat(document.getElementById('st-venta').value)||0;
-  if(s.cantidad!==cantidadAntes){
-    db.movimientosStock.push({
-      id:nuevoId(),tipo:'ajuste',stockId:s.id,cantidad:s.cantidad-cantidadAntes,
-      costoUnit:s.costoPromedio||0,motivo:'Ajuste manual de cantidad ('+cantidadAntes+' → '+s.cantidad+')',
-      fecha:hoyStr(),usuario:sesion?sesion.nombre:''
-    });
-  }
   guardar();cerrarModal();pintarStock();
   return false;
 }
@@ -2233,6 +2277,145 @@ function eliminarStock(id){
 function reactivarStock(id){
   porId(db.stock,id).activo=true;
   guardar();pintarStock();
+}
+function abrirFormAjusteStock(stockId){
+  const s=porId(db.stock,stockId);
+  if(!s)return;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar ajuste de stock</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(s.marca)} — ${esc(s.producto)} · Stock actual: <strong>${s.cantidad}</strong></p>
+    <form onsubmit="return guardarAjusteStock(event,'${stockId}')">
+      <label>Nuevo stock físico (conteo real) *</label>
+      <input type="number" id="aj-nuevostock" required value="${s.cantidad}" min="0">
+      <label>Motivo *</label>
+      <select id="aj-motivo" required>
+        <option value="">Elige un motivo...</option>
+        <option>Conteo físico</option>
+        <option>Producto dañado</option>
+        <option>Producto vencido</option>
+        <option>Pérdida</option>
+        <option>Error de registro</option>
+        <option>Devolución</option>
+        <option>Corrección de stock inicial</option>
+        <option>Otro</option>
+      </select>
+      <label>Nota (opcional)</label><input id="aj-nota" placeholder="Detalle adicional">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Registrar ajuste</button>
+      </div>
+    </form>`);
+}
+function guardarAjusteStock(ev,stockId){
+  ev.preventDefault();
+  const s=porId(db.stock,stockId);
+  if(!s)return false;
+  const nuevoStock=parseFloat(document.getElementById('aj-nuevostock').value);
+  const motivo=document.getElementById('aj-motivo').value;
+  if(isNaN(nuevoStock)||nuevoStock<0){alert('El nuevo stock no puede ser negativo.');return false;}
+  if(!motivo){alert('Elige un motivo.');return false;}
+  const nota=document.getElementById('aj-nota').value.trim();
+  const cantidadAnterior=s.cantidad||0;
+  const diferencia=nuevoStock-cantidadAnterior;
+  if(diferencia!==0){
+    // El costoPromedio NO se recalcula acá a propósito: un ajuste corrige unidades, no costo
+    // (para eso está "Corregir costo actual"). Se usa el costo vigente solo como referencia
+    // del movimiento, no lo modifica.
+    db.movimientosStock.push({
+      id:nuevoId(),tipo:'ajuste',stockId:s.id,cantidad:diferencia,
+      cantidadAnterior,cantidadNueva:nuevoStock,
+      costoUnit:s.costoPromedio||0,motivo,nota,
+      fecha:hoyStr(),usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
+    });
+  }
+  s.cantidad=nuevoStock;
+  guardar();cerrarModal();pintarStock();
+  return false;
+}
+function abrirFormCorregirCosto(stockId){
+  const s=porId(db.stock,stockId);
+  if(!s)return;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Corregir costo actual</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(s.marca)} — ${esc(s.producto)} · Costo actual: <strong>${money(s.costoPromedio)}</strong></p>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">Esto solo cambia el costo de referencia para operaciones futuras (nuevas ventas). No altera ventas ni obligaciones ya congeladas en el historial.</p>
+    <form onsubmit="return guardarCorregirCosto(event,'${stockId}')">
+      <label>Nuevo costo (S/) *</label>
+      <input type="number" id="cc-nuevocosto" step="0.01" required value="${s.costoPromedio}" min="0">
+      <label>Motivo / nota *</label>
+      <input id="cc-motivo" required placeholder="Ej. error al registrar la última compra">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar corrección</button>
+      </div>
+    </form>`);
+}
+function guardarCorregirCosto(ev,stockId){
+  ev.preventDefault();
+  const s=porId(db.stock,stockId);
+  if(!s)return false;
+  const nuevoCosto=parseFloat(document.getElementById('cc-nuevocosto').value);
+  const motivo=document.getElementById('cc-motivo').value.trim();
+  if(isNaN(nuevoCosto)||nuevoCosto<0){alert('El costo no puede ser negativo.');return false;}
+  if(!motivo){alert('Escribe el motivo de la corrección.');return false;}
+  const costoAnterior=s.costoPromedio||0;
+  if(costoAnterior!==nuevoCosto){
+    db.movimientosStock.push({
+      id:nuevoId(),tipo:'ajuste_costo',stockId:s.id,
+      costoAnterior,costoNuevo:nuevoCosto,motivo,
+      fecha:hoyStr(),usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
+    });
+    s.costoPromedio=nuevoCosto;
+  }
+  guardar();cerrarModal();pintarStock();
+  return false;
+}
+const TIPO_MOVIMIENTO_LABEL={
+  entrada:'Entrada',entrada_inicial:'Stock inicial',salida:'Venta',ajuste:'Ajuste',
+  ajuste_costo:'Corrección de costo',devolucion_cancelacion:'Devolución (cancelación)',
+  correccion_pedido:'Corrección de pedido'
+};
+function abrirKardexStock(stockId){
+  const s=porId(db.stock,stockId);
+  if(!s)return;
+  const movs=(db.movimientosStock||[]).filter(m=>m.stockId===stockId);
+  const movsOrdenados=movs.map((m,i)=>({m,i})).sort((a,b)=>comparaMovimientos(a.m,a.i,b.m,b.i)).map(x=>x.m);
+  // Reconstruye el saldo cronológicamente a partir de los movimientos. Un producto que nació
+  // con cantidad inicial de antes de que existiera este historial puede no cuadrar del todo
+  // con el stock real — no se inventa un movimiento para forzar el cuadre, se avisa aparte.
+  let saldo=0;
+  const filas=movsOrdenados.map(m=>{
+    let entrada=0,salida=0;
+    if(m.tipo==='entrada'||m.tipo==='entrada_inicial'||m.tipo==='devolucion_cancelacion'){entrada=m.cantidad;saldo+=m.cantidad;}
+    else if(m.tipo==='salida'){salida=m.cantidad;saldo-=m.cantidad;}
+    else if(m.tipo==='ajuste'||m.tipo==='correccion_pedido'){
+      if(m.cantidad>=0)entrada=m.cantidad;else salida=-m.cantidad;
+      saldo+=m.cantidad;
+    }
+    // ajuste_costo no mueve unidades: entrada/salida quedan en 0 y el saldo no cambia.
+    return{m,entrada,salida,saldoTrasEsteMovimiento:saldo};
+  });
+  const diferenciaInicial=(s.cantidad||0)-saldo;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Movimientos de ${esc(s.producto)}</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(s.marca)} · Stock actual: <strong>${s.cantidad}</strong></p>
+    ${Math.abs(diferenciaInicial)>0.005?`<div class="aviso">Saldo inicial/histórico no documentado: hay una diferencia de ${diferenciaInicial>0?'+':''}${diferenciaInicial} entre lo reconstruido por estos movimientos y el stock actual (probablemente el producto ya tenía existencias antes de que se registrara su primer movimiento). No se inventó un movimiento para cuadrarlo.</div>`:''}
+    ${filas.length===0?'<div class="vacio">Sin movimientos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+      <th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Saldo</th><th>Costo unit.</th><th>Motivo</th><th>Usuario</th>
+      </tr></thead><tbody>${filas.map(f=>`<tr>
+        <td>${fechaCelda(f.m.fecha)}</td>
+        <td>${TIPO_MOVIMIENTO_LABEL[f.m.tipo]||f.m.tipo}</td>
+        <td>${f.entrada?f.entrada:'—'}</td>
+        <td>${f.salida?f.salida:'—'}</td>
+        <td><strong>${f.saldoTrasEsteMovimiento}</strong></td>
+        <td>${f.m.tipo==='ajuste_costo'?(money(f.m.costoAnterior)+' → '+money(f.m.costoNuevo)):(f.m.costoUnit!=null?money(f.m.costoUnit):'—')}</td>
+        <td>${esc(f.m.motivo||f.m.nota||'—')}</td>
+        <td>${esc(f.m.usuario||'—')}</td>
+      </tr>`).join('')}</tbody></table></div>`}
+    <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
 }
 function abrirFormCompra(){
   const stockActivo=db.stock.filter(s=>s.activo!==false);
@@ -2257,6 +2440,21 @@ function abrirFormCompra(){
         <button class="btn">Registrar</button>
       </div>
     </form>`);
+}
+const TIPOS_MOVIMIENTO_FISICO=['entrada','entrada_inicial','salida','ajuste','devolucion_cancelacion','correccion_pedido'];
+function comparaMovimientos(a,ia,b,ib){
+  // >0 si a ocurrió después de b. Usa fecha, luego createdAt si ambos lo tienen; si no hay
+  // forma de desempatar con certeza (movimientos viejos sin createdAt), cae al orden real en
+  // que quedaron guardados en el array — nunca se inventa una hora.
+  if((a.fecha||'')!==(b.fecha||''))return (a.fecha||'')>(b.fecha||'')?1:-1;
+  if(a.createdAt&&b.createdAt)return a.createdAt>b.createdAt?1:(a.createdAt<b.createdAt?-1:0);
+  return ia-ib;
+}
+function entradaTieneMovimientosPosteriores(mov){
+  // ajuste_costo no mueve unidades: no cuenta para este bloqueo (ver TIPOS_MOVIMIENTO_FISICO).
+  const movs=db.movimientosStock||[];
+  const iMov=movs.indexOf(mov);
+  return movs.some((m,i)=>m!==mov&&m.stockId===mov.stockId&&TIPOS_MOVIMIENTO_FISICO.includes(m.tipo)&&comparaMovimientos(m,i,mov,iMov)>0);
 }
 function aplicarCompra(stockItem,cantidad,costoUnit){
   const cantidadPrevia=stockItem.cantidad||0;
@@ -2292,7 +2490,7 @@ function guardarCompra(ev){
     // recibirla (solo al vender), a diferencia de una entrada de compra directa.
     modalidadComercial:(db.config.modalidadMarca||{})[stockItem.marca]||null,
     modalidadHistoricaEstimada:false,
-    proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:''
+    proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
   });
   guardar();cerrarModal();pintarStock();
   return false;
@@ -2301,6 +2499,26 @@ function abrirEditarCompra(id){
   const mov=porId(db.movimientosStock,id);
   const s=porId(db.stock,mov.stockId);
   const costoUnitActual=mov.cantidad>0?(mov.monto||0)/mov.cantidad:0;
+  const bloqueada=entradaTieneMovimientosPosteriores(mov);
+  if(bloqueada){
+    abrirModal(`
+      <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+      <h3>Editar entrega o compra</h3>
+      <p class="vacio" style="text-align:left;padding:0 0 4px;">${s?esc(s.marca+' — '+s.producto):'(producto ya no existe en Stock)'}</p>
+      <div class="aviso">Esta entrada ya tiene movimientos posteriores. Para conservar la trazabilidad no puede modificarse directamente la cantidad ni el costo. Registra una corrección mediante un ajuste de stock desde el producto (clic derecho → Ver movimientos / desde Editar producto → Ajustar stock). Solo se pueden corregir acá el proveedor y la fecha.</div>
+      <form onsubmit="return guardarEditarCompraMetadatos(event,'${id}')">
+        <div class="fila-2">
+          <div><label>Proveedor / doctor</label><input id="cp-proveedor" value="${esc(mov.proveedor||'')}" list="cp-lista-proveedores"></div>
+          <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
+        </div>
+        <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+        <div class="acciones-modal">
+          <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+          <button class="btn">Guardar cambios</button>
+        </div>
+      </form>`);
+    return;
+  }
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar entrega o compra</h3>
@@ -2321,11 +2539,24 @@ function abrirEditarCompra(id){
       </div>
     </form>`);
 }
+function guardarEditarCompraMetadatos(ev,id){
+  ev.preventDefault();
+  const mov=porId(db.movimientosStock,id);
+  mov.proveedor=document.getElementById('cp-proveedor').value.trim();
+  mov.fecha=document.getElementById('cp-fecha').value||mov.fecha;
+  guardar();cerrarModal();pintarStock();pintarProveedores();
+  return false;
+}
 function guardarEditarCompra(ev,id){
   ev.preventDefault();
   const mov=porId(db.movimientosStock,id);
   const s=porId(db.stock,mov.stockId);
   if(!s){alert('El producto de esta compra ya no existe en Stock.');return false;}
+  if(entradaTieneMovimientosPosteriores(mov)){
+    alert('Esta entrada ya tiene movimientos posteriores. Para conservar la trazabilidad no puede modificarse directamente. Registra una corrección mediante ajuste.');
+    cerrarModal();pintarStock();
+    return false;
+  }
   const cantidad=parseFloat(document.getElementById('cp-cantidad').value)||0;
   const costoUnit=parseFloat(document.getElementById('cp-costo').value)||0;
   if(cantidad<=0){alert('La cantidad entregada debe ser mayor a 0.');return false;}
@@ -2340,8 +2571,16 @@ function guardarEditarCompra(ev,id){
   return false;
 }
 function eliminarCompra(id){
-  if(!confirm('¿Eliminar este registro de entrega/compra? Se revertirá su efecto en el stock y el costo promedio del producto. Si esas unidades ya se vendieron, el stock puede quedar en negativo (señal de que hay que revisar el conteo real).'))return;
   const mov=porId(db.movimientosStock,id);
+  if(entradaTieneMovimientosPosteriores(mov)){
+    alert('Esta entrada ya tiene movimientos posteriores. Para conservar la trazabilidad no se puede eliminar directamente. Registra una corrección mediante un ajuste de stock desde el producto.');
+    return;
+  }
+  if(mov.tipo==='entrada'&&pagosDeEntrega(id).length>0){
+    alert('Esta entrada tiene pagos registrados asociados. No se puede eliminar mientras existan esos pagos.');
+    return;
+  }
+  if(!confirm('¿Eliminar este registro de entrega/compra? Se revertirá su efecto en el stock y el costo promedio del producto.'))return;
   revertirCompra(mov);
   db.movimientosStock=db.movimientosStock.filter(m=>m.id!==id);
   guardar();pintarStock();pintarProveedores();
