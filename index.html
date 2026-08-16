@@ -1865,7 +1865,13 @@ function guardarPedido(ev){
   mostrarTicket(pedido,porId(db.clientes,clienteId));
   return false;
 }
-function descontarStock(pedido){
+function descontarStock(pedido,opciones){
+  // opciones.fechaMovimiento: para una venta NUEVA, la salida se fecha en pedido.fecha (fecha
+  // comercial). Para una salida creada por CORREGIR un pedido ya confirmado, debe fecharse en
+  // el momento real de la corrección (hoy), no retroactivamente en la fecha original — si no,
+  // el Kardex cronológico queda mintiendo sobre cuándo pasó cada cosa de verdad.
+  const fechaMovimiento=(opciones&&opciones.fechaMovimiento)||pedido.fecha;
+  const motivo=(opciones&&opciones.motivo)||'Venta';
   pedido.items.forEach(it=>{
     // Bajo pedido nunca pasa físicamente por Zona Bariátrica: no hay stock que descontar
     // ni movimiento físico real que registrar (evita una "salida" ficticia de inventario).
@@ -1873,7 +1879,7 @@ function descontarStock(pedido){
     const stockItem=porId(db.stock,it.stockId);
     if(stockItem){
       stockItem.cantidad=(stockItem.cantidad||0)-it.cantidad;
-      db.movimientosStock.push({id:nuevoId(),tipo:'salida',stockId:stockItem.id,cantidad:it.cantidad,costoUnit:it.costoProveedorVenta!=null?it.costoProveedorVenta:(stockItem.costoPromedio||0),proveedor:it.proveedorVenta||stockItem.proveedor||'',motivo:'Venta',pedidoId:pedido.id,fecha:pedido.fecha,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()});
+      db.movimientosStock.push({id:nuevoId(),tipo:'salida',stockId:stockItem.id,cantidad:it.cantidad,costoUnit:it.costoProveedorVenta!=null?it.costoProveedorVenta:(stockItem.costoPromedio||0),proveedor:it.proveedorVenta||stockItem.proveedor||'',motivo,pedidoId:pedido.id,fecha:fechaMovimiento,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()});
     }
   });
 }
@@ -1905,6 +1911,28 @@ function revertirVentaTrazable(items,pedidoId,tipo,motivo){
 }
 function firmaItemsPedido(items){
   return items.map(it=>it.stockId+':'+it.cantidad).sort().join('|');
+}
+const CAMPOS_ECONOMICOS_CONGELADOS=['modalidadComercial','proveedorVenta','costoProveedorVenta','responsableDespacho','socioReparto','porcentajeReparto','costoHistoricoEstimado'];
+function reconciliarItemsEditados(itemsNuevos,itemsOriginales){
+  // Si al editar se quita y se vuelve a agregar el mismo SKU con la misma cantidad, el ítem
+  // "nuevo" trae datos económicos frescos (costo/proveedor ACTUALES) aunque físicamente nada
+  // cambió — eso revaloriza en silencio una venta ya congelada, violando el principio de P1
+  // de que una venta histórica no cambia por costos/contratos posteriores. Acá se detecta ese
+  // caso (mismo stockId + misma cantidad) y se preservan los campos económicos originales. Si
+  // la cantidad cambió o es un SKU realmente nuevo, se usan los datos frescos (correctos: son
+  // condiciones nuevas, congeladas recién ahora, en el momento real de la corrección).
+  const disponibles=itemsOriginales.map(it=>({it,usado:false}));
+  return itemsNuevos.map(nuevo=>{
+    const match=disponibles.find(d=>!d.usado&&d.it.stockId===nuevo.stockId&&d.it.cantidad===nuevo.cantidad);
+    if(!match)return nuevo;
+    match.usado=true;
+    const fusion={...nuevo};
+    CAMPOS_ECONOMICOS_CONGELADOS.forEach(c=>{
+      if(match.it[c]!==undefined)fusion[c]=match.it[c];
+      else delete fusion[c];
+    });
+    return fusion;
+  });
 }
 function abrirEditarPedido(id){
   const p=porId(db.pedidos,id);
@@ -1991,9 +2019,7 @@ function guardarEditarPedido(ev,id){
     if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
   }
   const p=porId(db.pedidos,id);
-  const itemsAntesDeEditar=p.items; // referencia a los items reales confirmados, antes de reasignar más abajo
-  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
-  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const itemsAntesDeEditar=p.items; // referencia a la composición REAL confirmada, antes de tocar nada
   // Deshace el efecto TEMPORAL que dejó abrirEditarPedido() al abrir el modal (solo en
   // memoria), para volver exactamente al estado real confirmado antes de editar — desde ahí
   // se aplica el cambio de forma trazable, sin borrar ese historial.
@@ -2002,10 +2028,6 @@ function guardarEditarPedido(ev,id){
     db.movimientosStock.push(...edicionPedidoBackup.movsBackup);
   }
   p.clienteId=clienteId;
-  p.items=pedidoItemsTmp.slice();
-  p.subtotal=subtotal;
-  p.embalaje=embalaje;
-  p.total=subtotal+embalaje;
   p.metodoEnvio=document.getElementById('pd-envio').value;
   p.numeroOrden=document.getElementById('pd-numeroorden').value.trim();
   p.codigoEnvio=document.getElementById('pd-codigoenvio').value.trim();
@@ -2016,12 +2038,29 @@ function guardarEditarPedido(ev,id){
   p.fecha=document.getElementById('pd-fecha').value||hoyStr();
   p.notas=document.getElementById('pd-notas').value.trim();
   if(nuevoEstadoPago==='cancelado'){
+    // Se cancela: lo que se revierte y queda registrado es la composición YA CONFIRMADA
+    // (itemsAntesDeEditar). Los ítems que se hayan tocado en el modal antes de elegir
+    // "cancelado" nunca llegaron a confirmarse, así que no se guardan ni generan movimiento
+    // propio — el pedido cancelado conserva fiel su historia real (items/subtotal/total
+    // quedan tal como estaban, no se tocan).
     revertirVentaTrazable(itemsAntesDeEditar,p.id,'devolucion_cancelacion','Cancelación de pedido (vía edición)');
-  }else if(firmaItemsPedido(itemsAntesDeEditar)!==firmaItemsPedido(p.items)){
-    // Solo si de verdad cambiaron productos/cantidades: se corrige de forma trazable (no se
-    // borra la salida original). Si solo cambió envío/notas/estado, no se toca nada físico.
-    revertirVentaTrazable(itemsAntesDeEditar,p.id,'correccion_pedido','Corrección de pedido: productos/cantidades editados');
-    descontarStock(p);
+  }else{
+    // No se cancela: acá sí se aplican los ítems editados. reconciliarItemsEditados evita que
+    // quitar y volver a agregar el mismo SKU/misma cantidad revalorice en silencio una venta
+    // ya congelada con el costo/proveedor ACTUAL — solo lo realmente nuevo/distinto se
+    // congela fresco, ahora, en el momento real de esta corrección.
+    const itemsCorregidos=reconciliarItemsEditados(pedidoItemsTmp,itemsAntesDeEditar);
+    p.items=itemsCorregidos;
+    p.subtotal=itemsCorregidos.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+    p.embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+    p.total=p.subtotal+p.embalaje;
+    if(firmaItemsPedido(itemsAntesDeEditar)!==firmaItemsPedido(itemsCorregidos)){
+      // Solo si de verdad cambió la composición física: se corrige de forma trazable (no se
+      // borra la salida original), y la salida nueva queda fechada HOY (momento real de la
+      // corrección), no en la fecha comercial original del pedido.
+      revertirVentaTrazable(itemsAntesDeEditar,p.id,'correccion_pedido','Corrección de pedido: productos/cantidades editados');
+      descontarStock(p,{fechaMovimiento:hoyStr(),motivo:'Venta corregida'});
+    }
   }
   edicionPedidoBackup=null;
   guardar();cerrarModal();pintarPedidos();pintarStock();
