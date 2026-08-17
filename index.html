@@ -1910,29 +1910,78 @@ function revertirVentaTrazable(items,pedidoId,tipo,motivo){
   });
 }
 function firmaItemsPedido(items){
-  return items.map(it=>it.stockId+':'+it.cantidad).sort().join('|');
+  // Agrupada por stockId a propósito: dos líneas internas del mismo SKU (dos "capas
+  // económicas", ver reconciliarItemsEditados) deben leerse como la misma composición física
+  // que una sola línea con la cantidad total — la firma es sobre stock físico, no sobre cómo
+  // está particionado económicamente por dentro.
+  const totales={};
+  items.forEach(it=>{totales[it.stockId]=(totales[it.stockId]||0)+it.cantidad;});
+  return Object.keys(totales).sort().map(id=>id+':'+totales[id]).join('|');
 }
 const CAMPOS_ECONOMICOS_CONGELADOS=['modalidadComercial','proveedorVenta','costoProveedorVenta','responsableDespacho','socioReparto','porcentajeReparto','costoHistoricoEstimado'];
 function reconciliarItemsEditados(itemsNuevos,itemsOriginales){
-  // Si al editar se quita y se vuelve a agregar el mismo SKU con la misma cantidad, el ítem
-  // "nuevo" trae datos económicos frescos (costo/proveedor ACTUALES) aunque físicamente nada
-  // cambió — eso revaloriza en silencio una venta ya congelada, violando el principio de P1
-  // de que una venta histórica no cambia por costos/contratos posteriores. Acá se detecta ese
-  // caso (mismo stockId + misma cantidad) y se preservan los campos económicos originales. Si
-  // la cantidad cambió o es un SKU realmente nuevo, se usan los datos frescos (correctos: son
-  // condiciones nuevas, congeladas recién ahora, en el momento real de la corrección).
-  const disponibles=itemsOriginales.map(it=>({it,usado:false}));
-  return itemsNuevos.map(nuevo=>{
-    const match=disponibles.find(d=>!d.usado&&d.it.stockId===nuevo.stockId&&d.it.cantidad===nuevo.cantidad);
-    if(!match)return nuevo;
-    match.usado=true;
-    const fusion={...nuevo};
-    CAMPOS_ECONOMICOS_CONGELADOS.forEach(c=>{
-      if(match.it[c]!==undefined)fusion[c]=match.it[c];
-      else delete fusion[c];
-    });
-    return fusion;
+  // Evita que editar un pedido revalorice en silencio unidades ya vendidas. Se agrupa por
+  // stockId y se compara la cantidad final total contra el total histórico original:
+  //   - si la cantidad final es MENOR O IGUAL a la original: se conservan las capas
+  //     históricas más antiguas primero, recortando desde las más nuevas hacia atrás (nunca
+  //     se crea una capa "fresca" al reducir, solo se preserva/recorta lo que ya existía).
+  //   - si es MAYOR: se conservan TODAS las capas históricas tal cual, y se agrega una capa
+  //     nueva solo por la diferencia, con las condiciones vigentes AHORA (momento real de
+  //     esta corrección) — nunca se reprecia lo que ya estaba vendido.
+  //   - un SKU que ya no aparece en itemsNuevos desaparece del todo (no se arrastra).
+  //   - un SKU que no existía antes es 100% nuevo, con condiciones frescas.
+  // El resultado puede tener más de una línea para el mismo stockId (una por capa económica):
+  // es intencional, descontarStock/revertirVentaTrazable ya suman bien por línea, y
+  // firmaItemsPedido() las trata agrupadas como una sola composición física.
+  const totalNuevoPorSku={};
+  itemsNuevos.forEach(it=>{totalNuevoPorSku[it.stockId]=(totalNuevoPorSku[it.stockId]||0)+it.cantidad;});
+  const capasOriginalesPorSku={};
+  itemsOriginales.forEach(it=>{(capasOriginalesPorSku[it.stockId]=capasOriginalesPorSku[it.stockId]||[]).push(it);});
+  const resultado=[];
+  Object.keys(totalNuevoPorSku).forEach(stockId=>{
+    const totalNuevo=totalNuevoPorSku[stockId];
+    const capas=capasOriginalesPorSku[stockId]||[];
+    const totalOriginal=capas.reduce((s,c)=>s+c.cantidad,0);
+    if(capas.length===0){
+      // SKU realmente nuevo: usa las condiciones frescas que pedidoAgregarItem ya congeló.
+      const plantilla=itemsNuevos.find(it=>it.stockId===stockId);
+      resultado.push({...plantilla,cantidad:totalNuevo});
+      return;
+    }
+    if(totalNuevo<=totalOriginal){
+      let restante=totalNuevo;
+      for(const capa of capas){
+        if(restante<=0)break;
+        const tomar=Math.min(capa.cantidad,restante);
+        resultado.push({...capa,cantidad:tomar});
+        restante-=tomar;
+      }
+    }else{
+      capas.forEach(capa=>resultado.push({...capa}));
+      const plantilla=itemsNuevos.find(it=>it.stockId===stockId);
+      resultado.push({...plantilla,cantidad:totalNuevo-totalOriginal});
+    }
   });
+  return fusionarCapasIdenticas(resultado);
+}
+function fusionarCapasIdenticas(items){
+  // Si dos líneas del mismo SKU terminan con exactamente las mismas condiciones económicas
+  // (el caso común: el costo/proveedor no cambió entre una edición y otra), no tiene sentido
+  // dejarlas divididas — se combinan en una sola línea. Las capas solo quedan separadas
+  // cuando de verdad representan condiciones económicas distintas.
+  const clave=it=>[it.stockId,...CAMPOS_ECONOMICOS_CONGELADOS.map(c=>it[c]),it.precioUnit].join('~');
+  const agrupado=[];
+  const indicePorClave={};
+  items.forEach(it=>{
+    const k=clave(it);
+    if(indicePorClave[k]!==undefined){
+      agrupado[indicePorClave[k]].cantidad+=it.cantidad;
+    }else{
+      indicePorClave[k]=agrupado.length;
+      agrupado.push({...it});
+    }
+  });
+  return agrupado;
 }
 function abrirEditarPedido(id){
   const p=porId(db.pedidos,id);
