@@ -517,6 +517,7 @@ function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'
 // Para incrustar texto de usuario dentro de un argumento de string simple en onclick="fn('...')"
 function escJs(t){return esc(t).replace(/'/g,"\\'");}
 function money(n){return 'S/ '+Number(n||0).toFixed(2);}
+function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
 function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
 function fechaBonita(str){if(!str)return '—';const d=new Date(str+(str.length<=10?'T00:00:00':''));return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});}
@@ -561,7 +562,10 @@ const MODALIDADES_MARCA={
   consignacion:{label:'Consignación (la deuda nace al vender, no al recibir el stock)'},
   compra_directa:{label:'Compra directa (la deuda nace al comprar/recibir el inventario)'},
   bajo_pedido:{label:'Bajo pedido (se compra/paga al proveedor después de vender)'},
-  reparto_ingresos:{label:'Reparto de ingresos (marca de un socio, se le paga % de lo vendido)'}
+  // Clave técnica interna 'reparto_ingresos' se mantiene por compatibilidad con pedidos,
+  // movimientos y config históricos (ver respaldo real) — solo cambia la etiqueta visible y
+  // la fórmula (ETAPA A, PRE-P3 2026-08-20): ahora reparte UTILIDAD, no venta bruta.
+  reparto_ingresos:{label:'Reparto de utilidad (marca de un socio, se reparte el margen de lo vendido)'}
 };
 // Marcas que ya tienen modelo comercial configurado — solo estas se pueden vender (agregar a
 // un pedido). Una marca sin modalidad no aparece acá hasta que se configure en Config → Marcas.
@@ -1066,6 +1070,20 @@ const ESTADO_COLOR_LEAD={
   'cliente':          {bg:'#16a34a', fg:'#ffffff'},
   'no contactar':     {bg:'#ef4444', fg:'#ffffff'}
 };
+// ETAPA B (PRE-P3, 2026-08-20): a partir de ahora el único campo obligatorio de un Lead es
+// el teléfono — nombre/apellido pueden estar vacíos. nombreLead() es la ÚNICA función que
+// decide cómo se ve el nombre de un Lead en pantalla (fallback "Lead sin nombre"), para no
+// repetir la misma lógica de fallback en cada lugar que muestra un Lead.
+function nombreLead(l){
+  const completo=((l.nombre||'').trim()+' '+(l.apellido||'').trim()).trim();
+  return completo||'Lead sin nombre';
+}
+const METODOS_PAGO_LEAD=['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'];
+// Selector de "Usuario / Responsable" en Leads: solo admins internos (Roberto/Genesis), nunca
+// socios/proveedores — un socio no atiende Leads, solo ve su propia cuenta (ver vistaSocio).
+function usuariosAdmin(){
+  return (db.usuarios||[]).filter(u=>u.rol==='admin');
+}
 function pintarFiltroEstadoLeads(){
   const sel=document.getElementById('leadsFiltroEstado');
   const actual=sel.value;
@@ -1077,24 +1095,25 @@ function pintarLeads(){
   const buscar=(document.getElementById('leadsBuscar').value||'').toLowerCase();
   const filtroEstado=document.getElementById('leadsFiltroEstado').value;
   let leads=db.leads.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').includes(buscar));
+  if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').toLowerCase().includes(buscar)||(l.dni||'').toLowerCase().includes(buscar));
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
   const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
   cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular</th><th>Email</th><th>Ciudad / Provincia</th><th>Estatus</th>
+      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular</th><th>Email</th><th>Ciudad / Provincia</th><th>Responsable</th><th>Estatus</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
         <td>${campo(l,'fecha','date')}</td>
         <td>${campo(l,'hora','time')}</td>
-        <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(l.nombre)||'(sin nombre)'}</button></td>
+        <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
         <td>${campo(l,'apellido')}</td>
         <td>${campo(l,'edad','number')}</td>
         <td>${campo(l,'dni')}</td>
         <td>${campo(l,'telefono')}</td>
         <td>${campo(l,'email')}</td>
         <td>${campo(l,'distrito')}</td>
+        <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
         <td>
           <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 10px;min-width:168px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
@@ -1121,10 +1140,16 @@ function cambiarEstadoLeadGrid(id,valor){
 function abrirFichaLead(leadId){
   const l=porId(db.leads,leadId);
   const notas=(l.notas||[]).slice().reverse();
+  const adminNombres=usuariosAdmin().map(u=>u.nombre);
+  // Un lead histórico puede tener atendidoPor con un nombre que ya no es admin (usuario
+  // eliminado/renombrado): se agrega igual como opción para no perder el dato real, sin
+  // pisarlo con sesion.nombre hasta que alguien lo edite/guarde a propósito.
+  const opcionesResponsable=l.atendidoPor&&!adminNombres.includes(l.atendidoPor)?[l.atendidoPor,...adminNombres]:adminNombres;
+  const responsableActual=l.atendidoPor||sesion.nombre;
   abrirModal(`
     <div style="margin:-20px -20px 16px;padding:16px 20px;background:var(--primary);color:#fff;border-radius:14px 14px 0 0;position:relative;">
       <button class="cerrar-x" style="color:#fff;" onclick="cerrarModal()">✕</button>
-      <h3 style="margin:0;color:#fff;">${esc(l.nombre)} ${esc(l.apellido||'')}</h3>
+      <h3 style="margin:0;color:#fff;">${esc(nombreLead(l))}</h3>
       <div style="font-size:13px;opacity:.9;margin-top:2px;">${esc(l.telefono||'—')} · ${esc(l.distrito||'—')}</div>
     </div>
 
@@ -1132,6 +1157,10 @@ function abrirFichaLead(leadId){
       <div><label>Nombre</label><input id="lf-nombre" value="${esc(l.nombre||'')}" onchange="actualizarCampoLead('${l.id}','nombre',this.value)"></div>
       <div><label>Apellido</label><input id="lf-apellido" value="${esc(l.apellido||'')}" onchange="actualizarCampoLead('${l.id}','apellido',this.value)"></div>
     </div>
+    <label>Usuario / Responsable</label>
+    <select id="lf-atendidopor" onchange="actualizarCampoLead('${l.id}','atendidoPor',this.value)">
+      ${opcionesResponsable.map(nombre=>`<option value="${esc(nombre)}" ${nombre===responsableActual?'selected':''}>${esc(nombre)}</option>`).join('')}
+    </select>
     <label>Motivo de consulta (nota comercial, no diagnóstico médico)</label>
     <input id="lf-diagnostico" value="${esc(l.diagnostico||'')}" onchange="actualizarCampoLead('${l.id}','diagnostico',this.value)">
     <label>¿Por qué producto preguntó / qué le interesa?</label>
@@ -1140,6 +1169,12 @@ function abrirFichaLead(leadId){
     <select id="lf-canal" onchange="actualizarCampoLead('${l.id}','canal',this.value)">
       ${CANALES_LEAD.map(c=>`<option ${c===l.canal?'selected':''}>${esc(c)}</option>`).join('')}
     </select>
+    <label>Método de pago preferido (opcional)</label>
+    <select id="lf-metodopago" onchange="actualizarCampoLead('${l.id}','metodoPagoPreferido',this.value);document.getElementById('lf-aviso-tarjeta').classList.toggle('oculto',this.value!=='Tarjeta de crédito')">
+      <option value="" ${!l.metodoPagoPreferido?'selected':''}>— Sin definir —</option>
+      ${METODOS_PAGO_LEAD.map(m=>`<option ${m===l.metodoPagoPreferido?'selected':''}>${esc(m)}</option>`).join('')}
+    </select>
+    <div id="lf-aviso-tarjeta" class="aviso ${l.metodoPagoPreferido==='Tarjeta de crédito'?'':'oculto'}" style="margin-top:6px;">Tarjeta de crédito · se adiciona 4% al total de la compra.</div>
     ${ESTADOS_LEAD_PERDIDA.includes(l.estado)?`
     <label>Motivo de pérdida (opcional)</label>
     <input id="lf-motivoperdida" value="${esc(l.motivoPerdida||'')}" placeholder="Ej. precio, ya compró en otro lugar, no responde hace 2 semanas..." onchange="actualizarCampoLead('${l.id}','motivoPerdida',this.value)">
@@ -1169,7 +1204,7 @@ function abrirFichaLead(leadId){
 
     <div class="acciones-modal">
       <button type="button" class="btn-peligro" onclick="eliminarLead('${l.id}')">Eliminar</button>
-      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(l.nombre)}'})">✅ + Seguimiento</button>`}
+      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(nombreLead(l))}'})">✅ + Seguimiento</button>`}
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
     </div>`);
 }
@@ -1178,30 +1213,42 @@ function abrirFormLead(){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nuevo lead</h3>
     <form onsubmit="return guardarLead(event)">
+      <label style="margin-top:0;">Celular *</label><input id="ld-telefono" required placeholder="Ej. 987654321" autofocus>
       <div class="fila-2">
-        <div><label>Nombre *</label><input id="ld-nombre" required></div>
+        <div><label>Nombre</label><input id="ld-nombre"></div>
         <div><label>Apellido</label><input id="ld-apellido"></div>
       </div>
+      <label>Usuario / Responsable</label>
+      <select id="ld-atendidopor">
+        ${usuariosAdmin().map(u=>`<option value="${esc(u.nombre)}" ${sesion&&u.nombre===sesion.nombre?'selected':''}>${esc(u.nombre)}</option>`).join('')}
+      </select>
       <div class="fila-2">
-        <div><label>Celular *</label><input id="ld-telefono" required></div>
         <div><label>Fuente de captación</label>
           <select id="ld-canal">${CANALES_LEAD.map(c=>`<option>${esc(c)}</option>`).join('')}</select>
         </div>
+        <div><label>¿Por qué producto preguntó / qué le interesa?</label><input id="ld-interes"></div>
       </div>
+      <label>Método de pago preferido (opcional)</label>
+      <select id="ld-metodopago" onchange="document.getElementById('ld-aviso-tarjeta').classList.toggle('oculto',this.value!=='Tarjeta de crédito')">
+        <option value="" selected>— Sin definir —</option>
+        ${METODOS_PAGO_LEAD.map(m=>`<option>${esc(m)}</option>`).join('')}
+      </select>
+      <div id="ld-aviso-tarjeta" class="aviso oculto" style="margin-top:6px;">Tarjeta de crédito · se adiciona 4% al total de la compra.</div>
+      <hr style="margin:16px 0 4px;border:none;border-top:1px solid var(--border);">
+      <p class="vacio" style="text-align:left;padding:0 0 4px;">Datos opcionales adicionales</p>
       <div class="fila-2">
         <div><label>DNI/CE</label><input id="ld-dni"></div>
         <div><label>Edad</label><input type="number" id="ld-edad"></div>
       </div>
       <div class="fila-2">
         <div><label>Email</label><input id="ld-email"></div>
-        <div><label>Ciudad / Provincia *</label><input id="ld-distrito" required></div>
+        <div><label>Ciudad / Provincia</label><input id="ld-distrito"></div>
       </div>
       <div class="fila-2">
         <div><label>Fecha de contacto</label><input type="date" id="ld-fecha" value="${hoyStr()}"></div>
         <div><label>Hora</label><input type="time" id="ld-hora" value="${horaAhora()}"></div>
       </div>
       <label>Motivo de consulta (nota comercial, no diagnóstico médico)</label><input id="ld-diagnostico">
-      <label>¿Por qué producto preguntó / qué le interesa?</label><input id="ld-interes">
       <label>Nota inicial (lo que se conversó por chat)</label><textarea id="ld-nota" rows="2"></textarea>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -1211,12 +1258,19 @@ function abrirFormLead(){
 }
 function guardarLead(ev){
   ev.preventDefault();
+  // ETAPA B: el celular es el ÚNICO campo obligatorio — validación mínima (trim + no vacío),
+  // sin exigir cantidad de dígitos ni prefijo, porque pueden entrar números de provincia,
+  // extranjeros o formatos de WhatsApp. El atributo required del input ya lo bloquea a nivel
+  // de navegador; esta validación explícita asegura el mensaje exacto pedido.
+  const telefono=document.getElementById('ld-telefono').value.trim();
+  if(!telefono){alert('El celular es obligatorio.');return false;}
   const nota=document.getElementById('ld-nota').value.trim();
+  const elAtendido=document.getElementById('ld-atendidopor');
   const lead={
     id:nuevoId(),
     nombre:document.getElementById('ld-nombre').value.trim(),
     apellido:document.getElementById('ld-apellido').value.trim(),
-    telefono:document.getElementById('ld-telefono').value.trim(),
+    telefono,
     canal:document.getElementById('ld-canal').value,
     dni:document.getElementById('ld-dni').value.trim(),
     edad:document.getElementById('ld-edad').value,
@@ -1227,7 +1281,8 @@ function guardarLead(ev){
     fecha:document.getElementById('ld-fecha').value||hoyStr(),
     hora:document.getElementById('ld-hora').value,
     estado:'sin contactar',
-    atendidoPor:sesion.nombre,
+    atendidoPor:(elAtendido&&elAtendido.value)||sesion.nombre,
+    metodoPagoPreferido:document.getElementById('ld-metodopago').value,
     notas:nota?[{id:nuevoId(),texto:nota,autor:sesion.nombre,fecha:hoyStr()}]:[],
     clienteId:null
   };
@@ -1408,6 +1463,7 @@ function abrirFormCliente(leadId){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>${lead?'Convertir lead en cliente':'Nuevo pedido'}</h3>
+    ${lead?`<p class="vacio" style="text-align:left;padding:0 0 6px;">${esc(nombreLead(lead))} · ${esc(lead.telefono||'—')} — completa el nombre real del cliente abajo antes de guardar.</p>`:''}
     ${!lead?`
     <label>¿Ya es cliente? Selecciónalo para registrarle un pedido en vez de crear uno nuevo</label>
     <select id="cl-existente" onchange="if(this.value){cerrarModal();abrirFormPedido(this.value);}">
@@ -1459,20 +1515,25 @@ function abrirFormCliente(leadId){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Método de pago</label>
-          <select id="pd-metodopago"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
+        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+      </div>
+      <div class="fila-2">
+        <div><label>Método de pago${lead&&lead.metodoPagoPreferido?' <span style="font-weight:400;color:var(--muted);">(preferido del lead)</span>':''}</label>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${METODOS_PAGO_LEAD.map(m=>`<option ${lead&&lead.metodoPagoPreferido===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
+      <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
 
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -1497,6 +1558,14 @@ function guardarCliente(ev,leadId){
   }
   const problema=stockInsuficienteEnPedidoTmp();
   if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
+  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+  const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
+  const metodoPago=document.getElementById('pd-metodopago').value;
+  // FIX B: se valida ANTES de crear el cliente/pedido — si esto fallara después del push,
+  // quedaría un cliente sin pedido asociado en memoria.
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,descuento,embalaje,delivery);
+  if(errorImportes){alert(errorImportes);return false;}
   const cliente={
     id:nuevoId(),
     nombre:document.getElementById('cl-nombre').value.trim(),
@@ -1520,19 +1589,21 @@ function guardarCliente(ev,leadId){
     lead.clienteId=cliente.id;
     lead.estado='cliente';
   }
-  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
-  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
   const pedido={
     id:nuevoId(),
     clienteId:cliente.id,
     items:pedidoItemsTmp.slice(),
-    subtotal,
+    subtotal:t.subtotal,
+    descuento,
     embalaje,
-    total:subtotal+embalaje,
+    delivery,
+    recargoTarjeta:t.recargoTarjeta,
+    total:t.total,
     metodoEnvio:document.getElementById('pd-envio').value,
     numeroOrden:document.getElementById('pd-numeroorden').value.trim(),
     codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
-    metodoPago:document.getElementById('pd-metodopago').value,
+    metodoPago,
     pagoReferencia:document.getElementById('pd-referencia').value.trim(),
     pagoConfirmadoPor:sesion.nombre,
     estadoPago:'pagado', // solo se registra la venta cuando ya llegó el comprobante de pago: nace pagado
@@ -1570,7 +1641,10 @@ function mostrarTicket(pedido,cliente){
         ${esc(direccionCompleta(cliente))}
       </div>
       <div style="border-top:1px dashed var(--border);padding-top:8px;">${filas}</div>
-      <div class="item-linea"><span>Embalaje</span><span>${money(pedido.embalaje)}</span></div>
+      ${pedido.descuento?`<div class="item-linea"><span>Descuento</span><span>−${money(pedido.descuento)}</span></div>`:''}
+      ${pedido.embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(pedido.embalaje)}</span></div>`:''}
+      ${pedido.delivery?`<div class="item-linea"><span>Delivery</span><span>${money(pedido.delivery)}</span></div>`:''}
+      ${pedido.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(pedido.recargoTarjeta)}</span></div>`:''}
       <div class="subtotal-box"><span>TOTAL</span><span>${money(pedido.total)}</span></div>
       <div style="font-size:12px;color:var(--muted);margin-top:8px;">
         Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)} · Atendió: ${esc(pedido.atendidoPor)}
@@ -1594,7 +1668,10 @@ function imprimirTicket(pedidoId){
     <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
     <div><strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}</div>
     <table style="margin-top:8px;">${filas}
-      <tr><td>Embalaje</td><td style="text-align:right;">${money(pedido.embalaje)}</td></tr>
+      ${pedido.descuento?`<tr><td>Descuento</td><td style="text-align:right;">−${money(pedido.descuento)}</td></tr>`:''}
+      ${pedido.embalaje?`<tr><td>Embalaje</td><td style="text-align:right;">${money(pedido.embalaje)}</td></tr>`:''}
+      ${pedido.delivery?`<tr><td>Delivery</td><td style="text-align:right;">${money(pedido.delivery)}</td></tr>`:''}
+      ${pedido.recargoTarjeta?`<tr><td>Recargo tarjeta (4%)</td><td style="text-align:right;">${money(pedido.recargoTarjeta)}</td></tr>`:''}
       <tr class="tot"><td>TOTAL</td><td style="text-align:right;">${money(pedido.total)}</td></tr>
     </table>
     <div class="c" style="margin-top:10px;">Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)}<br>Atendió: ${esc(pedido.atendidoPor)}<br>¡Gracias por tu compra!</div>
@@ -1605,6 +1682,48 @@ function imprimirTicket(pedidoId){
   w.document.close();
   w.focus();
   w.print();
+}
+
+/* ================= MOTOR DE PRECIOS (preciosVolumen) =================
+   PRE-P3 ETAPA A (2026-08-20). Único punto que resuelve el precio unitario
+   vigente de un producto según la cantidad. preciosVolumen es opcional y
+   vive en cada producto de Stock: [{desde,precioUnit,activo}]. Ningún otro
+   lugar del código debe leer stockItem.precioVenta directamente para
+   construir un ítem de pedido — siempre pasar por acá (se llama solo desde
+   pedidoAgregarItem/pedidoCambiarCantidadItem, el único punto donde se
+   congela precioUnit en un ítem). */
+function precioUnitarioParaCantidad(stockItem,cantidad){
+  const base=stockItem?(stockItem.precioVenta||0):0;
+  const tramos=((stockItem&&stockItem.preciosVolumen)||[]).filter(t=>t.activo!==false&&cantidad>=(t.desde||0));
+  if(tramos.length===0)return base;
+  return tramos.reduce((mejor,t)=>t.desde>mejor.desde?t:mejor).precioUnit;
+}
+// Única función que calcula subtotal/recargoTarjeta/total de un pedido (nuevo o en edición).
+// Fórmula aprobada 2026-08-20, verificada contra los 2 pedidos reales del respaldo (ver informe):
+//   baseProductos = MAX(0, subtotal - descuento)
+//   baseTarjeta = baseProductos + embalaje + delivery
+//   recargoTarjeta = baseTarjeta × 0.04 si metodoPago==='Tarjeta de crédito', si no 0
+//   total = baseProductos + embalaje + delivery + recargoTarjeta
+function calcularTotalesPedido(items,descuento,embalaje,delivery,metodoPago){
+  const subtotal=(items||[]).reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  const baseProductos=Math.max(0,round2(subtotal)-round2(descuento||0));
+  const baseTarjeta=baseProductos+round2(embalaje||0)+round2(delivery||0);
+  const recargoTarjeta=metodoPago==='Tarjeta de crédito'?round2(baseTarjeta*0.04):0;
+  const total=round2(baseProductos+round2(embalaje||0)+round2(delivery||0)+recargoTarjeta);
+  return{subtotal:round2(subtotal),baseProductos:round2(baseProductos),recargoTarjeta,total};
+}
+// FIX B (PRE-P3 ETAPA A, cierre 2026-08-20): valida los importes COMERCIALES del pedido antes
+// de guardar (nunca dentro de calcularTotalesPedido, que sigue siendo puramente matemática con
+// MAX(0,...) como defensa final). Única función de validación, reusada por guardarCliente/
+// guardarPedido/guardarEditarPedido para no repetir las mismas reglas 3 veces.
+// Devuelve un string con el error, o null si los importes son válidos.
+function validarImportesPedido(items,descuento,embalaje,delivery){
+  if((descuento||0)<0)return 'El descuento no puede ser negativo.';
+  if((embalaje||0)<0)return 'El embalaje no puede ser negativo.';
+  if((delivery||0)<0)return 'El delivery no puede ser negativo.';
+  const subtotal=(items||[]).reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  if((descuento||0)>subtotal)return `El descuento (${money(descuento)}) no puede superar el subtotal del pedido (${money(subtotal)}).`;
+  return null;
 }
 
 /* ================= PEDIDOS ================= */
@@ -1725,20 +1844,25 @@ function abrirFormPedido(clienteIdPre){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
+        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+      </div>
+      <div class="fila-2">
         <div><label>Método de pago</label>
-          <select id="pd-metodopago"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
+      <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
 
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -1761,12 +1885,13 @@ function pedidoActualizarEnvio(){
   document.getElementById('pd-embalaje').value=envio==='shalom'?(db.config.embalajeDefault||0):0;
   const camposShalom=document.getElementById('pedidoShalomCampos');
   if(camposShalom)camposShalom.classList.toggle('oculto',envio!=='shalom');
+  pedidoActualizarTotales();
 }
 function pedidoAgregarItem(){
   const stockId=document.getElementById('pi-producto').value;
-  const cantidad=parseFloat(document.getElementById('pi-cantidad').value)||0;
+  const cantidadAgregar=parseFloat(document.getElementById('pi-cantidad').value)||0;
   const stockItem=porId(db.stock,stockId);
-  if(!stockItem||cantidad<=0){alert('Elige un producto y una cantidad válida.');return;}
+  if(!stockItem||cantidadAgregar<=0){alert('Elige un producto y una cantidad válida.');return;}
   const modalidad=(db.config.modalidadMarca||{})[stockItem.marca];
   if(!modalidad){alert(`La marca "${stockItem.marca}" todavía no tiene un modelo comercial configurado. Configúralo en Config → Marcas antes de venderla.`);return;}
   // Sin proveedor/socio asignado no hay a quién imputarle la obligación económica de la
@@ -1774,62 +1899,138 @@ function pedidoAgregarItem(){
   if(modalidad==='reparto_ingresos'){
     const repartoCheck=(db.config.repartoMarca||{})[stockItem.marca];
     if(!repartoCheck||!repartoCheck.socio){
-      alert(`La marca "${stockItem.marca}" todavía no tiene un socio configurado para el reparto de ingresos. Configúralo en Config → Marcas antes de venderla.`);
+      alert(`La marca "${stockItem.marca}" todavía no tiene un socio configurado para el reparto de utilidad. Configúralo en Config → Marcas antes de venderla.`);
+      return;
+    }
+    // FIX A (PRE-P3 ETAPA A, cierre 2026-08-20): defensa en el punto donde se congela
+    // costoProveedorVenta — nunca dejar que un producto con costo 0 (por dato viejo/sin
+    // corregir) entre a un pedido y reparta sobre venta bruta sin que nadie lo note.
+    if((stockItem.costoPromedio||0)<=0){
+      alert('Este producto no tiene un costo base válido para calcular el reparto de utilidad.\nCorrige el costo en Stock antes de vender.');
       return;
     }
   }else if(!stockItem.proveedor){
     alert('Este producto no tiene proveedor asignado. Asígnalo en Stock antes de vender.');
     return;
   }
+  // Cantidad ACUMULADA del mismo stockId dentro de este pedido (PRE-P3 ETAPA A): si el
+  // producto ya estaba agregado, se fusiona en una sola línea y se recalcula el precio con
+  // la cantidad total (ver precioUnitarioParaCantidad) — evita que agregar "1 + 1" del mismo
+  // producto quede como dos líneas a precio unitario, ignorando un precio por volumen vigente.
+  const existente=pedidoItemsTmp.find(it=>it.stockId===stockId);
+  const cantidadTotal=(existente?existente.cantidad:0)+cantidadAgregar;
   // El stock físico de Zona Bariátrica solo bloquea la venta en consignación/compra directa.
   // Bajo pedido no depende del stock físico (puede venderse con cantidad 0): el producto
   // nunca pasa físicamente por acá, así que tampoco hay que reservar/descontar nada.
   if(modalidad!=='bajo_pedido'){
-    const yaEnPedido=pedidoItemsTmp.filter(it=>it.stockId===stockId).reduce((s,it)=>s+it.cantidad,0);
     const disponible=stockItem.cantidad||0;
-    if(yaEnPedido+cantidad>disponible){
-      alert(`No hay stock suficiente de "${stockItem.producto}". Disponible: ${disponible} unidad(es)${yaEnPedido?` (ya agregaste ${yaEnPedido} a este pedido)`:''}.`);
+    if(cantidadTotal>disponible){
+      alert(`No hay stock suficiente de "${stockItem.producto}". Disponible: ${disponible} unidad(es)${existente?` (ya tenías ${existente.cantidad} en este pedido)`:''}.`);
       return;
     }
   }
   const responsable=(db.config.responsableDespachoMarca||{})[stockItem.marca]||'zona_bariatrica';
+  const precioUnit=precioUnitarioParaCantidad(stockItem,cantidadTotal);
   // Se congela en el propio ítem toda la "foto" económica del momento de la venta
-  // (modalidad, proveedor, costo, responsable de despacho) para que Proveedores y el
-  // historial nunca dependan de la configuración ACTUAL de la marca para reconstruir una
-  // venta pasada: si mañana LVL Drink deja de ser bajo pedido, o cambia el costo del
-  // proveedor, esta venta ya vendida sigue calculándose con los valores de hoy.
-  const item={
-    stockId:stockItem.id,marca:stockItem.marca,producto:stockItem.producto,cantidad,precioUnit:stockItem.precioVenta||0,
-    modalidadComercial:modalidad,
-    proveedorVenta:stockItem.proveedor||'',
-    costoProveedorVenta:stockItem.costoPromedio||0,
-    responsableDespacho:responsable,
-    costoHistoricoEstimado:false
-  };
-  // Si la marca es "reparto de ingresos", se congela también el socio y el % vigentes en
-  // este momento: si más adelante cambia el % en Config, las ventas ya hechas no deben
-  // recalcularse con el valor nuevo.
-  if(modalidad==='reparto_ingresos'){
-    const reparto=(db.config.repartoMarca||{})[stockItem.marca];
-    if(reparto&&reparto.socio){
-      item.socioReparto=reparto.socio;
-      item.porcentajeReparto=reparto.porcentaje||60;
+  // (modalidad, proveedor, costo, responsable de despacho, precio ya resuelto por cantidad)
+  // para que Proveedores y el historial nunca dependan de la configuración ACTUAL de la
+  // marca/producto para reconstruir una venta pasada: si mañana LVL Drink deja de ser bajo
+  // pedido, cambia el costo del proveedor o cambia/termina una promoción por volumen, esta
+  // venta ya vendida sigue calculándose con los valores congelados aquí. Esto SOLO aplica
+  // mientras el ítem está en pedidoItemsTmp (pedido todavía no confirmado); un pedido ya
+  // guardado nunca vuelve a pasar por acá salvo que se le agregue un ítem nuevo al editarlo
+  // (ver reconciliarItemsEditados, que preserva intactas las capas históricas confirmadas).
+  if(existente){
+    existente.cantidad=cantidadTotal;
+    existente.precioUnit=precioUnit;
+    existente.modalidadComercial=modalidad;
+    existente.proveedorVenta=stockItem.proveedor||'';
+    existente.costoProveedorVenta=stockItem.costoPromedio||0;
+    existente.responsableDespacho=responsable;
+    existente.costoHistoricoEstimado=false;
+    if(modalidad==='reparto_ingresos'){
+      const reparto=(db.config.repartoMarca||{})[stockItem.marca];
+      if(reparto&&reparto.socio){existente.socioReparto=reparto.socio;existente.porcentajeReparto=reparto.porcentaje||60;}
     }
+  }else{
+    const item={
+      stockId:stockItem.id,marca:stockItem.marca,producto:stockItem.producto,cantidad:cantidadTotal,precioUnit,
+      modalidadComercial:modalidad,
+      proveedorVenta:stockItem.proveedor||'',
+      costoProveedorVenta:stockItem.costoPromedio||0,
+      responsableDespacho:responsable,
+      costoHistoricoEstimado:false
+    };
+    // Si la marca es "reparto de utilidad" (clave técnica: reparto_ingresos), se congela
+    // también el socio y el % vigentes en este momento: si más adelante cambia el % en
+    // Config, las ventas ya hechas no deben recalcularse con el valor nuevo.
+    if(modalidad==='reparto_ingresos'){
+      const reparto=(db.config.repartoMarca||{})[stockItem.marca];
+      if(reparto&&reparto.socio){
+        item.socioReparto=reparto.socio;
+        item.porcentajeReparto=reparto.porcentaje||60;
+      }
+    }
+    pedidoItemsTmp.push(item);
   }
-  pedidoItemsTmp.push(item);
   pedidoRenderItems();
 }
 function pedidoQuitarItem(i){pedidoItemsTmp.splice(i,1);pedidoRenderItems();}
+// Mientras el pedido NO está confirmado, la cantidad de una línea puede cambiar y el precio
+// se reevalúa según la configuración de precio por volumen VIGENTE (ver precioUnitarioParaCantidad).
+// Esto es exclusivo de pedidoItemsTmp (temporal); un pedido ya guardado nunca pasa por acá.
+function pedidoCambiarCantidadItem(i,valor){
+  const cantidad=parseFloat(valor)||0;
+  if(cantidad<=0){pedidoQuitarItem(i);return;}
+  const it=pedidoItemsTmp[i];
+  if(!it)return;
+  const stockItem=porId(db.stock,it.stockId);
+  it.cantidad=cantidad;
+  it.precioUnit=precioUnitarioParaCantidad(stockItem,cantidad);
+  pedidoRenderItems();
+}
 function pedidoRenderItems(){
   const cont=document.getElementById('pedidoItemsList');
   if(!cont)return;
-  if(pedidoItemsTmp.length===0){cont.innerHTML='<div class="vacio" style="padding:10px;">Aún no agregas productos.</div>';return;}
-  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
+  if(pedidoItemsTmp.length===0){
+    cont.innerHTML='<div class="vacio" style="padding:10px;">Aún no agregas productos.</div>';
+    pedidoActualizarTotales();
+    return;
+  }
   cont.innerHTML=pedidoItemsTmp.map((it,i)=>`
     <div class="item-linea">
-      <span>${it.cantidad}x ${esc(it.producto)} <span class="q">(${esc(it.marca)} · ${money(it.precioUnit)} c/u)</span></span>
-      <span><strong>${money(it.cantidad*it.precioUnit)}</strong> <button type="button" class="btn-icono" onclick="pedidoQuitarItem(${i})">✕</button></span>
-    </div>`).join('')+`<div class="subtotal-box"><span>Subtotal</span><span>${money(subtotal)}</span></div>`;
+      <span>${esc(it.producto)} <span class="q">(${esc(it.marca)} · ${money(it.precioUnit)} c/u)</span></span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <input type="number" min="1" value="${it.cantidad}" style="width:56px;padding:4px 6px;" onchange="pedidoCambiarCantidadItem(${i},this.value)">
+        <strong>${money(it.cantidad*it.precioUnit)}</strong>
+        <button type="button" class="btn-icono" onclick="pedidoQuitarItem(${i})">✕</button>
+      </span>
+    </div>`).join('');
+  pedidoActualizarTotales();
+}
+// Caja de totales en vivo (subtotal/descuento/embalaje/delivery/recargoTarjeta/total),
+// reutilizada por los 3 formularios de pedido (nuevo desde cliente, nuevo desde ficha,
+// edición). Usa la MISMA función calcularTotalesPedido() que guardarCliente/guardarPedido/
+// guardarEditarPedido, para que la vista previa nunca pueda divergir de lo que se guarda.
+function pedidoActualizarTotales(){
+  const cont=document.getElementById('pedidoTotalesBox');
+  if(!cont)return;
+  const elDescuento=document.getElementById('pd-descuento');
+  const elEmbalaje=document.getElementById('pd-embalaje');
+  const elDelivery=document.getElementById('pd-delivery');
+  const elMetodo=document.getElementById('pd-metodopago');
+  const descuento=elDescuento?(parseFloat(elDescuento.value)||0):0;
+  const embalaje=elEmbalaje?(parseFloat(elEmbalaje.value)||0):0;
+  const delivery=elDelivery?(parseFloat(elDelivery.value)||0):0;
+  const metodoPago=elMetodo?elMetodo.value:'';
+  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
+  cont.innerHTML=`
+    <div class="item-linea"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
+    ${descuento?`<div class="item-linea"><span>Descuento</span><span>−${money(descuento)}</span></div>`:''}
+    ${embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(embalaje)}</span></div>`:''}
+    ${delivery?`<div class="item-linea"><span>Delivery</span><span>${money(delivery)}</span></div>`:''}
+    ${t.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(t.recargoTarjeta)}</span></div>`:''}
+    <div class="subtotal-box"><span>Total</span><span>${money(t.total)}</span></div>`;
 }
 function guardarPedido(ev){
   ev.preventDefault();
@@ -1838,19 +2039,27 @@ function guardarPedido(ev){
   if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto al pedido.');return false;}
   const problema=stockInsuficienteEnPedidoTmp();
   if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
-  const subtotal=pedidoItemsTmp.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
   const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+  const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
+  const metodoPago=document.getElementById('pd-metodopago').value;
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,descuento,embalaje,delivery);
+  if(errorImportes){alert(errorImportes);return false;}
+  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
   const pedido={
     id:nuevoId(),
     clienteId,
     items:pedidoItemsTmp.slice(),
-    subtotal,
+    subtotal:t.subtotal,
+    descuento,
     embalaje,
-    total:subtotal+embalaje,
+    delivery,
+    recargoTarjeta:t.recargoTarjeta,
+    total:t.total,
     metodoEnvio:document.getElementById('pd-envio').value,
     numeroOrden:document.getElementById('pd-numeroorden').value.trim(),
     codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
-    metodoPago:document.getElementById('pd-metodopago').value,
+    metodoPago,
     pagoReferencia:document.getElementById('pd-referencia').value.trim(),
     pagoConfirmadoPor:sesion.nombre,
     estadoPago:'pagado', // solo se registra el pedido cuando ya llegó el comprobante de pago
@@ -2026,15 +2235,19 @@ function abrirEditarPedido(id){
             <option value="indrive" ${p.metodoEnvio==='indrive'?'selected':''}>InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${p.embalaje}"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${p.embalaje}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2 ${p.metodoEnvio!=='shalom'?'oculto':''}" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden" value="${esc(p.numeroOrden||'')}"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
       </div>
       <div class="fila-2">
+        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="${p.descuento||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
+      </div>
+      <div class="fila-2">
         <div><label>Método de pago</label>
-          <select id="pd-metodopago">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${m===p.metodoPago?'selected':''}>${m}</option>`).join('')}</select>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${m===p.metodoPago?'selected':''}>${m}</option>`).join('')}</select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${p.fecha}"></div>
       </div>
@@ -2048,6 +2261,8 @@ function abrirEditarPedido(id){
         </div>
       </div>
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2">${esc(p.notas||'')}</textarea>
+      <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;">Si solo cambias datos administrativos (notas, envío, estado) las líneas ya vendidas conservan su precio histórico congelado — el precio por volumen vigente solo aplica a unidades nuevas que agregues acá.</p>
 
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -2066,6 +2281,14 @@ function guardarEditarPedido(ev,id){
   if(nuevoEstadoPago!=='cancelado'){
     const problema=stockInsuficienteEnPedidoTmp();
     if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
+    // FIX B: se valida ANTES de restaurar el backup de stock y de mutar el pedido — si
+    // fallara después, el pedido quedaría a medio editar en memoria sin persistir (guardar()
+    // nunca se llega a llamar). Mismo patrón que la validación de stock de arriba.
+    const embalajeChk=parseFloat(document.getElementById('pd-embalaje').value)||0;
+    const descuentoChk=parseFloat(document.getElementById('pd-descuento').value)||0;
+    const deliveryChk=parseFloat(document.getElementById('pd-delivery').value)||0;
+    const errorImportes=validarImportesPedido(pedidoItemsTmp,descuentoChk,embalajeChk,deliveryChk);
+    if(errorImportes){alert(errorImportes);return false;}
   }
   const p=porId(db.pedidos,id);
   const itemsAntesDeEditar=p.items; // referencia a la composición REAL confirmada, antes de tocar nada
@@ -2100,9 +2323,14 @@ function guardarEditarPedido(ev,id){
     // congela fresco, ahora, en el momento real de esta corrección.
     const itemsCorregidos=reconciliarItemsEditados(pedidoItemsTmp,itemsAntesDeEditar);
     p.items=itemsCorregidos;
-    p.subtotal=itemsCorregidos.reduce((s,it)=>s+it.cantidad*it.precioUnit,0);
     p.embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
-    p.total=p.subtotal+p.embalaje;
+    p.descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+    p.delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
+    // p.metodoPago ya se actualizó arriba con el valor del form antes de este bloque.
+    const t=calcularTotalesPedido(itemsCorregidos,p.descuento,p.embalaje,p.delivery,p.metodoPago);
+    p.subtotal=t.subtotal;
+    p.recargoTarjeta=t.recargoTarjeta;
+    p.total=t.total;
     if(firmaItemsPedido(itemsAntesDeEditar)!==firmaItemsPedido(itemsCorregidos)){
       // Solo si de verdad cambió la composición física: se corrige de forma trazable (no se
       // borra la salida original), y la salida nueva queda fechada HOY (momento real de la
@@ -2225,6 +2453,13 @@ function abrirFormStock(){
         <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="0"></div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
       </div>
+      <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
+      <label style="margin-top:0;">Precio especial por cantidad (opcional — ej. promoción "2 o más")</label>
+      <div class="fila-2">
+        <div><label>Desde (unidades)</label><input type="number" id="st-vol-desde" min="2" placeholder="Ej. 2"></div>
+        <div><label>Precio unitario (S/)</label><input type="number" id="st-vol-precio" step="0.5" placeholder="Ej. 280"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-top:6px;"><input type="checkbox" id="st-vol-activo" checked style="width:auto;"> Promoción activa</label>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar</button>
@@ -2232,22 +2467,33 @@ function abrirFormStock(){
     </form>`);
   actualizarCamposMarcaStock();
 }
+// Lee el tramo de precio por volumen del form mínimo de ETAPA A (un solo tramo por ahora;
+// preciosVolumen queda como array para poder soportar varios tramos en ETAPA D sin migrar datos).
+function leerPreciosVolumenForm(){
+  const desde=parseFloat(document.getElementById('st-vol-desde').value);
+  const precioUnit=parseFloat(document.getElementById('st-vol-precio').value);
+  if(!desde||desde<2||isNaN(precioUnit)||precioUnit<0)return[];
+  return[{desde,precioUnit,activo:document.getElementById('st-vol-activo').checked}];
+}
 function actualizarCamposMarcaStock(){
   const marca=document.getElementById('st-marca').value;
   const esReparto=(db.config.modalidadMarca||{})[marca]==='reparto_ingresos';
   const filaProveedor=document.getElementById('st-fila-proveedor');
-  const filaCosto=document.getElementById('st-fila-costo');
   const info=document.getElementById('st-info-reparto');
+  // CORREGIDO (PRE-P3 ETAPA A, 2026-08-20): antes esto también ocultaba y forzaba a 0 el
+  // campo de costo para marcas en reparto — eso volvía a romper el reparto de utilidad a
+  // nivel de captura de datos (utilidad = venta − costo; con costo=0 siempre daría venta
+  // bruta). El costo SIGUE siendo obligatorio acá: es lo que se congela como
+  // costoProveedorVenta en cada venta (ver pedidoAgregarItem) y de eso depende la fórmula.
+  // Solo se oculta "proveedor" (no aplica: la contraparte económica es el socio del reparto).
   filaProveedor.classList.toggle('oculto',esReparto);
-  filaCosto.classList.toggle('oculto',esReparto);
   if(esReparto){
     const r=(db.config.repartoMarca||{})[marca]||{};
     info.classList.remove('oculto');
-    info.textContent=`🤝 Marca de socio (${r.socio||'sin asignar en Config → Marcas'}) · reparto de ingresos ${r.porcentaje!=null?r.porcentaje:60}%. No necesita proveedor ni precio de compra: se calcula sobre el precio de venta al vender.`;
+    info.textContent=`🤝 Marca de socio (${r.socio||'sin asignar en Config → Marcas'}) · reparto de utilidad ${r.porcentaje!=null?r.porcentaje:60}%. No necesita proveedor, pero el costo SÍ es obligatorio: la utilidad repartible se calcula como precio de venta − costo (nunca sobre el precio de venta bruto).`;
     document.getElementById('st-proveedor').value='';
     document.getElementById('st-proveedor-nuevo').value='';
     document.getElementById('st-proveedor-nuevo').classList.add('oculto');
-    document.getElementById('st-costo').value='0';
   }else{
     info.classList.add('oculto');
   }
@@ -2266,6 +2512,13 @@ function guardarStock(ev){
   const marca=document.getElementById('st-marca').value;
   const cantidadInicial=parseFloat(document.getElementById('st-cantidad').value)||0;
   const costoInicial=parseFloat(document.getElementById('st-costo').value)||0;
+  // FIX A (PRE-P3 ETAPA A, cierre 2026-08-20): sin costo base no se puede calcular la
+  // utilidad repartible (venta − costo) — bloquear el alta en vez de guardar un costo 0
+  // silencioso que después reparta sobre venta bruta sin que nadie lo note.
+  if((db.config.modalidadMarca||{})[marca]==='reparto_ingresos'&&costoInicial<=0){
+    alert('En una marca con reparto de utilidad debes registrar un costo base mayor a 0, porque el reparto se calcula sobre precio de venta − costo.');
+    return false;
+  }
   const nuevo={
     id:nuevoId(),
     marca,
@@ -2277,6 +2530,7 @@ function guardarStock(ev){
     proveedor:valorProveedorForm(),
     costoPromedio:costoInicial,
     precioVenta:parseFloat(document.getElementById('st-venta').value)||0,
+    preciosVolumen:leerPreciosVolumenForm(),
     activo:true
   };
   db.stock.push(nuevo);
@@ -2334,6 +2588,14 @@ function abrirEditarStock(id){
         </div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
       </div>
+      <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
+      <label style="margin-top:0;">Precio especial por cantidad (opcional — ej. promoción "2 o más")</label>
+      <div class="fila-2">
+        <div><label>Desde (unidades)</label><input type="number" id="st-vol-desde" min="2" value="${(s.preciosVolumen&&s.preciosVolumen[0])?s.preciosVolumen[0].desde:''}" placeholder="Ej. 2"></div>
+        <div><label>Precio unitario (S/)</label><input type="number" id="st-vol-precio" step="0.5" value="${(s.preciosVolumen&&s.preciosVolumen[0])?s.preciosVolumen[0].precioUnit:''}" placeholder="Ej. 280"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-top:6px;"><input type="checkbox" id="st-vol-activo" ${!s.preciosVolumen||!s.preciosVolumen[0]||s.preciosVolumen[0].activo!==false?'checked':''} style="width:auto;"> Promoción activa</label>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;">Deja "Desde" vacío para quitar la promoción. Cambiar esto NO afecta pedidos ya vendidos — solo aplica a ventas nuevas (ver snapshot de precio).</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar cambios</button>
@@ -2354,6 +2616,7 @@ function guardarEditarStock(ev,id){
   s.min=parseFloat(document.getElementById('st-min').value)||0;
   s.proveedor=valorProveedorForm();
   s.precioVenta=parseFloat(document.getElementById('st-venta').value)||0;
+  s.preciosVolumen=leerPreciosVolumenForm();
   guardar();cerrarModal();pintarStock();
   return false;
 }
@@ -2948,16 +3211,27 @@ function pintarPagosSinClasificar(){
         <td>${esc(pg.proveedor||'—')}</td><td>${fechaBonita(pg.fecha)}</td><td>${money(pg.monto)}</td><td>${esc(pg.nota||'—')}</td>
       </tr>`).join('')}</tbody></table></div>`;
 }
+// CORREGIDO (PRE-P3 ETAPA A, 2026-08-20): antes repartía sobre la VENTA BRUTA
+// (cantidad×precioUnit×%), lo cual está mal — la regla real del negocio es repartir
+// solo la UTILIDAD (venta − costo congelado). Ejemplo real confirmado: Bariatric Fusion
+// venta 290, costo congelado 199, utilidad 91, doctor 60% = 54.60 (coincide exacto con la
+// liquidación real ya registrada en el respaldo). Usa MAX(0,...) a propósito: si alguna vez
+// se vende por debajo del costo, la utilidad repartible de ese ítem es 0, nunca negativa —
+// el socio nunca queda como deudor de Zona Bariátrica por un ítem vendido con pérdida.
 function ventasRepartoDeSocio(proveedor){
   const filas=[];
   db.pedidos.forEach(p=>{
     if(p.estadoPago==='cancelado')return;
     (p.items||[]).forEach(it=>{
       if(it.socioReparto===proveedor){
+        const ingresoItem=it.cantidad*it.precioUnit;
+        const costoBaseItem=it.cantidad*(it.costoProveedorVenta||0);
+        const utilidad=Math.max(0,ingresoItem-costoBaseItem);
+        const porcentaje=it.porcentajeReparto!=null?it.porcentajeReparto:60;
         filas.push({
           pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,
-          ventaTotal:it.cantidad*it.precioUnit,porcentaje:it.porcentajeReparto,
-          monto:it.cantidad*it.precioUnit*(it.porcentajeReparto/100)
+          ventaTotal:ingresoItem,costoBase:costoBaseItem,utilidad,porcentaje,
+          monto:round2(utilidad*porcentaje/100)
         });
       }
     });
@@ -2993,14 +3267,17 @@ function pintarRepartoIngresos(){
   const cont=document.getElementById('listaReparto');
   if(!cont)return;
   if(socios.length===0){cont.innerHTML='';return;}
-  let html='<h3 style="font-size:15px;margin:22px 0 8px;">Reparto de ingresos (marcas de socios)</h3>';
+  // Etiqueta visible corregida (PRE-P3 ETAPA A): "Reparto de utilidad". La clave técnica
+  // interna sigue siendo 'reparto_ingresos' por compatibilidad con datos históricos.
+  let html='<h3 style="font-size:15px;margin:22px 0 8px;">Reparto de utilidad (marcas de socios)</h3>';
   html+=`<div class="tabla-wrap"><table><thead><tr>
-    <th>Socio</th><th>Marca</th><th>Vendido</th><th>Le corresponde</th><th>Liquidado</th><th>Saldo</th><th></th>
+    <th>Socio</th><th>Marca</th><th>Vendido</th><th>Utilidad</th><th>Le corresponde</th><th>Liquidado</th><th>Saldo</th><th></th>
     </tr></thead><tbody>${socios.map(socio=>{
       const marcas=marcasRepartoDeSocio(socio);
       const ventas=ventasRepartoDeSocio(socio);
       const liquidaciones=liquidacionesDeSocio(socio);
       const totalVendido=ventas.reduce((s,f)=>s+f.ventaTotal,0);
+      const totalUtilidad=ventas.reduce((s,f)=>s+f.utilidad,0);
       const corresponde=ventas.reduce((s,f)=>s+f.monto,0);
       const totalLiquidado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
       const saldo=saldoRepartoSocio(socio);
@@ -3009,6 +3286,7 @@ function pintarRepartoIngresos(){
         <td>${esc(socio)}</td>
         <td>${marcas.map(m=>esc(m)).join(', ')||'sin marca asignada'}</td>
         <td>${money(totalVendido)}</td>
+        <td>${money(totalUtilidad)}</td>
         <td>${money(corresponde)}</td>
         <td>${money(totalLiquidado)}</td>
         <td><span class="chip ${saldo>0.005?'chip-naranja':(aFavor>0.005?'chip-azul':'chip-verde')}">${saldo>0.005?money(saldo):(aFavor>0.005?'Saldo a favor: '+money(aFavor):'Al día')}</span></td>
@@ -3021,11 +3299,11 @@ function pintarRepartoIngresos(){
     if(ventas.length===0&&liquidaciones.length===0)return '';
     return `<details style="margin-top:8px;">
       <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Detalle de ${esc(socio)}</summary>
-      ${ventas.length?`<p class="vacio" style="text-align:left;padding:8px 0 2px;">Ventas de su marca</p>
+      ${ventas.length?`<p class="vacio" style="text-align:left;padding:8px 0 2px;">Ventas de su marca (utilidad = venta − costo congelado al momento de la venta)</p>
       <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Fecha</th><th>Producto</th><th>Cant.</th><th>Venta</th><th>%</th><th>Le corresponde</th>
+        <th>Fecha</th><th>Producto</th><th>Cant.</th><th>Venta</th><th>Costo</th><th>Utilidad</th><th>%</th><th>Le corresponde</th>
         </tr></thead><tbody>${ventas.map(f=>`<tr>
-          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.ventaTotal)}</td><td>${f.porcentaje}%</td><td>${money(f.monto)}</td>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.ventaTotal)}</td><td>${money(f.costoBase)}</td><td>${money(f.utilidad)}</td><td>${f.porcentaje}%</td><td>${money(f.monto)}</td>
         </tr>`).join('')}</tbody></table></div>`:''}
       ${liquidaciones.length?`<p class="vacio" style="text-align:left;padding:8px 0 2px;">Liquidaciones pagadas</p>
       <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
@@ -3228,7 +3506,7 @@ function eliminarPagoProveedor(id){
 
 /* ================= TAREAS ================= */
 function vinculoTarea(t){
-  if(t.leadId){const l=porId(db.leads,t.leadId);return l?{tipo:'lead',id:l.id,nombre:(l.nombre+' '+(l.apellido||'')).trim()}:null;}
+  if(t.leadId){const l=porId(db.leads,t.leadId);return l?{tipo:'lead',id:l.id,nombre:nombreLead(l)}:null;}
   if(t.clienteId){const c=porId(db.clientes,t.clienteId);return c?{tipo:'cliente',id:c.id,nombre:(c.nombre+' '+(c.apellido||'')).trim()}:null;}
   return null;
 }
@@ -3279,7 +3557,7 @@ function abrirFormTarea(prefill){
       <label>Vincular a lead o cliente (opcional)</label>
       <select id="tr-vinculo">
         <option value="">Ninguno</option>
-        ${leads.length?`<optgroup label="Leads">${leads.map(l=>`<option value="lead:${l.id}" ${vinculoActual==='lead:'+l.id?'selected':''}>${esc(l.nombre)} ${esc(l.apellido||'')} — ${esc(l.estado)}</option>`).join('')}</optgroup>`:''}
+        ${leads.length?`<optgroup label="Leads">${leads.map(l=>`<option value="lead:${l.id}" ${vinculoActual==='lead:'+l.id?'selected':''}>${esc(nombreLead(l))} — ${esc(l.estado)}</option>`).join('')}</optgroup>`:''}
         ${clientes.length?`<optgroup label="Clientes">${clientes.map(c=>`<option value="cliente:${c.id}" ${vinculoActual==='cliente:'+c.id?'selected':''}>${esc(c.nombre)} ${esc(c.apellido||'')}</option>`).join('')}</optgroup>`:''}
       </select>
       <div class="acciones-modal">
@@ -3388,8 +3666,8 @@ function exportarCSV(tipo){
     });
   }else{
     nombre='leads_zonabariatrica.csv';
-    filas=[['fecha','nombre','telefono','canal','estado','atendio']];
-    db.leads.forEach(l=>filas.push([l.fecha,l.nombre,l.telefono,l.canal,l.estado,l.atendidoPor]));
+    filas=[['fecha','nombre','telefono','canal','estado','atendio','metodo_pago_preferido']];
+    db.leads.forEach(l=>filas.push([l.fecha,l.nombre,l.telefono,l.canal,l.estado,l.atendidoPor,l.metodoPagoPreferido||'']));
   }
   const csv=filas.map(f=>f.map(v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
   descargarTexto(csv,nombre,'text/csv');
@@ -3534,7 +3812,11 @@ function parsearFilas(texto){
   // Los tabuladores se pierden fácil al copiar/pegar desde un chat o PDF, así que se acepta
   // también ";;" como separador de columnas (no aparece nunca dentro del texto normal),
   // y solo al final se usa la coma (arriesgado: puede aparecer dentro del propio texto).
-  return texto.split('\n').map(l=>l.trim()).filter(Boolean).map(linea=>{
+  // ETAPA B (PRE-P3, 2026-08-20): antes se usaba l.trim() acá, lo que borraba un tabulador
+  // inicial/final real (ej. una fila de Lead con la columna "nombre" vacía: "[TAB]987654321[TAB]...")
+  // y desalineaba las columnas siguientes. Ahora solo se quita el \r de fin de línea (Windows/Excel),
+  // preservando tabuladores intencionales al inicio o final de la fila.
+  return texto.split('\n').map(l=>l.replace(/\r$/,'')).filter(l=>l.trim()!=='').map(linea=>{
     let cols;
     if(linea.includes('\t'))cols=linea.split('\t');
     else if(linea.includes(';;'))cols=linea.split(';;');
@@ -3546,13 +3828,17 @@ function importarLeadsPegados(){
   const texto=document.getElementById('impLeadsTexto').value;
   if(!texto.trim())return;
   const filas=parsearFilas(texto);
-  let n=0;
+  let n=0,omitidas=0;
   filas.forEach(cols=>{
-    if(!cols[0]||cols[0].toLowerCase()==='nombre')return;
+    if((cols[0]||'').toLowerCase()==='nombre')return; // fila de encabezado, no cuenta como omitida
+    // ETAPA B: el celular sigue siendo el único dato obligatorio también al importar — una
+    // fila con nombre pero sin teléfono no se puede crear como Lead (no hay a quién contactar).
+    const telefono=(cols[1]||'').trim();
+    if(!telefono){omitidas++;return;}
     db.leads.push({
       id:nuevoId(),
       nombre:cols[0]||'',
-      telefono:cols[1]||'',
+      telefono,
       canal:cols[2]||'Pauta Instagram/Facebook',
       fecha:cols[3]||hoyStr(),
       estado:'sin contactar',
@@ -3563,7 +3849,7 @@ function importarLeadsPegados(){
     n++;
   });
   guardar();
-  document.getElementById('impResultado').textContent=n+' leads importados.';
+  document.getElementById('impResultado').textContent=n+' leads importados.'+(omitidas?' '+omitidas+' fila(s) omitida(s) por no tener teléfono.':'');
   document.getElementById('impLeadsTexto').value='';
 }
 function importarClientesPegados(){
