@@ -2683,7 +2683,6 @@ function filaStock(s){
         <td style="${pad}text-align:left;">${esc(s.codigo||'—')}</td>
         <td style="${pad}text-align:left;">
           <strong>${esc(s.producto||'—')}</strong>
-          <button type="button" class="link-historial" style="margin-left:5px;" title="Ver movimientos" onclick="abrirKardexStock('${s.id}')">📋</button>
           ${promos.length?`<span class="chip chip-azul" style="margin-left:3px;cursor:default;" title="${escAttr(tituloPromo)}">🏷️ Promo</span>`:''}
         </td>
         <td style="${pad}text-align:left;">${esc(s.presentacion||'—')}</td>
