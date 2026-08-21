@@ -881,9 +881,17 @@ function fusionarConDisco(discoObj){
     }
   });
 }
-function guardar(){
+// FIX restauración (PRE-P3, 2026-08-21): guardar() normal debe seguir fusionando con lo que
+// haya en disco si difiere de lo último conocido (protección multi-dispositivo — alguien más
+// pudo haber guardado algo mientras esta pestaña no miraba). PERO una restauración de
+// respaldo / restaurar de fábrica es una operación AUTORITATIVA: el archivo elegido (o
+// dbVacia()) debe reemplazar TODO, sin que la protección normal le vuelva a mezclar encima
+// los datos anteriores. opciones.reemplazoAutoritativo=true salta esa fusión — nada más
+// cambia (mismo guardado en localStorage + mismo push a Supabase de siempre).
+function guardar(opciones){
+  const reemplazoAutoritativo=opciones&&opciones.reemplazoAutoritativo;
   const enDisco=localStorage.getItem(CLAVE);
-  if(enDisco&&selloDisco!==null&&enDisco!==selloDisco){
+  if(!reemplazoAutoritativo&&enDisco&&selloDisco!==null&&enDisco!==selloDisco){
     try{fusionarConDisco(JSON.parse(enDisco));}catch(e){}
   }
   const raw=JSON.stringify(db);
@@ -4218,12 +4226,14 @@ function restaurarRespaldo(ev){
     db=nuevo;
     // FIX D1: misma normalizarDbCargada() que usa cargar() — el estado en memoria después de
     // restaurar un respaldo queda exactamente igual al que tendría ese mismo JSON después de
-    // recargar la app. selloDisco también se actualiza ANTES de guardar() (igual que cargar()),
-    // para que el guard anti-fusión de guardar() no intente mezclar datos locales viejos
-    // encima del respaldo recién restaurado.
+    // recargar la app.
     normalizarDbCargada();
-    selloDisco=JSON.stringify(db);
-    guardar();
+    // FIX restauración (PRE-P3, 2026-08-21, corrige una regresión real introducida por el
+    // propio FIX D1): acá había un `selloDisco=JSON.stringify(db)` que en realidad CAUSABA que
+    // guardar() fusionara los datos viejos de vuelta (ver comentario en guardar()) — el guard
+    // compara contra lo que HAY en disco, no contra lo que se está por escribir. Reemplazado
+    // por el flag explícito: esto es un reemplazo autoritativo, no un guardado normal.
+    guardar({reemplazoAutoritativo:true});
     irA(seccionActual);
     pintarConfig();
     alert('Respaldo restaurado.');
@@ -4236,7 +4246,10 @@ function restaurarDeFabrica(){
   if(!confirm('Última confirmación: se perderá todo lo que no hayas respaldado. ¿Continuar?'))return;
   db=dbVacia();
   db.stock=catalogoInicial();
-  guardar();
+  // Mismo principio que restaurarRespaldo(): "restaurar de fábrica" también es un reemplazo
+  // autoritativo, no un guardado normal — no debe poder heredar de vuelta datos de disco/otro
+  // dispositivo que hayan divergido desde el último guardado de esta pestaña.
+  guardar({reemplazoAutoritativo:true});
   cerrarSesion();
 }
 
