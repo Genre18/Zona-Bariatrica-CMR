@@ -524,6 +524,8 @@ function nuevoId(){return Date.now().toString(36)+Math.random().toString(36).sli
 function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 // Para incrustar texto de usuario dentro de un argumento de string simple en onclick="fn('...')"
 function escJs(t){return esc(t).replace(/'/g,"\\'");}
+// Para incrustar texto dentro de un atributo title="..." (tooltip) sin romper el HTML.
+function escAttr(t){return esc(t).replace(/"/g,'&quot;');}
 function money(n){return 'S/ '+Number(n||0).toFixed(2);}
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
@@ -1422,6 +1424,31 @@ function estadoRecompraCliente(clienteId){
   else{estado='recompra';label='Recompra';}
   return{estado,label,diasDesdeUltima:dias,ultimaCompra};
 }
+/* ================= WHATSAPP (BLOQUE UX, 2026-08-21) ================= */
+// Helper central: normaliza cualquier valor guardado en cliente.telefono a un número apto para
+// wa.me. NUNCA modifica cliente.telefono — solo se usa para construir el enlace. Devuelve null
+// si no se puede interpretar razonablemente como teléfono (usuario de red social, texto, vacío),
+// para que el botón quede deshabilitado en vez de abrir un enlace roto.
+function normalizarTelefonoWhatsApp(telefono){
+  if(!telefono)return null;
+  const digitos=String(telefono).replace(/\D/g,'');
+  if(!digitos)return null;
+  if(digitos.length===9&&digitos.startsWith('9'))return '51'+digitos; // celular PE sin prefijo
+  if(digitos.length===11&&digitos.startsWith('519'))return digitos; // ya trae prefijo 51, no duplicar
+  if(digitos.length>=10&&digitos.length<=15)return digitos; // otro prefijo de país ya incluido
+  return null;
+}
+function telefonoWhatsApp(telefono){
+  const n=normalizarTelefonoWhatsApp(telefono);
+  return n?`https://wa.me/${n}`:null;
+}
+function abrirWhatsAppCliente(clienteId){
+  const c=porId(db.clientes,clienteId);
+  if(!c)return;
+  const url=telefonoWhatsApp(c.telefono);
+  if(!url){alert('Este cliente no tiene un teléfono válido para WhatsApp.');return;}
+  window.open(url,'_blank','noopener');
+}
 function marcasDeCliente(c){
   const desdePedidos=new Set();
   db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').forEach(p=>p.items.forEach(it=>desdePedidos.add(it.marca)));
@@ -1439,11 +1466,12 @@ function pintarClientes(){
   if(clientes.length===0){cont.innerHTML=`<div class="vacio">${buscar||filtroRecompra?'Ningún cliente coincide con la búsqueda/filtro.':'No hay clientes todavía.'}</div>`;return;}
   const pad='padding:7px 10px;';
   cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-    <th>Cliente</th><th>Ubicación</th><th>Marcas</th><th>Última compra</th><th>Recompra</th><th>Pedidos</th>
+    <th>Cliente</th><th>Ubicación</th><th>Marcas</th><th>Última compra</th><th>Recompra</th><th>Pedidos</th><th>WhatsApp</th>
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
       const r=estadoRecompraCliente(c.id);
       const lugar=[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — ')||'—';
+      const waUrl=telefonoWhatsApp(c.telefono);
       return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
         <td style="${pad}text-align:left;">
           <strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}
@@ -1454,6 +1482,7 @@ function pintarClientes(){
         <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
         <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></td>
         <td style="${pad}">${nPedidos}</td>
+        <td style="${pad}">${waUrl?`<button type="button" class="btn-secundario btn-chico" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:`<span class="chip chip-gris" style="font-size:10px;" title="Sin teléfono válido">—</span>`}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca un cliente para ver su historial y registrar una nueva compra.</p>`;
@@ -1473,6 +1502,7 @@ function abrirFichaCliente(clienteId){
   const totalComprado=pedidosValidos.reduce((s,p)=>s+p.total,0);
   const r=estadoRecompraCliente(c.id);
   const marcas=marcasDeCliente(c);
+  const waUrl=telefonoWhatsApp(c.telefono);
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
 
@@ -1501,6 +1531,7 @@ function abrirFichaCliente(clienteId){
       <button type="button" class="btn" onclick="cerrarModal();abrirFormPedido('${c.id}')">🧾 Nueva compra</button>
       <button type="button" class="btn-secundario" onclick="abrirFormTarea({clienteId:'${c.id}'})">✅ + Tarea</button>
       <button type="button" class="btn-secundario" onclick="abrirEditarCliente('${c.id}')">✏️ Editar datos</button>
+      ${waUrl?`<button type="button" class="btn-secundario" onclick="abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:''}
       ${c.activo===false?`<button type="button" class="btn-secundario" onclick="reactivarCliente('${c.id}')">Reactivar cliente</button>`:''}
     </div>
 
@@ -2586,35 +2617,41 @@ function filaStock(s){
   // primero (ej. Bariatric Life, real y con socio/costo configurados, pero sin despacho).
   const faltaDespacho=mod.modalidad&&!(db.config.responsableDespachoMarca||{})[s.marca];
   const pad='padding:9px 10px;';
+  const tituloVenta=margen?`Margen actual: ${money(margen.margen)} (con precio/costo vigentes)`:'';
+  const tituloPromo=promos.length?'Precio por volumen: '+promos.map(t=>`${t.desde}+ → ${money(t.precioUnit)}`).join(' | '):'';
+  // BLOQUE UX (2026-08-21): tabla tipo Excel/CRM de referencia — cada dato principal en su
+  // propia columna (Marca, Código, Producto, Presentación, Sabor, Cantidad, Mínimo, Precio de
+  // compra, Precio de venta, Proveedor). Modalidad/Estado/Promoción NO son columnas nuevas: van
+  // como chip pequeño junto a Marca/Cantidad o como tooltip, para no romper el formato de
+  // referencia. La lógica de estadoStockProducto/contraparteStock/margenActualStock no cambia.
   return `<tr style="${s.activo===false?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
         <td style="${pad}text-align:left;">
-          <strong>${esc(s.producto)}</strong>
-          ${s.codigo?`<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${esc(s.codigo)}</div>`:''}
-        </td>
-        <td style="${pad}text-align:left;">
-          ${esc(s.marca)}
+          ${esc(s.marca||'—')}
           <div style="margin-top:3px;"><span class="chip ${mod.chip}" style="font-size:10px;">${esc(mod.label)}</span></div>
           ${faltaDespacho?'<div style="margin-top:3px;"><span class="chip chip-naranja" style="font-size:10px;" title="No se puede vender hasta configurar quién despacha (Zona Bariátrica o el proveedor)">Falta configurar despacho</span></div>':''}
         </td>
-        <td style="${pad}text-align:left;">${textoPresentacionStock(s)}</td>
-        <td style="${pad}">
-          ${s.cantidad||0} ${esc(s.unidad||'')}
-          <div style="margin-top:3px;"><button type="button" class="link-historial" onclick="abrirKardexStock('${s.id}')">Ver movimientos</button></div>
-        </td>
-        <td style="${pad}"><span class="chip ${est.chip}">${esc(est.label)}</span></td>
+        <td style="${pad}text-align:left;">${esc(s.codigo||'—')}</td>
         <td style="${pad}text-align:left;">
-          ${contra.advertencia?`<span class="chip chip-naranja">${esc(contra.advertencia)}</span>`:esc(contra.texto)}
-          ${contra.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${esc(contra.detalle)}</div>`:''}
+          <strong>${esc(s.producto||'—')}</strong>
+          <button type="button" class="link-historial" style="margin-left:6px;" title="Ver movimientos" onclick="abrirKardexStock('${s.id}')">📋</button>
+          ${promos.length?`<span class="chip chip-azul" style="font-size:9.5px;margin-left:4px;cursor:default;" title="${escAttr(tituloPromo)}">🏷️ Promo</span>`:''}
         </td>
-        <td style="${pad}">
+        <td style="${pad}text-align:left;">${esc(s.presentacion||'—')}</td>
+        <td style="${pad}text-align:left;">${esc(s.sabor||'—')}</td>
+        <td style="${pad}text-align:center;">
+          ${s.cantidad||0}
+          <div style="margin-top:3px;"><span class="chip ${est.chip}" style="font-size:10px;">${esc(est.label)}</span></div>
+        </td>
+        <td style="${pad}text-align:center;">${s.min||0}</td>
+        <td style="${pad}text-align:right;">
           ${money(s.costoPromedio)}
           ${mod.modalidad==='reparto_ingresos'&&!(s.costoPromedio>0)?`<div style="margin-top:2px;"><span class="chip chip-naranja" style="font-size:10px;">Falta costo</span></div>`:''}
         </td>
-        <td style="${pad}">
-          ${money(s.precioVenta)}
-          ${margen?`<div style="font-size:10px;color:var(--muted);margin-top:2px;" title="Margen actual con precio/costo vigentes — no es el cálculo de ventas pasadas">Margen actual: ${money(margen.margen)}</div>`:''}
+        <td style="${pad}text-align:right;" title="${escAttr(tituloVenta)}">${money(s.precioVenta)}</td>
+        <td style="${pad}text-align:left;">
+          ${contra.advertencia?`<span class="chip chip-naranja">${esc(contra.advertencia)}</span>`:esc(contra.texto||'—')}
+          ${contra.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${esc(contra.detalle)}</div>`:''}
         </td>
-        <td style="${pad}text-align:left;">${promos.length?promos.map(t=>`${t.desde}+ → ${money(t.precioUnit)}`).join('<br>'):'—'}</td>
       </tr>`;
 }
 let menuContextualEl=null;
@@ -2662,12 +2699,13 @@ function pintarStock(){
   stockVisible=stockVisible.slice().sort((a,b)=>a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
   // ETAPA D: tabla de solo consulta/acción (sin inputs editables inline, a diferencia de
   // Leads) — los cambios siempre pasan por Editar/Ajustar/Corregir costo/Registrar entrega,
-  // para proteger la trazabilidad P1/P2. Por eso usa tabla-wrap (igual que Pedidos/Proveedores)
-  // en vez de tabla-excel (que es para grillas editables tipo Excel).
-  cont.innerHTML=`<div class="tabla-wrap"><table><thead><tr>
-      <th>Producto</th><th>Marca / Modalidad</th><th>Presentación</th><th>Stock</th><th>Estado</th><th>Proveedor / Socio</th><th>Costo</th><th>Precio</th><th>Promoción</th>
+  // para proteger la trazabilidad P1/P2. BLOQUE UX (2026-08-21): usa tabla-excel (líneas finas,
+  // encabezados en mayúscula, hover) con min-width fijo para forzar scroll horizontal en vez de
+  // comprimir las 10 columnas — el contenedor .tabla-excel ya trae overflow:auto.
+  cont.innerHTML=`<div class="tabla-excel"><table style="min-width:1150px;"><thead><tr>
+      <th>Marca</th><th>Código</th><th>Producto</th><th>Presentación</th><th>Sabor</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio de venta</th><th>Proveedor</th>
     </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>
-    <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar, ajustar stock, corregir costo o archivar.</p>`;
+    <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar, ajustar stock, corregir costo o archivar. Desliza horizontalmente para ver todas las columnas.</p>`;
 }
 function stockToggleNuevoProveedor(sel){
   document.getElementById('st-proveedor-nuevo').classList.toggle('oculto',sel.value!=='__nuevo__');
