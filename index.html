@@ -160,6 +160,15 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 .stock-form .btn-chico{padding:4px 9px;font-size:11.5px;}
 .stock-form .btn-icono{font-size:14px;padding:2px 6px;}
 .stock-form #stVolList table th,.stock-form #stVolList table td{padding:5px 7px;font-size:12px;}
+/* A8: menos aire entre "Precios especiales" y Cancelar/Guardar — SOLO dentro de .stock-modal,
+   .acciones-modal global (Leads/Clientes/etc.) no se toca. */
+#modalBox.stock-modal .acciones-modal{margin-top:10px;}
+
+/* SPRINT UX (2026-08-21) — B10: tabla principal de Proveedores compacta, mismo criterio que
+   table.stock-tabla, sin tocar .tabla-excel/.tabla-wrap globales. */
+table.proveedores-tabla{width:100%;}
+table.proveedores-tabla th{padding:6px 7px;font-size:9.5px;}
+table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
 
@@ -2657,50 +2666,30 @@ function textoPresentacionStock(s){
 }
 function filaStock(s){
   const est=estadoStockProducto(s);
-  const mod=modalidadCorta(s.marca);
   const contra=contraparteStock(s);
   const margen=margenActualStock(s);
-  const promos=promosActivasStock(s);
-  // FIX visual PRE-IMPORTACIÓN (2026-08-21): solo lectura, no toca la lógica de venta —
-  // esa ya está bloqueada desde E1-F2 en pedidoAgregarItem(). Esto es únicamente para que la
-  // falta de responsableDespachoMarca sea visible en Stock sin tener que intentar vender
-  // primero (ej. Bariatric Life, real y con socio/costo configurados, pero sin despacho).
-  const faltaDespacho=mod.modalidad&&!(db.config.responsableDespachoMarca||{})[s.marca];
   const pad='padding:4px 6px;'; // BLOQUE UX (2026-08-21): coincide con table.stock-tabla td — el inline pisaría la clase si no se reduce acá también
   const tituloVenta=margen?`Margen actual: ${money(margen.margen)} (con precio/costo vigentes)`:'';
-  const tituloPromo=promos.length?'Precio por volumen: '+promos.map(t=>`${t.desde}+ → ${money(t.precioUnit)}`).join(' | '):'';
-  // BLOQUE UX (2026-08-21): tabla tipo Excel/CRM de referencia — cada dato principal en su
-  // propia columna (Marca, Código, Producto, Presentación, Sabor, Cantidad, Mínimo, Precio de
-  // compra, Precio de venta, Proveedor). Modalidad/Estado/Promoción NO son columnas nuevas: van
-  // como chip pequeño junto a Marca/Cantidad o como tooltip, para no romper el formato de
-  // referencia. La lógica de estadoStockProducto/contraparteStock/margenActualStock no cambia.
+  // stock_bajo YA incluye cantidad===min (estadoStockProducto usa cantidad<=min) — bajo_pedido
+  // nunca se pinta rojo aunque cantidad sea 0, porque no depende de stock físico.
+  const cantidadRoja=est.estado==='sin_stock'||est.estado==='stock_bajo';
+  // CIERRE VISUAL STOCK (2026-08-21): tabla "solo datos", sin chips de modalidad/estado/
+  // promoción/advertencias — la única alerta visual permitida es la Cantidad en rojo. Nada de
+  // esto toca modalidadMarca/responsableDespachoMarca/preciosVolumen/validaciones de venta: esa
+  // info sigue existiendo igual (modalidadCorta/contraparteStock/promosActivasStock intactas,
+  // el bloqueo real de venta sigue en pedidoAgregarItem()) — solo se dejó de pintar acá. Se
+  // puede seguir consultando/editando desde el formulario del producto (clic derecho → Editar).
   return `<tr style="${s.activo===false?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
-        <td style="${pad}text-align:left;">
-          ${esc(s.marca||'—')}
-          <div style="margin-top:2px;"><span class="chip ${mod.chip}">${esc(mod.label)}</span></div>
-          ${faltaDespacho?'<div style="margin-top:2px;"><span class="chip chip-naranja" title="No se puede vender hasta configurar quién despacha (Zona Bariátrica o el proveedor)">Falta configurar despacho</span></div>':''}
-        </td>
+        <td style="${pad}text-align:left;">${esc(s.marca||'—')}</td>
         <td style="${pad}text-align:left;">${esc(s.codigo||'—')}</td>
-        <td style="${pad}text-align:left;">
-          <strong>${esc(s.producto||'—')}</strong>
-          ${promos.length?`<span class="chip chip-azul" style="margin-left:3px;cursor:default;" title="${escAttr(tituloPromo)}">🏷️ Promo</span>`:''}
-        </td>
+        <td style="${pad}text-align:left;"><strong>${esc(s.producto||'—')}</strong></td>
         <td style="${pad}text-align:left;">${esc(s.presentacion||'—')}</td>
         <td style="${pad}text-align:left;">${esc(s.sabor||'—')}</td>
-        <td style="${pad}text-align:center;">
-          ${s.cantidad||0}
-          <div style="margin-top:2px;"><span class="chip ${est.chip}">${esc(est.label)}</span></div>
-        </td>
+        <td style="${pad}text-align:center;${cantidadRoja?'color:var(--danger);font-weight:700;':''}">${s.cantidad||0}</td>
         <td style="${pad}text-align:center;">${s.min||0}</td>
-        <td style="${pad}text-align:right;">
-          ${money(s.costoPromedio)}
-          ${mod.modalidad==='reparto_ingresos'&&!(s.costoPromedio>0)?`<div style="margin-top:1px;"><span class="chip chip-naranja">Falta costo</span></div>`:''}
-        </td>
+        <td style="${pad}text-align:right;">${money(s.costoPromedio)}</td>
         <td style="${pad}text-align:right;" title="${escAttr(tituloVenta)}">${money(s.precioVenta)}</td>
-        <td style="${pad}text-align:left;">
-          ${contra.advertencia?`<span class="chip chip-naranja">${esc(contra.advertencia)}</span>`:esc(contra.texto||'—')}
-          ${contra.detalle?`<div style="font-size:10px;color:var(--muted);margin-top:1px;">${esc(contra.detalle)}</div>`:''}
-        </td>
+        <td style="${pad}text-align:left;">${esc(contra.texto||'—')}</td>
       </tr>`;
 }
 let menuContextualEl=null;
@@ -2719,7 +2708,9 @@ function abrirMenuContextualStock(ev,id){
   const div=document.createElement('div');
   div.className='menu-contextual';
   div.innerHTML=`
-    <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar producto</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirFormAjusteStock('${id}')">📐 Ajustar stock</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirFormCorregirCosto('${id}')">💲 Corregir costo</button>
     <button type="button" onclick="cerrarMenuContextual();abrirKardexStock('${id}')">📋 Ver movimientos</button>
     <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'♻️ Reactivar':'🗄️ Archivar'}</button>
   `;
@@ -2805,9 +2796,11 @@ function abrirFormStock(){
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
       </div>
       <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
-      <label style="margin-top:0;">Precios especiales por cantidad (opcional)</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 2px;">
+        <label style="margin:0;">Precios especiales por cantidad (opcional)</label>
+        <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
+      </div>
       <div id="stVolList"></div>
-      <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar</button>
@@ -2826,8 +2819,11 @@ let stockPreciosVolumenTmp=[];
 function stockRenderPreciosVolumen(){
   const cont=document.getElementById('stVolList');
   if(!cont)return;
-  if(stockPreciosVolumenTmp.length===0){cont.innerHTML='<div class="vacio" style="padding:8px 0;">Sin precios especiales configurados.</div>';return;}
-  cont.innerHTML=`<div class="tabla-wrap"><table><thead><tr><th>Desde</th><th>Precio unitario (S/)</th><th>Activo</th><th></th></tr></thead><tbody>
+  // A7 (BLOQUE UX 2026-08-21): sin placeholder alto — el título + "+ Agregar tramo" de arriba
+  // ya comunican la sección; si no hay tramos, el bloque queda vacío (altura 0) en vez de
+  // reservar espacio para un mensaje.
+  if(stockPreciosVolumenTmp.length===0){cont.innerHTML='';return;}
+  cont.innerHTML=`<div class="tabla-wrap" style="margin-top:6px;"><table><thead><tr><th>Desde</th><th>Precio unitario (S/)</th><th>Activo</th><th></th></tr></thead><tbody>
     ${stockPreciosVolumenTmp.map((t,i)=>`<tr>
       <td><input type="number" min="2" value="${t.desde}" style="width:70px;" onchange="stockCambiarTramoVolumen(${i},'desde',this.value)"></td>
       <td><input type="number" step="0.5" min="0" value="${t.precioUnit}" style="width:90px;" onchange="stockCambiarTramoVolumen(${i},'precioUnit',this.value)"></td>
@@ -2990,9 +2986,11 @@ function abrirEditarStock(id){
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
       </div>
       <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
-      <label style="margin-top:0;">Precios especiales por cantidad (opcional)</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 2px;">
+        <label style="margin:0;">Precios especiales por cantidad (opcional)</label>
+        <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
+      </div>
       <div id="stVolList"></div>
-      <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
       <p class="vacio" style="text-align:left;padding:6px 0 0;">Cambiar esto NO afecta pedidos ya vendidos — solo aplica a ventas nuevas (ver snapshot de precio de ETAPA A).</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -3552,26 +3550,84 @@ function cambiarMesSocio(valor){
   socioMesFiltro=valor||'';
   pintarVistaSocio();
 }
+// BLOQUE UX (2026-08-21) — SPRINT Proveedores (B3): una sola fila por (proveedor/socio + marca
+// + modelo) para la tabla principal. SOLO agrupa/suma lo que YA calculan saldoEntrega/
+// pagosDeEntrega/obligacionVentaProveedor/pagosProveedorModalidad/ventasRepartoDeSocio/
+// liquidacionesDeSocio/saldoRepartoSocio — ninguna fórmula nueva, ninguna de esas funciones se
+// toca. Reemplaza visualmente a pintarCuentasConsignacionBajoPedido()/pintarRepartoIngresos()
+// (se dejan definidas, sin llamar, por si se necesitan de vuelta) pero NO a pintarPagosSinClasificar().
+const MODELO_LABEL_PROVEEDORES={consignacion:'Stock consignado',compra_directa:'Compra directa',bajo_pedido:'Bajo pedido',reparto_ingresos:'Reparto de utilidad'};
+function filasProveedoresTabla(){
+  const filas=[];
+  const gruposCD=new Map();
+  db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.proveedor).forEach(m=>{
+    const s=porId(db.stock,m.stockId);
+    const marca=s?s.marca:'—';
+    const clave=m.proveedor+'||'+marca;
+    if(!gruposCD.has(clave))gruposCD.set(clave,{proveedor:m.proveedor,marca,entregas:[]});
+    gruposCD.get(clave).entregas.push(m);
+  });
+  gruposCD.forEach(g=>{
+    const generado=g.entregas.reduce((s,e)=>s+(e.monto||0),0);
+    const pendiente=g.entregas.reduce((s,e)=>s+saldoEntrega(e),0);
+    filas.push({proveedor:g.proveedor,marca:g.marca,modelo:'compra_directa',generado,pagado:round2(generado-pendiente),pendiente:round2(pendiente)});
+  });
+  cuentasConsignacionBajoPedido().forEach(c=>{
+    const marcas=[...new Set(db.pedidos.filter(p=>p.estadoPago!=='cancelado').flatMap(p=>(p.items||[]).filter(it=>it.proveedorVenta===c.proveedor&&it.modalidadComercial===c.modalidad).map(it=>it.marca)))];
+    const generado=obligacionVentaProveedor(c.proveedor,c.modalidad);
+    const pagado=pagosProveedorModalidad(c.proveedor,c.modalidad).reduce((s,pg)=>s+(pg.monto||0),0);
+    filas.push({proveedor:c.proveedor,marca:marcas.join(', ')||'—',modelo:c.modalidad,generado,pagado,pendiente:Math.max(0,round2(generado-pagado))});
+  });
+  sociosConReparto().forEach(socio=>{
+    const marcas=marcasRepartoDeSocio(socio);
+    const generado=ventasRepartoDeSocio(socio).reduce((s,f)=>s+f.monto,0);
+    const pagado=liquidacionesDeSocio(socio).reduce((s,l)=>s+(l.monto||0),0);
+    filas.push({proveedor:socio,marca:marcas.join(', ')||'sin marca asignada',modelo:'reparto_ingresos',generado,pagado,pendiente:saldoRepartoSocio(socio)});
+  });
+  return filas.sort((a,b)=>a.proveedor.localeCompare(b.proveedor)||a.marca.localeCompare(b.marca));
+}
 function pintarProveedores(){
-  const entradas=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  const proveedores=listaProveedoresUnicos();
-  // Solo las entradas de compra_directa son deuda por RECIBIR el stock. Una entrada de
-  // consignación es puro movimiento físico — su obligación (si la hay) nace al venderla, no
-  // acá (ver cuentasConsignacionBajoPedido/obligacionVentaProveedor).
-  const deudaCompraDirecta=entradas.filter(c=>c.proveedor&&c.modalidadComercial==='compra_directa').reduce((s,c)=>s+saldoEntrega(c),0);
-  const deudaConsignacionBajoPedido=cuentasConsignacionBajoPedido().reduce((s,c)=>s+saldoProveedorModalidad(c.proveedor,c.modalidad),0);
-  const deudaTotal=deudaCompraDirecta+deudaConsignacionBajoPedido;
+  const filas=filasProveedoresTabla();
+  const totalPendiente=filas.reduce((s,f)=>s+f.pendiente,0);
+  const totalPagado=filas.reduce((s,f)=>s+f.pagado,0);
+  const nombresUnicos=new Set(filas.map(f=>f.proveedor));
   document.getElementById('resumenProveedores').innerHTML=`
-    <div class="stat"><div class="num">${entradas.length}</div><div class="lbl">Entregas/compras</div></div>
-    <div class="stat"><div class="num" style="color:${deudaTotal>0?'var(--danger)':'var(--primary)'};">${money(deudaTotal)}</div><div class="lbl">Deuda</div></div>
-    <div class="stat"><div class="num">${proveedores.length}</div><div class="lbl">Proveedores</div></div>`;
+    <div class="stat"><div class="num">${nombresUnicos.size}</div><div class="lbl">Proveedores / socios</div></div>
+    <div class="stat"><div class="num" style="color:${totalPendiente>0.005?'var(--danger)':'var(--primary)'};">${money(totalPendiente)}</div><div class="lbl">Total pendiente</div></div>
+    <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Pagado / liquidado</div></div>`;
 
-  let html='<h3 style="font-size:15px;margin:4px 0 8px;">Entregas y compras</h3>';
-  html+='<p class="vacio" style="text-align:left;padding:0 0 8px;">Acá se ve todo el movimiento físico recibido. Solo "Compra directa" genera deuda al recibirla — consignación y bajo pedido generan su obligación al vender (ver la sección de abajo).</p>';
-  if(entradas.length===0){
-    html+='<div class="vacio">No hay entregas ni compras registradas. Usa "Registrar entrega/compra" en Stock.</div>';
+  let html;
+  if(filas.length===0){
+    html='<div class="vacio">No hay proveedores ni socios con movimiento todavía.</div>';
   }else{
-    html+=`<div class="tabla-wrap"><table><thead><tr>
+    html=`<div class="tabla-excel"><table class="proveedores-tabla"><thead><tr>
+      <th>Proveedor / socio</th><th>Marca</th><th>Modelo</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Acción</th>
+      </tr></thead><tbody>${filas.map(f=>{
+        const pendienteAlerta=f.pendiente>0.005;
+        return `<tr>
+          <td style="text-align:left;">${esc(f.proveedor)}</td>
+          <td style="text-align:left;">${esc(f.marca)}</td>
+          <td style="text-align:left;">${esc(MODELO_LABEL_PROVEEDORES[f.modelo]||f.modelo)}</td>
+          <td style="text-align:right;">${money(f.generado)}</td>
+          <td style="text-align:right;">${money(f.pagado)}</td>
+          <td style="text-align:right;${pendienteAlerta?'color:var(--danger);font-weight:700;':''}">${money(f.pendiente)}</td>
+          <td style="text-align:left;white-space:nowrap;">
+            <button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="abrirDetalleProveedor('${escJs(f.proveedor)}','${f.modelo}')">Ver detalle</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+  document.getElementById('listaProveedores').innerHTML=html;
+
+  // B8: "Movimientos recibidos" queda como bloque secundario desplegable (mismo dato/columnas
+  // que antes) — no domina la pantalla, no genera deuda por sí solo (eso sigue naciendo al
+  // vender en consignación/bajo pedido, o al recibir en compra directa — sin cambios).
+  const entradas=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  document.getElementById('listaConsignacionBajoPedido').innerHTML=entradas.length===0?'':`
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer;font-size:13px;color:var(--muted);">📦 Movimientos recibidos (${entradas.length})</summary>
+      <p class="vacio" style="text-align:left;padding:8px 0 8px;">Solo "Compra directa" genera deuda al recibirla — consignación y bajo pedido generan su obligación al vender (ver tabla de arriba).</p>
+      <div class="tabla-wrap"><table><thead><tr>
       <th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Modalidad</th><th>Deuda</th><th></th>
       </tr></thead><tbody>${entradas.map(c=>{
         const s=porId(db.stock,c.stockId);
@@ -3596,12 +3652,83 @@ function pintarProveedores(){
             </span>
           </td>
         </tr>`;
-      }).join('')}</tbody></table></div>`;
-  }
-  document.getElementById('listaProveedores').innerHTML=html;
-  document.getElementById('listaConsignacionBajoPedido').innerHTML=pintarCuentasConsignacionBajoPedido();
+      }).join('')}</tbody></table></div>
+    </details>`;
+
+  // B9: solo se muestra si hay pagos históricos sin clasificar (pintarPagosSinClasificar ya
+  // devuelve '' cuando no hay — sin cambios).
   document.getElementById('listaPagosSinClasificar').innerHTML=pintarPagosSinClasificar();
-  pintarRepartoIngresos();
+  document.getElementById('listaReparto').innerHTML='';
+}
+// B7: detalle compacto por proveedor/socio+modelo, reutilizando exactamente los mismos datos
+// que ya usa la tabla principal (obligacionVentaProveedor/saldoEntrega/ventasRepartoDeSocio/
+// liquidacionesDeSocio) — sin estructura de datos nueva, solo un modal de lectura + el acceso a
+// la acción existente correspondiente (Registrar pago / + Liquidación).
+function abrirDetalleProveedor(proveedor,modelo){
+  if(modelo==='compra_directa'){
+    const entregas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.proveedor===proveedor).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    abrirModal(`
+      <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+      <h3>${esc(proveedor)} · Compra directa</h3>
+      <p class="vacio" style="text-align:left;padding:0 0 8px;">La deuda nace al RECIBIR la entrega, no al venderla.</p>
+      ${entregas.length===0?'<div class="vacio">Sin entregas registradas.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Fecha</th><th>Producto</th><th>Cant.</th><th>Monto</th><th>Saldo</th><th></th>
+        </tr></thead><tbody>${entregas.map(e=>{
+          const s=porId(db.stock,e.stockId);
+          const saldo=saldoEntrega(e);
+          return `<tr>
+            <td>${fechaCelda(e.fecha)}</td><td>${s?esc(s.producto):'—'}</td><td>${e.cantidad}</td><td>${money(e.monto)}</td>
+            <td>${saldo>0.005?money(saldo):'<span class="chip chip-verde">Pagado</span>'}</td>
+            <td>${saldo>0.005?`<button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="cerrarModal();abrirFormPagoProveedor('${e.id}')">Registrar pago</button>`:''}</td>
+          </tr>`;
+        }).join('')}</tbody></table></div>`}
+      <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
+    return;
+  }
+  if(modelo==='consignacion'||modelo==='bajo_pedido'){
+    const ventas=[];
+    db.pedidos.forEach(p=>{
+      if(p.estadoPago==='cancelado')return;
+      (p.items||[]).forEach(it=>{
+        if(it.proveedorVenta===proveedor&&it.modalidadComercial===modelo)ventas.push({fecha:p.fecha,producto:it.producto,cantidad:it.cantidad,monto:it.cantidad*(it.costoProveedorVenta||0)});
+      });
+    });
+    ventas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    const pagos=pagosProveedorModalidad(proveedor,modelo);
+    const saldo=saldoProveedorModalidad(proveedor,modelo);
+    abrirModal(`
+      <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+      <h3>${esc(proveedor)} · ${esc(MODELO_LABEL_PROVEEDORES[modelo]||modelo)}</h3>
+      <p class="vacio" style="text-align:left;padding:0 0 8px;">La deuda nace al VENDER (no al recibir stock): cantidad × costo del proveedor congelado en el momento de cada venta.</p>
+      ${ventas.length?`<p class="vacio" style="text-align:left;padding:0 0 2px;">Ventas que generaron obligación</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Monto</th></tr></thead><tbody>${ventas.map(v=>`<tr><td>${fechaCelda(v.fecha)}</td><td>${esc(v.producto)}</td><td>${v.cantidad}</td><td>${money(v.monto)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="vacio">Sin ventas todavía.</div>'}
+      ${pagos.length?`<p class="vacio" style="text-align:left;padding:10px 0 2px;">Pagos</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td><td>${esc(pg.nota||'—')}</td></tr>`).join('')}</tbody></table></div>`:''}
+      <p style="margin-top:10px;font-size:13px;">Saldo pendiente: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong></p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+        ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
+      </div>`);
+    return;
+  }
+  if(modelo==='reparto_ingresos'){
+    const ventas=ventasRepartoDeSocio(proveedor);
+    const liquidaciones=liquidacionesDeSocio(proveedor);
+    const saldo=saldoRepartoSocio(proveedor);
+    abrirModal(`
+      <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+      <h3>${esc(proveedor)} · Reparto de utilidad</h3>
+      <p class="vacio" style="text-align:left;padding:0 0 8px;">Participación = (venta − costo congelado al vender) × % del socio.</p>
+      ${ventas.length?`<p class="vacio" style="text-align:left;padding:0 0 2px;">Ventas de su marca</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Venta</th><th>Costo</th><th>Utilidad</th><th>%</th><th>Le corresponde</th></tr></thead><tbody>${ventas.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.ventaTotal)}</td><td>${money(f.costoBase)}</td><td>${money(f.utilidad)}</td><td>${f.porcentaje}%</td><td>${money(f.monto)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="vacio">Sin ventas todavía.</div>'}
+      ${liquidaciones.length?`<p class="vacio" style="text-align:left;padding:10px 0 2px;">Liquidaciones pagadas</p>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th></tr></thead><tbody>${liquidaciones.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`:''}
+      <p style="margin-top:10px;font-size:13px;">Saldo pendiente: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong></p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+        ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormLiquidacion('${escJs(proveedor)}')">+ Liquidación</button>`:''}
+      </div>`);
+  }
 }
 function pagosHistoricosSinClasificar(){
   return (db.pagosProveedor||[]).filter(pg=>!pg.modalidad).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
@@ -4000,6 +4127,36 @@ function eliminarTarea(id){
 }
 
 /* ================= REPORTES ================= */
+// SPRINT UX (2026-08-21) — C3: utilidad/participación POR MARCA usando exactamente los mismos
+// snapshots congelados que ya usa ventasRepartoDeSocio (venta=cantidad×precioUnit,
+// costo=cantidad×costoProveedorVenta, utilidad=max(0,venta−costo), participación=utilidad×%
+// solo en reparto_ingresos) — ninguna fórmula nueva, solo agrupado por marca en vez de por
+// socio. NUNCA usa el costo ACTUAL de Stock: si un ítem histórico no tiene costoProveedorVenta
+// guardado (ventas de antes de ETAPA A), esa marca queda marcada sinHistoriaCompleta y la UI
+// muestra "—" en Costo/Utilidad/Participación/Zona Bariátrica para esa fila.
+function rentabilidadPorMarca(pedidos){
+  const porMarca={};
+  pedidos.forEach(p=>(p.items||[]).forEach(it=>{
+    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,costo:0,utilidad:0,socio:0,zb:0,sinHistoriaCompleta:false};
+    const fila=porMarca[it.marca];
+    const ventaItem=it.cantidad*it.precioUnit;
+    fila.ventas+=ventaItem;
+    if(typeof it.costoProveedorVenta!=='number'){fila.sinHistoriaCompleta=true;return;}
+    const costoItem=it.cantidad*it.costoProveedorVenta;
+    const utilidadItem=Math.max(0,ventaItem-costoItem);
+    fila.costo+=costoItem;
+    fila.utilidad+=utilidadItem;
+    if(it.modalidadComercial==='reparto_ingresos'){
+      const pct=it.porcentajeReparto!=null?it.porcentajeReparto:60;
+      const socioMonto=round2(utilidadItem*pct/100);
+      fila.socio+=socioMonto;
+      fila.zb+=round2(utilidadItem-socioMonto);
+    }else{
+      fila.zb+=utilidadItem;
+    }
+  }));
+  return Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
+}
 function pintarReportes(){
   if(!document.getElementById('repDesde').value)document.getElementById('repDesde').value=primerDiaMes();
   if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
@@ -4030,29 +4187,56 @@ function pintarReportes(){
   const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
   const gastosCompras=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.fecha>=desde&&m.fecha<=hasta).reduce((s,m)=>s+(m.monto||0),0);
 
+  // C3: utilidad total del periodo solo se muestra si TODAS las marcas vendidas en el rango
+  // tienen historia completa (costoProveedorVenta guardado en cada ítem) — si falta info de
+  // alguna, no se inventa un número parcial: se omite el indicador (queda solo en la tabla,
+  // marca por marca, con "—" donde corresponda).
+  const rentab=rentabilidadPorMarca(pedidosFacturables);
+  const utilidadCalculable=rentab.length>0&&rentab.every(f=>!f.sinHistoriaCompleta);
+  const utilidadTotal=rentab.reduce((s,f)=>s+(f.sinHistoriaCompleta?0:f.utilidad),0);
+
   document.getElementById('repContenido').innerHTML=`
-    <h3 style="font-size:15px;">Retorno de la pauta publicitaria</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 4px;">Leads, convertidos y tasa de conversión son de todo el historial (no solo del rango de fechas elegido). El gasto en pauta y la ganancia neta también son un total histórico: se configura una sola cifra en Config, no por periodo.</p>
-    <div class="grid-cards">
-      <div class="stat"><div class="num">${totalLeads}</div><div class="lbl">Leads totales (histórico)</div></div>
-      <div class="stat"><div class="num">${convertidos}</div><div class="lbl">Convertidos a cliente (histórico)</div></div>
-      <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Tasa de conversión (histórico)</div></div>
-      <div class="stat"><div class="num">${money(gastoPauta)}</div><div class="lbl">Gastado en pauta (total histórico)</div></div>
-      <div class="stat"><div class="num" style="color:${ingresoDeLeads-gastoPauta>=0?'var(--primary)':'var(--danger)'};">${money(ingresoDeLeads-gastoPauta)}</div><div class="lbl">Ganancia neta de leads (vs. gasto histórico)</div></div>
+    <h3 style="font-size:15px;margin:4px 0 8px;">Resumen (${fechaBonita(desde)} — ${fechaBonita(hasta)})</h3>
+    <div class="grid-cards chico">
+      <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ventas</div></div>
+      <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos pagados</div></div>
+      <div class="stat"><div class="num">${totalLeads}</div><div class="lbl">Leads (histórico)</div></div>
+      <div class="stat"><div class="num">${convertidos}</div><div class="lbl">Convertidos (histórico)</div></div>
+      <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Tasa de conversión</div></div>
+      ${utilidadCalculable?`<div class="stat"><div class="num" style="color:var(--primary);">${money(utilidadTotal)}</div><div class="lbl">Utilidad del periodo</div></div>`:''}
     </div>
 
-    <h3 style="font-size:15px;">Ventas del periodo (${fechaBonita(desde)} — ${fechaBonita(hasta)})</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 4px;">"Comprado a proveedores" y "Balance" acá solo reflejan compra directa (lo comprado/recibido en Stock). La deuda de consignación y bajo pedido nace al vender, no al comprar — se ve en Proveedores, todavía no está sumada a este balance.</p>
-    <div class="grid-cards">
-      <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ingresos (pedidos pagados+)</div></div>
-      <div class="stat"><div class="num">${money(gastosCompras)}</div><div class="lbl">Comprado a proveedores (compra directa)</div></div>
+    <h3 style="font-size:15px;margin:18px 0 8px;">Rentabilidad por marca</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 6px;">Usa el costo congelado en cada venta (nunca el costo actual de Stock) — por eso ventas viejas de antes de que existiera ese snapshot muestran "—".</p>
+    ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Marca</th><th>Ventas</th><th>Costo</th><th>Utilidad</th><th>Participación socio</th><th>Zona Bariátrica</th>
+      </tr></thead><tbody>${rentab.map(f=>`<tr>
+        <td style="text-align:left;">${esc(f.marca)}</td>
+        <td style="text-align:right;">${money(f.ventas)}</td>
+        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.costo)}</td>
+        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.utilidad)}</td>
+        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':(f.socio>0.005?money(f.socio):'—')}</td>
+        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.zb)}</td>
+      </tr>`).join('')}</tbody></table></div>`}
+
+    <h3 style="font-size:15px;margin:18px 0 8px;">Leads y pauta</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 4px;">Gasto en pauta y ganancia neta son un total histórico (una sola cifra en Config, no por periodo) — igual que Leads/Convertidos/Tasa de arriba.</p>
+    <div class="grid-cards chico">
+      <div class="stat"><div class="num">${money(ingresoDeLeads)}</div><div class="lbl">Ingreso de leads (histórico)</div></div>
+      <div class="stat"><div class="num">${money(gastoPauta)}</div><div class="lbl">Gastado en pauta</div></div>
+      <div class="stat"><div class="num" style="color:${ingresoDeLeads-gastoPauta>=0?'var(--primary)':'var(--danger)'};">${money(ingresoDeLeads-gastoPauta)}</div><div class="lbl">Ganancia neta de leads</div></div>
+    </div>
+
+    <h3 style="font-size:15px;margin:18px 0 8px;">Ventas del periodo</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 4px;">"Comprado a proveedores" y "Balance" acá solo reflejan compra directa. La deuda de consignación y bajo pedido nace al vender, no al comprar — se ve en Proveedores.</p>
+    <div class="grid-cards chico">
+      <div class="stat"><div class="num">${money(gastosCompras)}</div><div class="lbl">Comprado a proveedores</div></div>
       <div class="stat"><div class="num" style="color:${ingresos-gastosCompras>=0?'var(--primary)':'var(--danger)'};">${money(ingresos-gastosCompras)}</div><div class="lbl">Balance (solo compra directa)</div></div>
-      <div class="stat"><div class="num">${pedidosRango.length}</div><div class="lbl">Pedidos en el periodo</div></div>
     </div>
 
     <div class="fila-2">
       <div>
-        <h4 style="font-size:13.5px;">Ventas por marca</h4>
+        <h4 style="font-size:13.5px;">Ventas por marca (ingreso bruto)</h4>
         ${Object.keys(ventasPorMarca).length===0?'<div class="vacio">Sin ventas en el periodo</div>':`<ul class="lista-simple">${Object.entries(ventasPorMarca).map(([m,v])=>`<li>${esc(m)}<strong>${money(v)}</strong></li>`).join('')}</ul>`}
       </div>
       <div>
