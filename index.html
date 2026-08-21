@@ -369,12 +369,11 @@ details.config-block summary:hover{color:var(--primary);}
 
     <!-- ===== PROVEEDORES ===== -->
     <section class="sec" id="sec-proveedores">
-      <div class="barra-sec"><h2>🚚 Proveedores / Pagos</h2></div>
+      <div class="barra-sec"><h2>Proveedores</h2></div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px;">Control de pagos a proveedores y socios.</p>
       <div id="resumenProveedores" class="grid-cards chico"></div>
       <div id="listaProveedores"></div>
-      <div id="listaConsignacionBajoPedido"></div>
       <div id="listaPagosSinClasificar"></div>
-      <div id="listaReparto"></div>
     </section>
 
     <!-- ===== TAREAS ===== -->
@@ -388,22 +387,56 @@ details.config-block summary:hover{color:var(--primary);}
 
     <!-- ===== REPORTES ===== -->
     <section class="sec" id="sec-reportes">
-      <div class="barra-sec"><h2>📊 Reportes</h2></div>
-      <div class="filtros">
-        <label style="margin:0;">Desde<input type="date" id="repDesde" onchange="pintarReportes()"></label>
-        <label style="margin:0;">Hasta<input type="date" id="repHasta" onchange="pintarReportes()"></label>
-        <button class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="exportarCSV('pedidos')">⬇ Exportar pedidos (CSV)</button>
-        <button class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="exportarCSV('leads')">⬇ Exportar leads (CSV)</button>
+      <div class="barra-sec"><h2>Reportes</h2></div>
+      <p class="vacio" style="text-align:left;padding:0 0 10px;">Cómo va Zona Bariátrica en el período seleccionado.</p>
+      <div class="acciones" style="margin-bottom:12px;">
+        <button type="button" class="btn btn-chico" id="repTab-resumen" onclick="cambiarVistaReportes('resumen')">Resumen</button>
+        <button type="button" class="btn-secundario btn-chico" id="repTab-historial" onclick="cambiarVistaReportes('historial')">Historial</button>
       </div>
-      <div id="repContenido"></div>
 
-      <h3 style="font-size:15px;margin:22px 0 8px;">🧾 Historial de ventas</h3>
-      <div class="filtros">
-        <select id="pedidosFiltroMarca" onchange="pintarPedidos()"><option value="">Todas las marcas</option></select>
-        <label style="margin:0;">Desde<input type="date" id="pedidosFiltroDesde" onchange="pintarPedidos()"></label>
-        <label style="margin:0;">Hasta<input type="date" id="pedidosFiltroHasta" onchange="pintarPedidos()"></label>
+      <div id="repVistaResumen">
+        <div class="filtros">
+          <label style="margin:0;">Desde<input type="date" id="repDesde" onchange="pintarReportes()"></label>
+          <label style="margin:0;">Hasta<input type="date" id="repHasta" onchange="pintarReportes()"></label>
+          <button type="button" class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="repRangoRapido('mes_actual')">Este mes</button>
+          <button type="button" class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="repRangoRapido('mes_anterior')">Mes anterior</button>
+        </div>
+        <div id="repContenido"></div>
       </div>
-      <div id="listaPedidos"></div>
+
+      <div id="repVistaHistorial" class="oculto">
+        <div class="filtros">
+          <select id="histTipo" onchange="pintarHistorial()">
+            <option value="ventas">Ventas</option>
+            <option value="entradas">Entradas de productos</option>
+            <option value="pagos">Pagos a proveedores</option>
+            <option value="liquidaciones">Liquidaciones</option>
+            <option value="movimientos">Movimientos de stock</option>
+          </select>
+          <input id="histBuscar" placeholder="Buscar..." oninput="pintarHistorial()">
+          <label style="margin:0;">Desde<input type="date" id="histDesde" onchange="pintarHistorial()"></label>
+          <label style="margin:0;">Hasta<input type="date" id="histHasta" onchange="pintarHistorial()"></label>
+          <details style="align-self:flex-end;">
+            <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Más ⋮</summary>
+            <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+              <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('pedidos')">Exportar pedidos CSV</button>
+              <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('leads')">Exportar leads CSV</button>
+            </div>
+          </details>
+        </div>
+        <div id="histContenido"></div>
+      </div>
+
+      <!-- Compatibilidad interna (no visible): pintarPedidos() sigue llamándose desde
+           guardar/editar/eliminar pedido en Clientes (fuera de Reportes) para refrescar su
+           propia tabla en memoria — estos elementos deben seguir existiendo para que esas
+           llamadas no fallen, aunque la vista visible ahora es Historial → Ventas. -->
+      <div class="oculto">
+        <select id="pedidosFiltroMarca" onchange="pintarPedidos()"><option value="">Todas las marcas</option></select>
+        <input type="date" id="pedidosFiltroDesde" onchange="pintarPedidos()">
+        <input type="date" id="pedidosFiltroHasta" onchange="pintarPedidos()">
+        <div id="listaPedidos"></div>
+      </div>
     </section>
 
     <!-- ===== CONFIG ===== -->
@@ -1158,7 +1191,7 @@ function irA(sec){
   if(sec==='stock')pintarStock();
   if(sec==='proveedores')pintarProveedores();
   if(sec==='tareas')pintarTareas();
-  if(sec==='reportes'){pintarReportes();pintarPedidos();}
+  if(sec==='reportes')cambiarVistaReportes(reportesVistaActual);
   if(sec==='config')pintarConfig();
 }
 
@@ -3586,103 +3619,102 @@ function filasProveedoresTabla(){
   });
   return filas.sort((a,b)=>a.proveedor.localeCompare(b.proveedor)||a.marca.localeCompare(b.marca));
 }
+// SPRINT FINAL (2026-08-21) — Estado en lenguaje humano para la fila de Proveedores. "Por
+// confirmar" SOLO se usa cuando es identificable de forma fiable con datos que YA existen: hay
+// saldo pendiente pero también hay pagos históricos SIN CLASIFICAR (pagosHistoricosSinClasificar,
+// ya existía) a nombre de ese mismo proveedor — o sea, puede que ya se le haya pagado con un pago
+// que nadie asoció todavía a esta cuenta. No es una heurística por venta individual (el modelo de
+// datos actual no permite atar un pago a una venta puntual en consignación/bajo pedido — ver
+// limitación documentada en la entrega) — es una señal a nivel de proveedor, 100% reconstruible
+// sin inventar nada ni escribir datos nuevos.
+function estadoProveedorFila(f){
+  if(f.pendiente>0.005){
+    const hayPagoSinClasificar=pagosHistoricosSinClasificar().some(pg=>pg.proveedor===f.proveedor);
+    if(hayPagoSinClasificar)return{estado:'por_confirmar',label:'Por confirmar',chip:'chip-gris'};
+    return{estado:'pendiente',label:'Pendiente',chip:'chip-naranja'};
+  }
+  return{estado:'al_dia',label:'Al día',chip:'chip-verde'};
+}
 function pintarProveedores(){
   const filas=filasProveedoresTabla();
   const totalPendiente=filas.reduce((s,f)=>s+f.pendiente,0);
-  const totalPagado=filas.reduce((s,f)=>s+f.pagado,0);
-  const nombresUnicos=new Set(filas.map(f=>f.proveedor));
+  // "Pagado este mes" = pagos a proveedores + liquidaciones a socios cuya FECHA cae en el mes
+  // calendario actual — a propósito NO es lo mismo que "pagado histórico" (filas.pagado de
+  // filasProveedoresTabla es el acumulado de siempre, se sigue usando en Ver detalle).
+  const mesActual=mesDe(hoyStr());
+  const pagadoEsteMes=
+    (db.pagosProveedor||[]).filter(pg=>mesDe(pg.fecha)===mesActual).reduce((s,pg)=>s+(pg.monto||0),0)+
+    (db.liquidacionesSocio||[]).filter(l=>mesDe(l.fecha)===mesActual).reduce((s,l)=>s+(l.monto||0),0);
   document.getElementById('resumenProveedores').innerHTML=`
-    <div class="stat"><div class="num">${nombresUnicos.size}</div><div class="lbl">Proveedores / socios</div></div>
-    <div class="stat"><div class="num" style="color:${totalPendiente>0.005?'var(--danger)':'var(--primary)'};">${money(totalPendiente)}</div><div class="lbl">Total pendiente</div></div>
-    <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Pagado / liquidado</div></div>`;
+    <div class="stat"><div class="num" style="color:${totalPendiente>0.005?'var(--danger)':'var(--primary)'};">${money(totalPendiente)}</div><div class="lbl">Por pagar</div></div>
+    <div class="stat"><div class="num">${money(pagadoEsteMes)}</div><div class="lbl">Pagado este mes</div></div>`;
 
   let html;
   if(filas.length===0){
     html='<div class="vacio">No hay proveedores ni socios con movimiento todavía.</div>';
   }else{
     html=`<div class="tabla-excel"><table class="proveedores-tabla"><thead><tr>
-      <th>Proveedor / socio</th><th>Marca</th><th>Modelo</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Acción</th>
+      <th>Proveedor / socio</th><th>Marca</th><th>Por pagar</th><th>Estado</th><th>Acción</th>
       </tr></thead><tbody>${filas.map(f=>{
-        const pendienteAlerta=f.pendiente>0.005;
+        const est=estadoProveedorFila(f);
         return `<tr>
           <td style="text-align:left;">${esc(f.proveedor)}</td>
           <td style="text-align:left;">${esc(f.marca)}</td>
-          <td style="text-align:left;">${esc(MODELO_LABEL_PROVEEDORES[f.modelo]||f.modelo)}</td>
-          <td style="text-align:right;">${money(f.generado)}</td>
-          <td style="text-align:right;">${money(f.pagado)}</td>
-          <td style="text-align:right;${pendienteAlerta?'color:var(--danger);font-weight:700;':''}">${money(f.pendiente)}</td>
+          <td style="text-align:right;${est.estado==='pendiente'?'color:var(--danger);font-weight:700;':''}">${money(f.pendiente)}</td>
+          <td style="text-align:left;"><span class="chip ${est.chip}">${esc(est.label)}</span></td>
           <td style="text-align:left;white-space:nowrap;">
-            <button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="abrirDetalleProveedor('${escJs(f.proveedor)}','${f.modelo}')">Ver detalle</button>
+            <button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="abrirDetalleProveedor('${escJs(f.proveedor)}','${f.modelo}','${escJs(f.marca)}')">Ver detalle</button>
           </td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
   }
   document.getElementById('listaProveedores').innerHTML=html;
 
-  // B8: "Movimientos recibidos" queda como bloque secundario desplegable (mismo dato/columnas
-  // que antes) — no domina la pantalla, no genera deuda por sí solo (eso sigue naciendo al
-  // vender en consignación/bajo pedido, o al recibir en compra directa — sin cambios).
-  const entradas=db.movimientosStock.filter(m=>m.tipo==='entrada').sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  document.getElementById('listaConsignacionBajoPedido').innerHTML=entradas.length===0?'':`
-    <details style="margin-top:16px;">
-      <summary style="cursor:pointer;font-size:13px;color:var(--muted);">📦 Movimientos recibidos (${entradas.length})</summary>
-      <p class="vacio" style="text-align:left;padding:8px 0 8px;">Solo "Compra directa" genera deuda al recibirla — consignación y bajo pedido generan su obligación al vender (ver tabla de arriba).</p>
-      <div class="tabla-wrap"><table><thead><tr>
-      <th>Fecha</th><th>Producto</th><th>Proveedor</th><th>Cantidad</th><th>Modalidad</th><th>Deuda</th><th></th>
-      </tr></thead><tbody>${entradas.map(c=>{
-        const s=porId(db.stock,c.stockId);
-        const esCompraDirecta=c.modalidadComercial==='compra_directa';
-        const saldo=esCompraDirecta?saldoEntrega(c):0;
-        const pagada=saldo<=0.005;
-        const modalidadChip=!c.modalidadComercial
-          ?'<span class="chip chip-naranja">modalidad sin determinar</span>'
-          :(esCompraDirecta?'<span class="chip chip-azul">Compra directa</span>':`<span class="chip chip-gris">${MODALIDAD_LABEL_CORTO[c.modalidadComercial]||c.modalidadComercial} · no genera deuda al recibir</span>`);
-        return `<tr>
-          <td>${fechaBonita(c.fecha)}</td>
-          <td>${s?esc(s.marca+' — '+s.producto):'—'}</td>
-          <td>${esc(c.proveedor||'—')}</td>
-          <td>${c.cantidad}</td>
-          <td>${modalidadChip}</td>
-          <td>${esCompraDirecta?(pagada?`<span class="chip chip-verde">Pagado</span>`:(c.proveedor?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedor('${c.id}')" title="Registrar pago">${money(saldo)}</button>`:money(saldo))):'—'}</td>
-          <td style="white-space:nowrap;font-size:11px;">
-            <span id="corregir-link-${c.id}"><button type="button" class="link-historial" onclick="mostrarAccionesCompra('${c.id}')">¿Error? Corregir</button></span>
-            <span id="corregir-acciones-${c.id}" class="oculto">
-              <button class="btn-secundario btn-chico" onclick="abrirEditarCompra('${c.id}')">Editar</button>
-              <button class="btn-peligro btn-chico" onclick="eliminarCompra('${c.id}')">Eliminar</button>
-            </span>
-          </td>
-        </tr>`;
-      }).join('')}</tbody></table></div>
-    </details>`;
-
-  // B9: solo se muestra si hay pagos históricos sin clasificar (pintarPagosSinClasificar ya
+  // Movimientos recibidos SALIÓ de Proveedores (ver Reportes → Historial → Entradas de
+  // productos) — la lógica que los genera/calcula (movimientosStock, saldoEntrega) no cambió.
+  // Pagos históricos sin clasificar solo se muestra si existen (pintarPagosSinClasificar ya
   // devuelve '' cuando no hay — sin cambios).
   document.getElementById('listaPagosSinClasificar').innerHTML=pintarPagosSinClasificar();
-  document.getElementById('listaReparto').innerHTML='';
 }
 // B7: detalle compacto por proveedor/socio+modelo, reutilizando exactamente los mismos datos
 // que ya usa la tabla principal (obligacionVentaProveedor/saldoEntrega/ventasRepartoDeSocio/
 // liquidacionesDeSocio) — sin estructura de datos nueva, solo un modal de lectura + el acceso a
 // la acción existente correspondiente (Registrar pago / + Liquidación).
-function abrirDetalleProveedor(proveedor,modelo){
+// SPRINT FINAL (2026-08-21) — B7/sección 5: "¿De dónde sale este saldo?" — Fecha/Referencia/
+// Corresponde pagar en "Pendiente de pago" viene de exactamente los mismos datos que ya usan
+// obligacionVentaProveedor/saldoEntrega/ventasRepartoDeSocio. NO se agrega una columna "Estado"
+// por fila: el modelo de datos actual (saldo agregado por proveedor+modalidad, no un pago
+// atado a una venta puntual) no permite saber con certeza si ESA venta específica ya está
+// cubierta por ESE pago específico — solo el agregado (arriba, "Por pagar"/"Pagado") es
+// confiable. Ver limitación documentada en la entrega. El modelo comercial SÍ se muestra acá
+// (discreto, bajo el título) porque ayuda a entender el cálculo — la vista principal no lo
+// muestra, esta sí puede.
+function abrirDetalleProveedor(proveedor,modelo,marca){
+  const modeloLabel=MODELO_LABEL_PROVEEDORES[modelo]||modelo;
   if(modelo==='compra_directa'){
     const entregas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.proveedor===proveedor).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    const generado=entregas.reduce((s,e)=>s+(e.monto||0),0);
+    const pendiente=entregas.reduce((s,e)=>s+saldoEntrega(e),0);
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-      <h3>${esc(proveedor)} · Compra directa</h3>
-      <p class="vacio" style="text-align:left;padding:0 0 8px;">La deuda nace al RECIBIR la entrega, no al venderla.</p>
+      <h3 style="margin-bottom:2px;">${esc(proveedor)}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)}</p>
+      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${pendiente>0.005?'color:var(--danger);':''}">${money(pendiente)}</strong> · Pagado: <strong>${money(generado-pendiente)}</strong></p>
+      <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
       ${entregas.length===0?'<div class="vacio">Sin entregas registradas.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Fecha</th><th>Producto</th><th>Cant.</th><th>Monto</th><th>Saldo</th><th></th>
+        <th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th>
         </tr></thead><tbody>${entregas.map(e=>{
           const s=porId(db.stock,e.stockId);
           const saldo=saldoEntrega(e);
-          return `<tr>
-            <td>${fechaCelda(e.fecha)}</td><td>${s?esc(s.producto):'—'}</td><td>${e.cantidad}</td><td>${money(e.monto)}</td>
-            <td>${saldo>0.005?money(saldo):'<span class="chip chip-verde">Pagado</span>'}</td>
-            <td>${saldo>0.005?`<button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="cerrarModal();abrirFormPagoProveedor('${e.id}')">Registrar pago</button>`:''}</td>
-          </tr>`;
-        }).join('')}</tbody></table></div>`}
-      <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
+          if(saldo<=0.005)return'';
+          return `<tr><td>${fechaCelda(e.fecha)}</td><td style="text-align:left;">${s?esc(s.producto):'—'}</td><td>${money(saldo)}</td></tr>`;
+        }).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);">Sin pendientes.</td></tr>'}</tbody></table></div>`}
+      <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
+      ${entregas.filter(e=>pagosDeEntrega(e.id).length).length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${entregas.flatMap(e=>pagosDeEntrega(e.id)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+        ${entregas.some(e=>saldoEntrega(e)>0.005)?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedor('${entregas.find(e=>saldoEntrega(e)>0.005).id}')">Registrar pago</button>`:''}
+      </div>`);
     return;
   }
   if(modelo==='consignacion'||modelo==='bajo_pedido'){
@@ -3695,16 +3727,17 @@ function abrirDetalleProveedor(proveedor,modelo){
     });
     ventas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
     const pagos=pagosProveedorModalidad(proveedor,modelo);
+    const generado=obligacionVentaProveedor(proveedor,modelo);
     const saldo=saldoProveedorModalidad(proveedor,modelo);
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-      <h3>${esc(proveedor)} · ${esc(MODELO_LABEL_PROVEEDORES[modelo]||modelo)}</h3>
-      <p class="vacio" style="text-align:left;padding:0 0 8px;">La deuda nace al VENDER (no al recibir stock): cantidad × costo del proveedor congelado en el momento de cada venta.</p>
-      ${ventas.length?`<p class="vacio" style="text-align:left;padding:0 0 2px;">Ventas que generaron obligación</p>
-      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Monto</th></tr></thead><tbody>${ventas.map(v=>`<tr><td>${fechaCelda(v.fecha)}</td><td>${esc(v.producto)}</td><td>${v.cantidad}</td><td>${money(v.monto)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="vacio">Sin ventas todavía.</div>'}
-      ${pagos.length?`<p class="vacio" style="text-align:left;padding:10px 0 2px;">Pagos</p>
-      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th><th>Nota</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td><td>${esc(pg.nota||'—')}</td></tr>`).join('')}</tbody></table></div>`:''}
-      <p style="margin-top:10px;font-size:13px;">Saldo pendiente: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong></p>
+      <h3 style="margin-bottom:2px;">${esc(proveedor)}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)}</p>
+      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(generado-saldo)}</strong></p>
+      <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
+      ${ventas.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${ventas.map(v=>`<tr><td>${fechaCelda(v.fecha)}</td><td style="text-align:left;">${esc(v.producto)}</td><td>${money(v.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
+      ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
         ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
@@ -3714,16 +3747,17 @@ function abrirDetalleProveedor(proveedor,modelo){
   if(modelo==='reparto_ingresos'){
     const ventas=ventasRepartoDeSocio(proveedor);
     const liquidaciones=liquidacionesDeSocio(proveedor);
+    const generado=ventas.reduce((s,f)=>s+f.monto,0);
     const saldo=saldoRepartoSocio(proveedor);
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-      <h3>${esc(proveedor)} · Reparto de utilidad</h3>
-      <p class="vacio" style="text-align:left;padding:0 0 8px;">Participación = (venta − costo congelado al vender) × % del socio.</p>
-      ${ventas.length?`<p class="vacio" style="text-align:left;padding:0 0 2px;">Ventas de su marca</p>
-      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Venta</th><th>Costo</th><th>Utilidad</th><th>%</th><th>Le corresponde</th></tr></thead><tbody>${ventas.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.ventaTotal)}</td><td>${money(f.costoBase)}</td><td>${money(f.utilidad)}</td><td>${f.porcentaje}%</td><td>${money(f.monto)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="vacio">Sin ventas todavía.</div>'}
-      ${liquidaciones.length?`<p class="vacio" style="text-align:left;padding:10px 0 2px;">Liquidaciones pagadas</p>
-      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th></tr></thead><tbody>${liquidaciones.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`:''}
-      <p style="margin-top:10px;font-size:13px;">Saldo pendiente: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong></p>
+      <h3 style="margin-bottom:2px;">${esc(proveedor)}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)} (utilidad × % del socio)</p>
+      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(generado-saldo)}</strong></p>
+      <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
+      ${ventas.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${ventas.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td style="text-align:left;">${esc(f.producto)}</td><td>${money(f.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
+      ${liquidaciones.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${liquidaciones.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
         ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormLiquidacion('${escJs(proveedor)}')">+ Liquidación</button>`:''}
@@ -4157,93 +4191,206 @@ function rentabilidadPorMarca(pedidos){
   }));
   return Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
 }
+// SPRINT FINAL (2026-08-21) — único campo de fecha real de un lead es l.fecha (siempre lo pone
+// guardarLead()/importarLeadsPegados(), ver esas funciones — con fallback a hoyStr() si el
+// usuario lo deja vacío). Un lead restaurado/importado desde fuera de este CRM podría no traer
+// ese campo o traerlo corrupto: NO se le inventa una fecha — se lo trata como "sin fecha válida"
+// y queda FUERA de los conteos por período (sigue existiendo en db.leads igual).
+function fechaLeadValida(l){
+  return typeof l.fecha==='string'&&/^\d{4}-\d{2}-\d{2}/.test(l.fecha);
+}
 function pintarReportes(){
   if(!document.getElementById('repDesde').value)document.getElementById('repDesde').value=primerDiaMes();
   if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
   const desde=document.getElementById('repDesde').value;
   const hasta=document.getElementById('repHasta').value;
-  const pedidosRango=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta);
-  const pedidosFacturables=pedidosRango.filter(p=>p.estadoPago==='pagado');
-
-  const totalLeads=db.leads.length;
-  const convertidos=db.leads.filter(l=>l.clienteId).length;
-  const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
-  const ingresoDeLeads=db.pedidos.filter(p=>{
-    const c=porId(db.clientes,p.clienteId);
-    return c&&c.leadId&&p.estadoPago==='pagado';
-  }).reduce((s,p)=>s+p.total,0);
-  const gastoPauta=db.config.gastoPauta||0;
-
-  const ventasPorMarca={};
-  pedidosFacturables.forEach(p=>p.items.forEach(it=>{
-    ventasPorMarca[it.marca]=(ventasPorMarca[it.marca]||0)+it.cantidad*it.precioUnit;
-  }));
-  const productos={};
-  pedidosFacturables.forEach(p=>p.items.forEach(it=>{
-    productos[it.producto]=(productos[it.producto]||0)+it.cantidad;
-  }));
-  const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,6);
-
+  const pedidosFacturables=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta&&p.estadoPago==='pagado');
   const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
-  const gastosCompras=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.fecha>=desde&&m.fecha<=hasta).reduce((s,m)=>s+(m.monto||0),0);
 
-  // C3: utilidad total del periodo solo se muestra si TODAS las marcas vendidas en el rango
-  // tienen historia completa (costoProveedorVenta guardado en cada ítem) — si falta info de
-  // alguna, no se inventa un número parcial: se omite el indicador (queda solo en la tabla,
-  // marca por marca, con "—" donde corresponda).
+  // Regla de fechas (sección 9): TODO en Resumen respeta Desde/Hasta, incluyendo Leads/
+  // Convertidos/Conversión — antes usaban db.leads.length (histórico completo) sin filtrar.
+  const leadsEnRango=db.leads.filter(l=>fechaLeadValida(l)&&l.fecha>=desde&&l.fecha<=hasta);
+  const totalLeads=leadsEnRango.length;
+  const convertidos=leadsEnRango.filter(l=>l.clienteId).length;
+  const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
+
+  // Utilidad: solo snapshots congelados en pedido.items[] (rentabilidadPorMarca), nunca costo
+  // actual de Stock. Marca sin costoProveedorVenta guardado -> sinHistoriaCompleta, se excluye
+  // de la suma (fallback documentado, no se inventa costo).
   const rentab=rentabilidadPorMarca(pedidosFacturables);
-  const utilidadCalculable=rentab.length>0&&rentab.every(f=>!f.sinHistoriaCompleta);
   const utilidadTotal=rentab.reduce((s,f)=>s+(f.sinHistoriaCompleta?0:f.utilidad),0);
+  const hayMarcaSinHistoria=rentab.some(f=>f.sinHistoriaCompleta);
+
+  const productos={};
+  pedidosFacturables.forEach(p=>p.items.forEach(it=>{productos[it.producto]=(productos[it.producto]||0)+it.cantidad;}));
+  const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   document.getElementById('repContenido').innerHTML=`
-    <h3 style="font-size:15px;margin:4px 0 8px;">Resumen (${fechaBonita(desde)} — ${fechaBonita(hasta)})</h3>
     <div class="grid-cards chico">
       <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ventas</div></div>
-      <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos pagados</div></div>
-      <div class="stat"><div class="num">${totalLeads}</div><div class="lbl">Leads (histórico)</div></div>
-      <div class="stat"><div class="num">${convertidos}</div><div class="lbl">Convertidos (histórico)</div></div>
-      <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Tasa de conversión</div></div>
-      ${utilidadCalculable?`<div class="stat"><div class="num" style="color:var(--primary);">${money(utilidadTotal)}</div><div class="lbl">Utilidad del periodo</div></div>`:''}
+      <div class="stat"><div class="num"${hayMarcaSinHistoria?` title="Solo incluye marcas con costo histórico guardado en este período"`:''}>${money(utilidadTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Utilidad</div></div>
+      <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos</div></div>
+      <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Conversión</div></div>
     </div>
 
-    <h3 style="font-size:15px;margin:18px 0 8px;">Rentabilidad por marca</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 6px;">Usa el costo congelado en cada venta (nunca el costo actual de Stock) — por eso ventas viejas de antes de que existiera ese snapshot muestran "—".</p>
+    <h3 style="font-size:14px;margin:18px 0 8px;">Ventas por marca</h3>
     ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel"><table><thead><tr>
-      <th>Marca</th><th>Ventas</th><th>Costo</th><th>Utilidad</th><th>Participación socio</th><th>Zona Bariátrica</th>
+      <th>Marca</th><th>Ventas</th><th>Utilidad</th>
       </tr></thead><tbody>${rentab.map(f=>`<tr>
         <td style="text-align:left;">${esc(f.marca)}</td>
         <td style="text-align:right;">${money(f.ventas)}</td>
-        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.costo)}</td>
         <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.utilidad)}</td>
-        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':(f.socio>0.005?money(f.socio):'—')}</td>
-        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.zb)}</td>
       </tr>`).join('')}</tbody></table></div>`}
 
-    <h3 style="font-size:15px;margin:18px 0 8px;">Leads y pauta</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 4px;">Gasto en pauta y ganancia neta son un total histórico (una sola cifra en Config, no por periodo) — igual que Leads/Convertidos/Tasa de arriba.</p>
-    <div class="grid-cards chico">
-      <div class="stat"><div class="num">${money(ingresoDeLeads)}</div><div class="lbl">Ingreso de leads (histórico)</div></div>
-      <div class="stat"><div class="num">${money(gastoPauta)}</div><div class="lbl">Gastado en pauta</div></div>
-      <div class="stat"><div class="num" style="color:${ingresoDeLeads-gastoPauta>=0?'var(--primary)':'var(--danger)'};">${money(ingresoDeLeads-gastoPauta)}</div><div class="lbl">Ganancia neta de leads</div></div>
-    </div>
+    <h3 style="font-size:14px;margin:18px 0 6px;">Leads</h3>
+    <p style="font-size:13px;margin:0 0 14px;">Recibidos <strong>${totalLeads}</strong> → Compraron <strong>${convertidos}</strong> → Conversión <strong>${tasaConv}%</strong></p>
 
-    <h3 style="font-size:15px;margin:18px 0 8px;">Ventas del periodo</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 4px;">"Comprado a proveedores" y "Balance" acá solo reflejan compra directa. La deuda de consignación y bajo pedido nace al vender, no al comprar — se ve en Proveedores.</p>
-    <div class="grid-cards chico">
-      <div class="stat"><div class="num">${money(gastosCompras)}</div><div class="lbl">Comprado a proveedores</div></div>
-      <div class="stat"><div class="num" style="color:${ingresos-gastosCompras>=0?'var(--primary)':'var(--danger)'};">${money(ingresos-gastosCompras)}</div><div class="lbl">Balance (solo compra directa)</div></div>
-    </div>
-
-    <div class="fila-2">
-      <div>
-        <h4 style="font-size:13.5px;">Ventas por marca (ingreso bruto)</h4>
-        ${Object.keys(ventasPorMarca).length===0?'<div class="vacio">Sin ventas en el periodo</div>':`<ul class="lista-simple">${Object.entries(ventasPorMarca).map(([m,v])=>`<li>${esc(m)}<strong>${money(v)}</strong></li>`).join('')}</ul>`}
-      </div>
-      <div>
-        <h4 style="font-size:13.5px;">Productos más vendidos</h4>
-        ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo</div>':`<ul class="lista-simple">${topProductos.map(([p,q])=>`<li>${esc(p)}<strong>${q}</strong></li>`).join('')}</ul>`}
-      </div>
-    </div>`;
+    <h3 style="font-size:14px;margin:0 0 6px;">Más vendidos</h3>
+    ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<ol style="margin:0;padding-left:18px;font-size:13px;">${topProductos.map(([p,q])=>`<li style="padding:2px 0;">${esc(p)} — ${q} und.</li>`).join('')}</ol>`}`;
+}
+function repRangoRapido(tipo){
+  const hoy=hoyStr();
+  const partes=hoy.split('-');
+  let anio=parseInt(partes[0],10),mes=parseInt(partes[1],10);
+  if(tipo==='mes_anterior'){mes--;if(mes===0){mes=12;anio--;}}
+  const desde=anio+'-'+String(mes).padStart(2,'0')+'-01';
+  const ultimoDia=new Date(anio,mes,0).getDate();
+  const hasta=anio+'-'+String(mes).padStart(2,'0')+'-'+String(ultimoDia).padStart(2,'0');
+  document.getElementById('repDesde').value=desde;
+  document.getElementById('repHasta').value=hasta;
+  pintarReportes();
+}
+let reportesVistaActual='resumen'; // 'resumen' | 'historial' — subtabs internas de Reportes
+function cambiarVistaReportes(vista){
+  reportesVistaActual=vista;
+  document.getElementById('repVistaResumen').classList.toggle('oculto',vista!=='resumen');
+  document.getElementById('repVistaHistorial').classList.toggle('oculto',vista!=='historial');
+  document.getElementById('repTab-resumen').className=vista==='resumen'?'btn btn-chico':'btn-secundario btn-chico';
+  document.getElementById('repTab-historial').className=vista==='historial'?'btn btn-chico':'btn-secundario btn-chico';
+  if(vista==='resumen')pintarReportes();else pintarHistorial();
+}
+// Marca de un pago a proveedor — de solo lectura, para Historial → Pagos. Un pago ligado a una
+// entrega (entregaId, compra_directa) resuelve la marca vía el movimiento/producto de esa
+// entrega. Un pago por modalidad (consignación/bajo pedido) no guarda marca directamente: se
+// deriva de las mismas ventas que ya usa obligacionVentaProveedor (mismo filtro proveedor+
+// modalidad). Si no puede resolverse, fallback '—' — no se inventa.
+function marcaDePago(pg){
+  if(pg.entregaId){
+    const mov=porId(db.movimientosStock,pg.entregaId);
+    const s=mov?porId(db.stock,mov.stockId):null;
+    return s?s.marca:'—';
+  }
+  if(pg.modalidad){
+    const marcas=[...new Set(db.pedidos.filter(p=>p.estadoPago!=='cancelado').flatMap(p=>(p.items||[]).filter(it=>it.proveedorVenta===pg.proveedor&&it.modalidadComercial===pg.modalidad).map(it=>it.marca)))];
+    return marcas.join(', ')||'—';
+  }
+  return '—';
+}
+// SPRINT FINAL (2026-08-21) — Reportes → Historial: un selector "Tipo" + una tabla dinámica.
+// Filtros buscar/desde/hasta son INDEPENDIENTES de Resumen (ids distintos, no comparten estado
+// con repDesde/repHasta/pintarReportes). Ningún tipo inventa una colección nueva: todo sale de
+// db.pedidos/db.movimientosStock/db.pagosProveedor/db.liquidacionesSocio ya existentes.
+function pintarHistorial(){
+  const tipo=document.getElementById('histTipo').value;
+  const buscar=(document.getElementById('histBuscar').value||'').toLowerCase();
+  const desde=document.getElementById('histDesde').value;
+  const hasta=document.getElementById('histHasta').value;
+  const cont=document.getElementById('histContenido');
+  const enRango=fecha=>(!desde||(fecha||'')>=desde)&&(!hasta||(fecha||'')<=hasta);
+  if(tipo==='ventas'){
+    let filas=db.pedidos.filter(p=>enRango(p.fecha));
+    if(buscar)filas=filas.filter(p=>{
+      const c=porId(db.clientes,p.clienteId);
+      const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
+      return nombreCliente.toLowerCase().includes(buscar)||p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar));
+    });
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin ventas para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th>
+      </tr></thead><tbody>${filas.map(p=>{
+        const c=porId(db.clientes,p.clienteId);
+        const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
+        const productosTxt=esc(p.items.map(it=>`${it.cantidad}x ${it.producto}`).join(', '));
+        const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
+        return `<tr>
+          <td>${fechaCelda(p.fecha)}</td>
+          <td style="text-align:left;">${nombreCliente}</td>
+          <td style="text-align:left;">${productosTxt}</td>
+          <td style="text-align:right;">${money(p.total)}</td>
+          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+    return;
+  }
+  if(tipo==='entradas'){
+    let filas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&enRango(m.fecha));
+    if(buscar)filas=filas.filter(m=>{
+      const s=porId(db.stock,m.stockId);
+      return (s&&(s.producto||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar);
+    });
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Proveedor</th>
+      </tr></thead><tbody>${filas.map(m=>{
+        const s=porId(db.stock,m.stockId);
+        return `<tr>
+          <td>${fechaCelda(m.fecha)}</td>
+          <td style="text-align:left;">${s?esc(s.producto):'—'}</td>
+          <td style="text-align:left;">${s?esc(s.marca):'—'}</td>
+          <td style="text-align:right;">${m.cantidad}</td>
+          <td style="text-align:left;">${esc(m.proveedor||'—')}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+    return;
+  }
+  if(tipo==='pagos'){
+    let filas=(db.pagosProveedor||[]).filter(pg=>enRango(pg.fecha));
+    if(buscar)filas=filas.filter(pg=>(pg.proveedor||'').toLowerCase().includes(buscar));
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Proveedor</th><th>Marca</th><th>Monto</th>
+      </tr></thead><tbody>${filas.map(pg=>`<tr>
+        <td>${fechaCelda(pg.fecha)}</td>
+        <td style="text-align:left;">${esc(pg.proveedor||'—')}</td>
+        <td style="text-align:left;">${esc(marcaDePago(pg))}</td>
+        <td style="text-align:right;">${money(pg.monto)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+    return;
+  }
+  if(tipo==='liquidaciones'){
+    let filas=(db.liquidacionesSocio||[]).filter(l=>enRango(l.fecha));
+    if(buscar)filas=filas.filter(l=>(l.proveedor||'').toLowerCase().includes(buscar));
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin liquidaciones para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Socio</th><th>Marca</th><th>Monto</th>
+      </tr></thead><tbody>${filas.map(l=>`<tr>
+        <td>${fechaCelda(l.fecha)}</td>
+        <td style="text-align:left;">${esc(l.proveedor||'—')}</td>
+        <td style="text-align:left;">${esc(marcasRepartoDeSocio(l.proveedor).join(', ')||'—')}</td>
+        <td style="text-align:right;">${money(l.monto)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+    return;
+  }
+  if(tipo==='movimientos'){
+    let filas=(db.movimientosStock||[]).filter(m=>enRango(m.fecha));
+    if(buscar)filas=filas.filter(m=>{
+      const s=porId(db.stock,m.stockId);
+      return s&&(s.producto||'').toLowerCase().includes(buscar);
+    });
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+      <th>Fecha</th><th>Producto</th><th>Movimiento</th><th>Cantidad</th><th>Referencia</th>
+      </tr></thead><tbody>${filas.map(m=>{
+        const s=porId(db.stock,m.stockId);
+        return `<tr>
+          <td>${fechaCelda(m.fecha)}</td>
+          <td style="text-align:left;">${s?esc(s.producto):'—'}</td>
+          <td style="text-align:left;">${esc(TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo)}</td>
+          <td style="text-align:right;">${m.cantidad}</td>
+          <td style="text-align:left;">${esc(m.motivo||m.nota||'—')}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
 }
 function exportarCSV(tipo){
   let filas=[],nombre='';
