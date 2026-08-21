@@ -134,6 +134,19 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip-naranja{background:var(--warning-suave);color:var(--warning);}
 .chip-rojo{background:var(--danger-suave);color:var(--danger);}
 
+/* BLOQUE UX (2026-08-21): tabla Stock más densa/compacta — clase propia (no toca .tabla-excel
+   base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
+   a ".tabla-excel th" sin depender del orden de declaración en la hoja de estilos. */
+table.stock-tabla{width:100%;min-width:1120px;}
+table.stock-tabla th{padding:6px 7px;font-size:9.5px;}
+table.stock-tabla td{padding:5px 7px;font-size:11.5px;}
+table.stock-tabla .chip{padding:1px 7px;font-size:10px;}
+/* En desktop amplio, Stock puede usar más ancho que el resto de pestañas (main sigue en
+   max-width:1100px) — gated a min-width:1300px para no arriesgar overflow ni tocar mobile/tablet. */
+@media (min-width:1300px){
+  #sec-stock{margin-left:-90px;margin-right:-90px;}
+}
+
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
 
 /* ---------- VISTA SOCIO: estado de cuenta ---------- */
@@ -2542,6 +2555,24 @@ function eliminarPedido(id){
 // ETAPA D (PRE-P3, 2026-08-20): helpers centralizados para no duplicar lógica visual entre
 // filaStock() y otras vistas futuras. Ninguno de estos toca datos — son puramente de lectura.
 
+// BLOQUE UX (2026-08-21): catálogos fijos para los desplegables de Presentación/Sabor de
+// abrirFormStock()/abrirEditarStock() — una sola fuente para no repetir el array en los dos
+// formularios. s.presentacion/s.sabor NO cambian de nombre ni de tipo (siguen siendo string).
+const PRESENTACIONES_STOCK=['Cápsulas','Gomitas','Líquido','Pastilla masticable','Polvo','Sobres','Tabletas'];
+const SABORES_STOCK=['Arándano','Bayas','Chocolate','Durazno','Fresa','Limón','Maracumango','Multisabor','Naranja','Piña','Vainilla','Maíz'];
+// Genera las <option> de un <select> de catálogo fijo. Si el valor actual del producto (dato
+// histórico, ej. "Arandano"/"Limon"/"maiz" sin tilde) no calza EXACTO con ninguna opción del
+// catálogo, se agrega como opción extra ya seleccionada — así no se pierde ni se reescribe sola
+// al abrir el formulario. "— Sin definir —" guarda '' (mismo comportamiento que el input vacío
+// que reemplaza).
+function opcionesCatalogoStock(catalogo,valorActual){
+  const val=(valorActual||'').trim();
+  const extra=(val&&!catalogo.includes(val))?`<option value="${esc(val)}" selected>${esc(val)} (valor histórico)</option>`:'';
+  return `<option value="">— Sin definir —</option>`+
+    catalogo.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')+
+    extra;
+}
+
 // Estado de la CANTIDAD FÍSICA. bajo_pedido nunca depende de cantidad física (ver ETAPA A/P1:
 // pedidoAgregarItem/descontarStock ya no reservan/descuentan stock en esa modalidad) — por eso
 // tiene su propio estado en vez de reusar la comparación genérica cantidad<=min.
@@ -2616,7 +2647,7 @@ function filaStock(s){
   // falta de responsableDespachoMarca sea visible en Stock sin tener que intentar vender
   // primero (ej. Bariatric Life, real y con socio/costo configurados, pero sin despacho).
   const faltaDespacho=mod.modalidad&&!(db.config.responsableDespachoMarca||{})[s.marca];
-  const pad='padding:9px 10px;';
+  const pad='padding:5px 7px;'; // BLOQUE UX (2026-08-21): coincide con table.stock-tabla td — el inline pisaría la clase si no se reduce acá también
   const tituloVenta=margen?`Margen actual: ${money(margen.margen)} (con precio/costo vigentes)`:'';
   const tituloPromo=promos.length?'Precio por volumen: '+promos.map(t=>`${t.desde}+ → ${money(t.precioUnit)}`).join(' | '):'';
   // BLOQUE UX (2026-08-21): tabla tipo Excel/CRM de referencia — cada dato principal en su
@@ -2700,9 +2731,13 @@ function pintarStock(){
   // ETAPA D: tabla de solo consulta/acción (sin inputs editables inline, a diferencia de
   // Leads) — los cambios siempre pasan por Editar/Ajustar/Corregir costo/Registrar entrega,
   // para proteger la trazabilidad P1/P2. BLOQUE UX (2026-08-21): usa tabla-excel (líneas finas,
-  // encabezados en mayúscula, hover) con min-width fijo para forzar scroll horizontal en vez de
-  // comprimir las 10 columnas — el contenedor .tabla-excel ya trae overflow:auto.
-  cont.innerHTML=`<div class="tabla-excel"><table style="min-width:1150px;"><thead><tr>
+  // encabezados en mayúscula, hover) + clase stock-tabla (padding/fuente compactos, solo Stock —
+  // ver CSS) con colgroup de anchos de referencia; el contenedor .tabla-excel ya trae
+  // overflow:auto, así que si no cabe sigue habiendo scroll horizontal.
+  cont.innerHTML=`<div class="tabla-excel"><table class="stock-tabla"><colgroup>
+      <col style="width:122px;"><col style="width:102px;"><col style="width:205px;"><col style="width:107px;"><col style="width:97px;">
+      <col style="width:80px;"><col style="width:70px;"><col style="width:102px;"><col style="width:102px;"><col style="width:132px;">
+    </colgroup><thead><tr>
       <th>Marca</th><th>Código</th><th>Producto</th><th>Presentación</th><th>Sabor</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio de venta</th><th>Proveedor</th>
     </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar, ajustar stock, corregir costo o archivar. Desliza horizontalmente para ver todas las columnas.</p>`;
@@ -2729,10 +2764,10 @@ function abrirFormStock(){
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
       <div class="fila-2">
         <div><label>Código (opcional)</label><input id="st-codigo" placeholder="Ej. BN-PP-VA-15"></div>
-        <div><label>Presentación (opcional)</label><input id="st-presentacion" placeholder="Ej. Polvo, Líquido, Gomitas..."></div>
+        <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,'')}</select></div>
       </div>
       <div class="fila-2">
-        <div><label>Sabor (opcional)</label><input id="st-sabor" placeholder="Ej. Vainilla, Fresa, Bayas..."></div>
+        <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,'')}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="unidades"></div>
       </div>
       <div class="fila-2">
@@ -2908,10 +2943,10 @@ function abrirEditarStock(id){
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
       <div class="fila-2">
         <div><label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15"></div>
-        <div><label>Presentación (opcional)</label><input id="st-presentacion" value="${esc(s.presentacion||'')}" placeholder="Ej. Polvo, Líquido, Gomitas..."></div>
+        <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,s.presentacion)}</select></div>
       </div>
       <div class="fila-2">
-        <div><label>Sabor (opcional)</label><input id="st-sabor" value="${esc(s.sabor||'')}" placeholder="Ej. Vainilla, Fresa, Bayas..."></div>
+        <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,s.sabor)}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
       </div>
       <div class="fila-2">
