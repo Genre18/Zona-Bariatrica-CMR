@@ -170,6 +170,60 @@ table.proveedores-tabla{width:100%;}
 table.proveedores-tabla th{padding:6px 7px;font-size:9.5px;}
 table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 
+/* UX PREMIUM (2026-08-21) — sección 2/3: Proveedores no se estira a todo el ancho si su
+   contenido no lo necesita ("ancho máximo razonable" + "puede quedar aire a la derecha").
+   Solo esta tabla/estos indicadores — .tabla-excel/.grid-cards globales no se tocan. */
+.proveedores-wrap{max-width:700px;}
+.proveedores-wrap table.proveedores-tabla{width:100%;}
+#resumenProveedores{grid-template-columns:repeat(2,minmax(150px,220px));}
+
+/* UX PREMIUM — sección 6/7: KPIs de Reportes (siempre 4, mismo alto, aprovechan el ancho) y
+   Ventas por marca (compacta, proporcionada, NO estirada a todo el ancho). */
+.reportes-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.reportes-kpis .stat{padding:12px 14px;}
+.reportes-kpis .stat .num{font-size:19px;}
+.reportes-kpis .stat .lbl{font-size:11px;}
+@media(max-width:640px){.reportes-kpis{grid-template-columns:repeat(2,1fr);}}
+.reportes-subtitulo{font-size:14px;margin:18px 0 8px;}
+.reportes-marca-wrap{max-width:480px;}
+.reportes-marca-wrap table{width:100%;}
+.reportes-marca-wrap th{padding:6px 10px;font-size:9.5px;}
+.reportes-marca-wrap td{padding:5px 10px;font-size:12px;}
+
+/* UX PREMIUM — sección 8: Leads + Más vendidos lado a lado en desktop, apilados en angosto. */
+.reportes-fila-bloques{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;align-items:start;}
+@media(max-width:720px){.reportes-fila-bloques{grid-template-columns:1fr;}}
+.reportes-bloque{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;}
+.reportes-bloque .reportes-subtitulo{margin-top:0;}
+.reportes-leads-franja{font-size:13.5px;margin:0;}
+.reportes-mas-vendidos{list-style:none;margin:0;padding:0;font-size:13px;}
+.reportes-mas-vendidos li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border-light);}
+.reportes-mas-vendidos li:last-child{border-bottom:none;}
+.reportes-mas-vendidos li span:last-child{color:var(--muted);white-space:nowrap;}
+
+/* UX PREMIUM — sección 9-12: toolbar de Historial como una sola barra (misma altura/radio en
+   todos los controles) + tabla compacta. Clase propia — .filtros global (Leads/Stock/etc.) no
+   se toca. */
+.toolbar-historial{align-items:center;}
+.toolbar-historial select,.toolbar-historial input{height:34px;box-sizing:border-box;padding:0 10px;font-size:12.5px;border-radius:8px;}
+.toolbar-historial input:not([type=date]){flex:1;min-width:180px;}
+.toolbar-historial input[type=date]{width:132px;}
+.toolbar-historial select{width:auto;min-width:170px;}
+.toolbar-historial details{align-self:center;}
+.toolbar-historial summary{height:34px;width:34px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;color:var(--muted);list-style:none;}
+.toolbar-historial summary::-webkit-details-marker{display:none;}
+.toolbar-historial summary:hover{background:var(--bg-soft);color:var(--text);}
+table.historial-tabla{width:100%;}
+table.historial-tabla th{padding:6px 8px;font-size:9.5px;}
+table.historial-tabla td{padding:5px 8px;font-size:12px;}
+
+/* UX PREMIUM — sección 13-15: Leads reordenada (Estado antes de Responsable) + densidad propia
+   para que Estado quede visible sin scroll horizontal en desktop normal. Solo table.leads-tabla
+   — .tabla-excel global (Stock/Clientes/Historial) no se toca. */
+table.leads-tabla th{padding:6px 8px;font-size:9.5px;}
+table.leads-tabla td input,table.leads-tabla td select{padding:5px 7px;font-size:12px;min-width:70px;}
+table.leads-tabla td .link-lead{padding:5px 7px;font-size:12.5px;}
+
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
 
 /* ---------- VISTA SOCIO: estado de cuenta ---------- */
@@ -405,7 +459,7 @@ details.config-block summary:hover{color:var(--primary);}
       </div>
 
       <div id="repVistaHistorial" class="oculto">
-        <div class="filtros">
+        <div class="filtros toolbar-historial">
           <select id="histTipo" onchange="pintarHistorial()">
             <option value="ventas">Ventas</option>
             <option value="entradas">Entradas de productos</option>
@@ -413,11 +467,11 @@ details.config-block summary:hover{color:var(--primary);}
             <option value="liquidaciones">Liquidaciones</option>
             <option value="movimientos">Movimientos de stock</option>
           </select>
-          <input id="histBuscar" placeholder="Buscar..." oninput="pintarHistorial()">
+          <input id="histBuscar" placeholder="Buscar en historial..." oninput="pintarHistorial()">
           <label style="margin:0;">Desde<input type="date" id="histDesde" onchange="pintarHistorial()"></label>
           <label style="margin:0;">Hasta<input type="date" id="histHasta" onchange="pintarHistorial()"></label>
-          <details style="align-self:flex-end;">
-            <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Más ⋮</summary>
+          <details>
+            <summary title="Más opciones" aria-label="Más opciones">⋯</summary>
             <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
               <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('pedidos')">Exportar pedidos CSV</button>
               <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('leads')">Exportar leads CSV</button>
@@ -1239,25 +1293,28 @@ function pintarLeads(){
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
   const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
-  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular</th><th>Email</th><th>Ciudad / Provincia</th><th>Responsable</th><th>Estatus</th>
+  // UX PREMIUM (2026-08-21) — sección 13: Estado debe verse sin desplazarse horizontalmente,
+  // así que va antes que Responsable y ambos quedan pegados a Nombre/Celular. NO cambia
+  // guardarLead()/estados/colores/filtros — es solo el ORDEN de columnas de esta tabla.
+  cont.innerHTML=`<div class="tabla-excel"><table class="leads-tabla"><thead><tr>
+      <th>Nombre</th><th>Celular</th><th>Estatus</th><th>Responsable</th><th>Fecha</th><th>Hora</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Email</th><th>Ciudad / Provincia</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
-        <td>${campo(l,'fecha','date')}</td>
-        <td>${campo(l,'hora','time')}</td>
         <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
-        <td>${campo(l,'apellido')}</td>
-        <td>${campo(l,'edad','number')}</td>
-        <td>${campo(l,'dni')}</td>
         <td>${campo(l,'telefono')}</td>
-        <td>${campo(l,'email')}</td>
-        <td>${campo(l,'distrito')}</td>
-        <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
         <td>
-          <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 10px;min-width:168px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
+          <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 8px;min-width:140px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
           </select>
         </td>
+        <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
+        <td>${campo(l,'fecha','date')}</td>
+        <td>${campo(l,'hora','time')}</td>
+        <td>${campo(l,'apellido')}</td>
+        <td>${campo(l,'edad','number')}</td>
+        <td>${campo(l,'dni')}</td>
+        <td>${campo(l,'email')}</td>
+        <td>${campo(l,'distrito')}</td>
       </tr>`).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
 }
@@ -3653,7 +3710,7 @@ function pintarProveedores(){
   if(filas.length===0){
     html='<div class="vacio">No hay proveedores ni socios con movimiento todavía.</div>';
   }else{
-    html=`<div class="tabla-excel"><table class="proveedores-tabla"><thead><tr>
+    html=`<div class="tabla-excel proveedores-wrap"><table class="proveedores-tabla"><thead><tr>
       <th>Proveedor / socio</th><th>Marca</th><th>Por pagar</th><th>Estado</th><th>Acción</th>
       </tr></thead><tbody>${filas.map(f=>{
         const est=estadoProveedorFila(f);
@@ -4168,26 +4225,34 @@ function eliminarTarea(id){
 // socio. NUNCA usa el costo ACTUAL de Stock: si un ítem histórico no tiene costoProveedorVenta
 // guardado (ventas de antes de ETAPA A), esa marca queda marcada sinHistoriaCompleta y la UI
 // muestra "—" en Costo/Utilidad/Participación/Zona Bariátrica para esa fila.
+// UX PREMIUM (2026-08-21) — sección 5: función de LECTURA para Reportes, no toca
+// ventasRepartoDeSocio() ni ninguna función económica protegida. Trabaja EXCLUSIVAMENTE con los
+// snapshots congelados en el propio item (costoProveedorVenta, porcentajeReparto) — nunca con el
+// costo/porcentaje ACTUAL de Stock/Config, y nunca asume 60/40 fijo (usa el % que el item ya
+// trae guardado, con 60 solo como fallback si un ítem de reparto no lo trae). Devuelve null si
+// el item no tiene costo histórico guardado (venta de antes de que existiera este snapshot) —
+// quien llama debe tratar null como "no calculable", nunca inventar un costo.
+function gananciaZBItem(it){
+  if(typeof it.costoProveedorVenta!=='number')return null;
+  const ingreso=it.cantidad*it.precioUnit;
+  const costo=it.cantidad*it.costoProveedorVenta;
+  const utilidadBruta=Math.max(0,round2(ingreso-costo));
+  if(it.modalidadComercial==='reparto_ingresos'){
+    const pct=it.porcentajeReparto!=null?it.porcentajeReparto:60;
+    const participacionSocio=round2(utilidadBruta*pct/100);
+    return round2(utilidadBruta-participacionSocio);
+  }
+  return utilidadBruta;
+}
 function rentabilidadPorMarca(pedidos){
   const porMarca={};
   pedidos.forEach(p=>(p.items||[]).forEach(it=>{
-    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,costo:0,utilidad:0,socio:0,zb:0,sinHistoriaCompleta:false};
+    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,gananciaZB:0,sinHistoriaCompleta:false};
     const fila=porMarca[it.marca];
-    const ventaItem=it.cantidad*it.precioUnit;
-    fila.ventas+=ventaItem;
-    if(typeof it.costoProveedorVenta!=='number'){fila.sinHistoriaCompleta=true;return;}
-    const costoItem=it.cantidad*it.costoProveedorVenta;
-    const utilidadItem=Math.max(0,ventaItem-costoItem);
-    fila.costo+=costoItem;
-    fila.utilidad+=utilidadItem;
-    if(it.modalidadComercial==='reparto_ingresos'){
-      const pct=it.porcentajeReparto!=null?it.porcentajeReparto:60;
-      const socioMonto=round2(utilidadItem*pct/100);
-      fila.socio+=socioMonto;
-      fila.zb+=round2(utilidadItem-socioMonto);
-    }else{
-      fila.zb+=utilidadItem;
-    }
+    fila.ventas+=it.cantidad*it.precioUnit;
+    const g=gananciaZBItem(it);
+    if(g===null){fila.sinHistoriaCompleta=true;return;}
+    fila.gananciaZB+=g;
   }));
   return Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
 }
@@ -4214,11 +4279,11 @@ function pintarReportes(){
   const convertidos=leadsEnRango.filter(l=>l.clienteId).length;
   const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
 
-  // Utilidad: solo snapshots congelados en pedido.items[] (rentabilidadPorMarca), nunca costo
-  // actual de Stock. Marca sin costoProveedorVenta guardado -> sinHistoriaCompleta, se excluye
-  // de la suma (fallback documentado, no se inventa costo).
+  // Ganancia ZB: solo snapshots congelados en pedido.items[] (gananciaZBItem/rentabilidadPorMarca),
+  // nunca costo/porcentaje actual de Stock/Config. Marca con algún ítem sin costoProveedorVenta
+  // guardado -> sinHistoriaCompleta, se excluye de la suma (fallback documentado, no se inventa).
   const rentab=rentabilidadPorMarca(pedidosFacturables);
-  const utilidadTotal=rentab.reduce((s,f)=>s+(f.sinHistoriaCompleta?0:f.utilidad),0);
+  const gananciaZBTotal=rentab.reduce((s,f)=>s+(f.sinHistoriaCompleta?0:f.gananciaZB),0);
   const hayMarcaSinHistoria=rentab.some(f=>f.sinHistoriaCompleta);
 
   const productos={};
@@ -4226,27 +4291,32 @@ function pintarReportes(){
   const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   document.getElementById('repContenido').innerHTML=`
-    <div class="grid-cards chico">
+    <div class="reportes-kpis">
       <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ventas</div></div>
-      <div class="stat"><div class="num"${hayMarcaSinHistoria?` title="Solo incluye marcas con costo histórico guardado en este período"`:''}>${money(utilidadTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Utilidad</div></div>
+      <div class="stat"><div class="num"${hayMarcaSinHistoria?` title="Solo incluye marcas con costo histórico guardado en este período"`:''}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Ganancia ZB</div></div>
       <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos</div></div>
       <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Conversión</div></div>
     </div>
 
-    <h3 style="font-size:14px;margin:18px 0 8px;">Ventas por marca</h3>
-    ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel"><table><thead><tr>
-      <th>Marca</th><th>Ventas</th><th>Utilidad</th>
+    <h3 class="reportes-subtitulo">Ventas por marca</h3>
+    ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel reportes-marca-wrap"><table class="reportes-tabla-marca"><thead><tr>
+      <th>Marca</th><th>Ventas</th><th>Ganancia ZB</th>
       </tr></thead><tbody>${rentab.map(f=>`<tr>
         <td style="text-align:left;">${esc(f.marca)}</td>
         <td style="text-align:right;">${money(f.ventas)}</td>
-        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.utilidad)}</td>
+        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.gananciaZB)}</td>
       </tr>`).join('')}</tbody></table></div>`}
 
-    <h3 style="font-size:14px;margin:18px 0 6px;">Leads</h3>
-    <p style="font-size:13px;margin:0 0 14px;">Recibidos <strong>${totalLeads}</strong> → Compraron <strong>${convertidos}</strong> → Conversión <strong>${tasaConv}%</strong></p>
-
-    <h3 style="font-size:14px;margin:0 0 6px;">Más vendidos</h3>
-    ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<ol style="margin:0;padding-left:18px;font-size:13px;">${topProductos.map(([p,q])=>`<li style="padding:2px 0;">${esc(p)} — ${q} und.</li>`).join('')}</ol>`}`;
+    <div class="reportes-fila-bloques">
+      <div class="reportes-bloque">
+        <h3 class="reportes-subtitulo">Leads</h3>
+        <p class="reportes-leads-franja">Recibidos <strong>${totalLeads}</strong> → Compraron <strong>${convertidos}</strong> → Conversión <strong>${tasaConv}%</strong></p>
+      </div>
+      <div class="reportes-bloque">
+        <h3 class="reportes-subtitulo">Más vendidos</h3>
+        ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<ol class="reportes-mas-vendidos">${topProductos.map(([p,q])=>`<li><span>${esc(p)}</span><span>${q} und.</span></li>`).join('')}</ol>`}
+      </div>
+    </div>`;
 }
 function repRangoRapido(tipo){
   const hoy=hoyStr();
@@ -4302,10 +4372,12 @@ function pintarHistorial(){
     if(buscar)filas=filas.filter(p=>{
       const c=porId(db.clientes,p.clienteId);
       const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
-      return nombreCliente.toLowerCase().includes(buscar)||p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar));
+      return nombreCliente.toLowerCase().includes(buscar)||
+        (p.estadoPago||'').toLowerCase().includes(buscar)||
+        p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar)||(it.marca||'').toLowerCase().includes(buscar));
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin ventas para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin ventas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th>
       </tr></thead><tbody>${filas.map(p=>{
         const c=porId(db.clientes,p.clienteId);
@@ -4326,10 +4398,10 @@ function pintarHistorial(){
     let filas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&enRango(m.fecha));
     if(buscar)filas=filas.filter(m=>{
       const s=porId(db.stock,m.stockId);
-      return (s&&(s.producto||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar);
+      return (s&&(s.producto||'').toLowerCase().includes(buscar))||(s&&(s.marca||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar);
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Proveedor</th>
       </tr></thead><tbody>${filas.map(m=>{
         const s=porId(db.stock,m.stockId);
@@ -4345,9 +4417,9 @@ function pintarHistorial(){
   }
   if(tipo==='pagos'){
     let filas=(db.pagosProveedor||[]).filter(pg=>enRango(pg.fecha));
-    if(buscar)filas=filas.filter(pg=>(pg.proveedor||'').toLowerCase().includes(buscar));
+    if(buscar)filas=filas.filter(pg=>(pg.proveedor||'').toLowerCase().includes(buscar)||marcaDePago(pg).toLowerCase().includes(buscar));
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Proveedor</th><th>Marca</th><th>Monto</th>
       </tr></thead><tbody>${filas.map(pg=>`<tr>
         <td>${fechaCelda(pg.fecha)}</td>
@@ -4359,9 +4431,9 @@ function pintarHistorial(){
   }
   if(tipo==='liquidaciones'){
     let filas=(db.liquidacionesSocio||[]).filter(l=>enRango(l.fecha));
-    if(buscar)filas=filas.filter(l=>(l.proveedor||'').toLowerCase().includes(buscar));
+    if(buscar)filas=filas.filter(l=>(l.proveedor||'').toLowerCase().includes(buscar)||marcasRepartoDeSocio(l.proveedor).join(' ').toLowerCase().includes(buscar));
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin liquidaciones para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin liquidaciones para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Socio</th><th>Marca</th><th>Monto</th>
       </tr></thead><tbody>${filas.map(l=>`<tr>
         <td>${fechaCelda(l.fecha)}</td>
@@ -4375,10 +4447,12 @@ function pintarHistorial(){
     let filas=(db.movimientosStock||[]).filter(m=>enRango(m.fecha));
     if(buscar)filas=filas.filter(m=>{
       const s=porId(db.stock,m.stockId);
-      return s&&(s.producto||'').toLowerCase().includes(buscar);
+      return (s&&(s.producto||'').toLowerCase().includes(buscar))||
+        (TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo||'').toLowerCase().includes(buscar)||
+        (m.motivo||m.nota||'').toLowerCase().includes(buscar);
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel"><table><thead><tr>
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Producto</th><th>Movimiento</th><th>Cantidad</th><th>Referencia</th>
       </tr></thead><tbody>${filas.map(m=>{
         const s=porId(db.stock,m.stockId);
