@@ -137,15 +137,29 @@ table tbody tr:hover{background:var(--bg-soft);}
 /* BLOQUE UX (2026-08-21): tabla Stock más densa/compacta — clase propia (no toca .tabla-excel
    base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
    a ".tabla-excel th" sin depender del orden de declaración en la hoja de estilos. */
-table.stock-tabla{width:100%;min-width:1120px;}
-table.stock-tabla th{padding:6px 7px;font-size:9.5px;}
-table.stock-tabla td{padding:5px 7px;font-size:11.5px;}
-table.stock-tabla .chip{padding:1px 7px;font-size:10px;}
+table.stock-tabla{width:100%;min-width:1020px;}
+table.stock-tabla th{padding:5px 6px;font-size:9.5px;}
+table.stock-tabla td{padding:4px 6px;font-size:11.5px;}
+table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 /* En desktop amplio, Stock puede usar más ancho que el resto de pestañas (main sigue en
    max-width:1100px) — gated a min-width:1300px para no arriesgar overflow ni tocar mobile/tablet. */
 @media (min-width:1300px){
   #sec-stock{margin-left:-90px;margin-right:-90px;}
 }
+
+/* AJUSTE DE DENSIDAD (2026-08-21): SOLO formulario/modal de Stock (abrirFormStock/
+   abrirEditarStock, clase "stock-form" en el <form> + "stock-modal" en #modalBox vía
+   abrirModal(html,'stock-modal')) — no toca input/select/label/.fila-2/.modal globales, que
+   Leads/Clientes siguen usando tal cual. */
+#modalBox.stock-modal{max-width:630px;padding:17px;}
+#modalBox.stock-modal h3{font-size:16px;margin:0 0 4px;}
+.stock-form label{font-size:11.5px;margin:6px 0 3px;}
+.stock-form input,.stock-form select{padding:6px 9px;font-size:12.5px;border-radius:7px;}
+.stock-form .fila-2{gap:7px;}
+.stock-form hr{margin:10px 0 3px;}
+.stock-form .btn-chico{padding:4px 9px;font-size:11.5px;}
+.stock-form .btn-icono{font-size:14px;padding:2px 6px;}
+.stock-form #stVolList table th,.stock-form #stVolList table td{padding:5px 7px;font-size:12px;}
 
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
 
@@ -979,8 +993,13 @@ function rerenderizarSeccionActual(){
 }
 
 /* ---------- modal genérico ---------- */
-function abrirModal(html){
-  document.getElementById('modalBox').innerHTML=html;
+// BLOQUE UX (2026-08-21): claseExtra opcional para dar densidad/ancho propios a un modal
+// puntual (ej. 'stock-modal') sin tocar la clase .modal global. Se resetea en CADA apertura
+// (no solo al cerrar) para que nunca quede "pegada" en el siguiente modal genérico.
+function abrirModal(html,claseExtra){
+  const box=document.getElementById('modalBox');
+  box.className='modal'+(claseExtra?' '+claseExtra:'');
+  box.innerHTML=html;
   document.getElementById('modalOverlay').classList.remove('oculto');
 }
 function cerrarModal(){
@@ -2647,7 +2666,7 @@ function filaStock(s){
   // falta de responsableDespachoMarca sea visible en Stock sin tener que intentar vender
   // primero (ej. Bariatric Life, real y con socio/costo configurados, pero sin despacho).
   const faltaDespacho=mod.modalidad&&!(db.config.responsableDespachoMarca||{})[s.marca];
-  const pad='padding:5px 7px;'; // BLOQUE UX (2026-08-21): coincide con table.stock-tabla td — el inline pisaría la clase si no se reduce acá también
+  const pad='padding:4px 6px;'; // BLOQUE UX (2026-08-21): coincide con table.stock-tabla td — el inline pisaría la clase si no se reduce acá también
   const tituloVenta=margen?`Margen actual: ${money(margen.margen)} (con precio/costo vigentes)`:'';
   const tituloPromo=promos.length?'Precio por volumen: '+promos.map(t=>`${t.desde}+ → ${money(t.precioUnit)}`).join(' | '):'';
   // BLOQUE UX (2026-08-21): tabla tipo Excel/CRM de referencia — cada dato principal en su
@@ -2658,30 +2677,30 @@ function filaStock(s){
   return `<tr style="${s.activo===false?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
         <td style="${pad}text-align:left;">
           ${esc(s.marca||'—')}
-          <div style="margin-top:3px;"><span class="chip ${mod.chip}" style="font-size:10px;">${esc(mod.label)}</span></div>
-          ${faltaDespacho?'<div style="margin-top:3px;"><span class="chip chip-naranja" style="font-size:10px;" title="No se puede vender hasta configurar quién despacha (Zona Bariátrica o el proveedor)">Falta configurar despacho</span></div>':''}
+          <div style="margin-top:2px;"><span class="chip ${mod.chip}">${esc(mod.label)}</span></div>
+          ${faltaDespacho?'<div style="margin-top:2px;"><span class="chip chip-naranja" title="No se puede vender hasta configurar quién despacha (Zona Bariátrica o el proveedor)">Falta configurar despacho</span></div>':''}
         </td>
         <td style="${pad}text-align:left;">${esc(s.codigo||'—')}</td>
         <td style="${pad}text-align:left;">
           <strong>${esc(s.producto||'—')}</strong>
-          <button type="button" class="link-historial" style="margin-left:6px;" title="Ver movimientos" onclick="abrirKardexStock('${s.id}')">📋</button>
-          ${promos.length?`<span class="chip chip-azul" style="font-size:9.5px;margin-left:4px;cursor:default;" title="${escAttr(tituloPromo)}">🏷️ Promo</span>`:''}
+          <button type="button" class="link-historial" style="margin-left:5px;" title="Ver movimientos" onclick="abrirKardexStock('${s.id}')">📋</button>
+          ${promos.length?`<span class="chip chip-azul" style="margin-left:3px;cursor:default;" title="${escAttr(tituloPromo)}">🏷️ Promo</span>`:''}
         </td>
         <td style="${pad}text-align:left;">${esc(s.presentacion||'—')}</td>
         <td style="${pad}text-align:left;">${esc(s.sabor||'—')}</td>
         <td style="${pad}text-align:center;">
           ${s.cantidad||0}
-          <div style="margin-top:3px;"><span class="chip ${est.chip}" style="font-size:10px;">${esc(est.label)}</span></div>
+          <div style="margin-top:2px;"><span class="chip ${est.chip}">${esc(est.label)}</span></div>
         </td>
         <td style="${pad}text-align:center;">${s.min||0}</td>
         <td style="${pad}text-align:right;">
           ${money(s.costoPromedio)}
-          ${mod.modalidad==='reparto_ingresos'&&!(s.costoPromedio>0)?`<div style="margin-top:2px;"><span class="chip chip-naranja" style="font-size:10px;">Falta costo</span></div>`:''}
+          ${mod.modalidad==='reparto_ingresos'&&!(s.costoPromedio>0)?`<div style="margin-top:1px;"><span class="chip chip-naranja">Falta costo</span></div>`:''}
         </td>
         <td style="${pad}text-align:right;" title="${escAttr(tituloVenta)}">${money(s.precioVenta)}</td>
         <td style="${pad}text-align:left;">
           ${contra.advertencia?`<span class="chip chip-naranja">${esc(contra.advertencia)}</span>`:esc(contra.texto||'—')}
-          ${contra.detalle?`<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${esc(contra.detalle)}</div>`:''}
+          ${contra.detalle?`<div style="font-size:10px;color:var(--muted);margin-top:1px;">${esc(contra.detalle)}</div>`:''}
         </td>
       </tr>`;
 }
@@ -2735,8 +2754,8 @@ function pintarStock(){
   // ver CSS) con colgroup de anchos de referencia; el contenedor .tabla-excel ya trae
   // overflow:auto, así que si no cabe sigue habiendo scroll horizontal.
   cont.innerHTML=`<div class="tabla-excel"><table class="stock-tabla"><colgroup>
-      <col style="width:122px;"><col style="width:102px;"><col style="width:205px;"><col style="width:107px;"><col style="width:97px;">
-      <col style="width:80px;"><col style="width:70px;"><col style="width:102px;"><col style="width:102px;"><col style="width:132px;">
+      <col style="width:110px;"><col style="width:92px;"><col style="width:200px;"><col style="width:100px;"><col style="width:90px;">
+      <col style="width:65px;"><col style="width:58px;"><col style="width:92px;"><col style="width:92px;"><col style="width:118px;">
     </colgroup><thead><tr>
       <th>Marca</th><th>Código</th><th>Producto</th><th>Presentación</th><th>Sabor</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio de venta</th><th>Proveedor</th>
     </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>
@@ -2756,7 +2775,7 @@ function abrirFormStock(){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nuevo producto de stock</h3>
-    <form onsubmit="return guardarStock(event)">
+    <form class="stock-form" onsubmit="return guardarStock(event)">
       <div class="fila-2">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required></div>
@@ -2794,7 +2813,7 @@ function abrirFormStock(){
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar</button>
       </div>
-    </form>`);
+    </form>`,'stock-modal');
   actualizarCamposMarcaStock();
   stockRenderPreciosVolumen();
 }
@@ -2935,7 +2954,7 @@ function abrirEditarStock(id){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar producto</h3>
-    <form onsubmit="return guardarEditarStock(event,'${id}')">
+    <form class="stock-form" onsubmit="return guardarEditarStock(event,'${id}')">
       <div class="fila-2">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${opcionesMarca.map(m=>`<option ${m===s.marca?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required value="${esc(s.producto)}"></div>
@@ -2980,7 +2999,7 @@ function abrirEditarStock(id){
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar cambios</button>
       </div>
-    </form>`);
+    </form>`,'stock-modal');
   actualizarCamposMarcaStock();
   stockRenderPreciosVolumen();
 }
