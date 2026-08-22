@@ -278,13 +278,24 @@ table.cliente-historial-tabla td{padding:5px 8px;font-size:12px;}
 /* UX CORRECTIVO — sección 6: anchos semánticos SOLO dentro de .stock-form (no toca .fila-2
    global — Leads/Clientes/Tareas/etc. la siguen usando 50/50 igual). */
 .stock-form .fila-marca-producto{display:grid;grid-template-columns:35fr 65fr;gap:7px;}
-.stock-form .fila-codigo-presentacion{display:grid;grid-template-columns:40fr 60fr;gap:7px;}
-.stock-form .fila-sabor-unidad{display:grid;grid-template-columns:60fr 40fr;gap:7px;}
+/* UX PRECISIÓN LEADS + FORMULARIOS (2026-08-22) — sección 7: Código y Unidad son campos
+   naturalmente cortos (ej. "BN-PP-VA-15", "unidades") — pasan a ancho fijo compacto en vez de
+   proporcional (antes 40%/40% del ancho de fila), dejando que Presentación/Sabor (selects con
+   texto más largo) usen el resto. Mismos ids/labels/required — solo cambia el ancho. */
+.stock-form .fila-codigo-presentacion{display:grid;grid-template-columns:130px 1fr;gap:7px;}
+.stock-form .fila-sabor-unidad{display:grid;grid-template-columns:1fr 110px;gap:7px;}
 .stock-form .fila-cantidades{display:grid;grid-template-columns:110px 110px;gap:7px;}
 .stock-form .fila-precios{display:grid;grid-template-columns:150px 150px;gap:7px;}
 @media(max-width:480px){
   .stock-form .fila-marca-producto,.stock-form .fila-codigo-presentacion,.stock-form .fila-sabor-unidad,
   .stock-form .fila-cantidades,.stock-form .fila-precios{grid-template-columns:1fr;}
+}
+/* Sección 8: Registrar/Editar entrega o compra — Cantidad/Costo compactos, Proveedor flexible
+   (nombres largos), Fecha con el ancho justo de una fecha. Solo visual, cero lógica nueva. */
+.compra-form .fila-cantidad-costo{display:grid;grid-template-columns:110px 130px;gap:7px;}
+.compra-form .fila-proveedor-fecha{display:grid;grid-template-columns:1fr 140px;gap:7px;}
+@media(max-width:480px){
+  .compra-form .fila-cantidad-costo,.compra-form .fila-proveedor-fecha{grid-template-columns:1fr;}
 }
 
 /* UX CORRECTIVO — sección 7: Tareas en tabla (antes Kanban), mismo lenguaje visual compacto que
@@ -527,6 +538,10 @@ table.leads-tabla td{padding:6px 6px;font-size:12px;overflow:hidden;text-overflo
 table.leads-tabla td input{font-size:12px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;}
 table.leads-tabla td .link-lead,table.leads-tabla td .chip{overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%;vertical-align:middle;}
 select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-radius:var(--r-xs);padding:5px 7px;width:100%;}
+/* UX PRECISIÓN LEADS (2026-08-22) — sección 3: alineación semántica — texto libre a la
+   izquierda (Nombre/Apellido/Email/Ciudad), datos cortos y estado centrados (el resto). */
+table.leads-tabla td:nth-child(3),table.leads-tabla td:nth-child(4),
+table.leads-tabla td:nth-child(8),table.leads-tabla td:nth-child(9){text-align:left;}
 
 /* Sección 9/12: jerarquía real dentro de los drawers (Clientes/Proveedores) — identidad con
    peso propio, cada bloque siguiente con su eyebrow, historial separado como detalle de apoyo. */
@@ -1653,35 +1668,39 @@ function pintarLeads(){
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
-  // PRODUCT UI REFINEMENT (2026-08-22) — sección 2: title=tooltip para poder truncar con
-  // ellipsis sin perder el valor completo (columnas angostas + table-layout:fixed más abajo).
-  const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" title="${escAttr(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
+  // UX PRECISIÓN LEADS (2026-08-22) — sección 1: la tabla principal pasa a ser de SOLO
+  // LECTURA para fecha/hora/apellido/edad/DNI/celular/email/ciudad (antes eran <input> que
+  // llamaban a actualizarCampoLead() con solo tocar el teclado — edición accidental real).
+  // actualizarCampoLead() NO se toca ni se elimina: la ficha (abrirFichaLead) la sigue usando
+  // para editar estos mismos campos de forma intencional. Nombre sigue abriendo la ficha,
+  // Estatus sigue siendo el mismo <select> con cambiarEstadoLeadGrid(), Responsable ya era
+  // solo lectura (chip) y sigue igual — ninguno de los tres cambia de comportamiento.
+  const texto=(v)=>{const t=(v===undefined||v===null||v==='')?'—':String(v);return `title="${escAttr(t==='—'?'':t)}"`;};
   // MICRO-FIX FINAL (2026-08-21): orden tipo CRM de referencia — Fecha..Ciudad/Provincia igual
   // que antes de UX PREMIUM, y Estatus queda justo antes de Responsable (única reubicación
   // conservada de aquel sprint). "Celular / Usuario" sigue siendo el mismo l.telefono de
   // siempre — no se creó ningún campo nuevo, no se normaliza ni se reinterpreta el valor.
-  // PRODUCT UI REFINEMENT — sección 2: REGRESIÓN corregida. La tabla anterior forzaba
-  // min-width:1240px (más ancha que el propio <main>), lo que obligaba a scroll horizontal
-  // SIEMPRE en desktop y escondía Estatus/Responsable fuera de pantalla. Ahora usa colgroup +
-  // table-layout:fixed con anchos que suman ~1030px (cabe en main max-width:1100px) — Estatus
-  // queda visible sin scroll en desktop normal. Mismas 11 columnas, mismo orden, mismos campos.
+  // UX PRECISIÓN LEADS — sección 2/3: anchos redistribuidos por prioridad de lectura
+  // (Celular/Estatus/Nombre/Responsable primero) y alineación semántica (texto a la izquierda,
+  // datos cortos/estado centrados) — ver reglas nth-child en <style>. Suman ~1041px, caben en
+  // main max-width:1100px sin scroll horizontal. Mismas 11 columnas, mismo orden.
   cont.innerHTML=`<div class="tabla-excel leads-tabla-wrap"><table class="leads-tabla"><colgroup>
-      <col style="width:96px;"><col style="width:62px;"><col style="width:104px;"><col style="width:96px;">
-      <col style="width:46px;"><col style="width:78px;"><col style="width:92px;"><col style="width:122px;">
-      <col style="width:92px;"><col style="width:148px;"><col style="width:88px;">
+      <col style="width:78px;"><col style="width:50px;"><col style="width:145px;"><col style="width:80px;">
+      <col style="width:40px;"><col style="width:78px;"><col style="width:110px;"><col style="width:130px;">
+      <col style="width:95px;"><col style="width:145px;"><col style="width:90px;">
     </colgroup><thead><tr>
       <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th><th title="Ciudad / Provincia">Ciudad / Provincia</th><th>Estatus</th><th>Responsable</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
-        <td>${campo(l,'fecha','date')}</td>
-        <td>${campo(l,'hora','time')}</td>
+        <td ${texto(l.fecha?fechaBonita(l.fecha):'')}>${l.fecha?fechaCorta(l.fecha):'—'}</td>
+        <td ${texto(l.hora)}>${esc(l.hora||'—')}</td>
         <td><button type="button" class="link-lead" title="${escAttr(nombreLead(l))}" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
-        <td>${campo(l,'apellido')}</td>
-        <td>${campo(l,'edad','number')}</td>
-        <td>${campo(l,'dni')}</td>
-        <td>${campo(l,'telefono')}</td>
-        <td>${campo(l,'email')}</td>
-        <td>${campo(l,'distrito')}</td>
+        <td ${texto(l.apellido)}>${esc(l.apellido||'—')}</td>
+        <td>${esc(l.edad||'—')}</td>
+        <td ${texto(l.dni)}>${esc(l.dni||'—')}</td>
+        <td ${texto(l.telefono)}>${esc(l.telefono||'—')}</td>
+        <td ${texto(l.email)}>${esc(l.email||'—')}</td>
+        <td ${texto(l.distrito)}>${esc(l.distrito||'—')}</td>
         <td>
           <select class="leads-estado-select" style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
@@ -3690,14 +3709,14 @@ function abrirFormCompra(){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Registrar entrega o compra</h3>
-    <form onsubmit="return guardarCompra(event)">
+    <form class="compra-form" onsubmit="return guardarCompra(event)">
       <label>Producto *</label>
       <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(s.producto)}</option>`).join('')}</select>
-      <div class="fila-2">
+      <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="1" min="1"></div>
         <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="0"></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-proveedor-fecha">
         <div><label>Proveedor / doctor</label><input id="cp-proveedor" list="cp-lista-proveedores"></div>
         <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${hoyStr()}"></div>
       </div>
@@ -3773,8 +3792,8 @@ function abrirEditarCompra(id){
       <h3>Editar entrega o compra</h3>
       <p class="vacio" style="text-align:left;padding:0 0 4px;">${s?esc(s.marca+' — '+s.producto):'(producto ya no existe en Stock)'}</p>
       <div class="aviso">Esta entrada ya tiene movimientos posteriores. Para conservar la trazabilidad no puede modificarse directamente la cantidad ni el costo. Registra una corrección mediante un ajuste de stock desde el producto (clic derecho → Ver movimientos / desde Editar producto → Ajustar stock). Solo se pueden corregir acá el proveedor y la fecha.</div>
-      <form onsubmit="return guardarEditarCompraMetadatos(event,'${id}')">
-        <div class="fila-2">
+      <form class="compra-form" onsubmit="return guardarEditarCompraMetadatos(event,'${id}')">
+        <div class="fila-proveedor-fecha">
           <div><label>Proveedor / doctor</label><input id="cp-proveedor" value="${esc(mov.proveedor||'')}" list="cp-lista-proveedores"></div>
           <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
         </div>
@@ -3790,12 +3809,12 @@ function abrirEditarCompra(id){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar entrega o compra</h3>
     <p class="vacio" style="text-align:left;padding:0 0 4px;">${s?esc(s.marca+' — '+s.producto):'(producto ya no existe en Stock)'}</p>
-    <form onsubmit="return guardarEditarCompra(event,'${id}')">
-      <div class="fila-2">
+    <form class="compra-form" onsubmit="return guardarEditarCompra(event,'${id}')">
+      <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="${mov.cantidad}" min="1"></div>
         <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="${costoUnitActual}"></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-proveedor-fecha">
         <div><label>Proveedor / doctor</label><input id="cp-proveedor" value="${esc(mov.proveedor||'')}" list="cp-lista-proveedores"></div>
         <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
       </div>
