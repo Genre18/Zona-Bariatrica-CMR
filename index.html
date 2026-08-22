@@ -180,9 +180,9 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 /* UX PREMIUM — sección 6/7: KPIs de Reportes (siempre 4, mismo alto, aprovechan el ancho) y
    Ventas por marca (compacta, proporcionada, NO estirada a todo el ancho). */
 .reportes-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
-.reportes-kpis .stat{padding:12px 14px;}
-.reportes-kpis .stat .num{font-size:19px;}
-.reportes-kpis .stat .lbl{font-size:11px;}
+.reportes-kpis .stat{padding:9px 12px;text-align:center;}
+.reportes-kpis .stat .num{font-size:18px;}
+.reportes-kpis .stat .lbl{font-size:10.5px;margin-top:2px;}
 @media(max-width:640px){.reportes-kpis{grid-template-columns:repeat(2,1fr);}}
 .reportes-subtitulo{font-size:14px;margin:18px 0 8px;}
 .reportes-marca-wrap{max-width:480px;}
@@ -217,12 +217,33 @@ table.historial-tabla{width:100%;}
 table.historial-tabla th{padding:6px 8px;font-size:9.5px;}
 table.historial-tabla td{padding:5px 8px;font-size:12px;}
 
-/* UX PREMIUM — sección 13-15: Leads reordenada (Estado antes de Responsable) + densidad propia
-   para que Estado quede visible sin scroll horizontal en desktop normal. Solo table.leads-tabla
-   — .tabla-excel global (Stock/Clientes/Historial) no se toca. */
-table.leads-tabla th{padding:6px 8px;font-size:9.5px;}
-table.leads-tabla td input,table.leads-tabla td select{padding:5px 7px;font-size:12px;min-width:70px;}
-table.leads-tabla td .link-lead{padding:5px 7px;font-size:12.5px;}
+/* UX CORRECTIVO (2026-08-21) — sección 3/4: ficha Cliente más compacta que .grid-cards/.stat
+   global (esa clase la siguen usando Reportes/Proveedores/Dashboard tal cual). */
+.cliente-resumen{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.cliente-resumen-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 10px;}
+.cliente-resumen-item .num{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.cliente-resumen-item .lbl{font-size:10.5px;color:var(--muted);margin-top:2px;}
+@media(max-width:480px){.cliente-resumen{grid-template-columns:1fr;}}
+.cliente-acciones{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
+.cliente-acciones .btn,.cliente-acciones .btn-secundario{padding:6px 12px;font-size:12.5px;}
+
+/* UX CORRECTIVO — sección 6: anchos semánticos SOLO dentro de .stock-form (no toca .fila-2
+   global — Leads/Clientes/Tareas/etc. la siguen usando 50/50 igual). */
+.stock-form .fila-marca-producto{display:grid;grid-template-columns:35fr 65fr;gap:7px;}
+.stock-form .fila-codigo-presentacion{display:grid;grid-template-columns:40fr 60fr;gap:7px;}
+.stock-form .fila-sabor-unidad{display:grid;grid-template-columns:60fr 40fr;gap:7px;}
+.stock-form .fila-cantidades{display:grid;grid-template-columns:130px 130px;gap:7px;}
+.stock-form .fila-precios{display:grid;grid-template-columns:170px 170px;gap:7px;}
+@media(max-width:480px){
+  .stock-form .fila-marca-producto,.stock-form .fila-codigo-presentacion,.stock-form .fila-sabor-unidad,
+  .stock-form .fila-cantidades,.stock-form .fila-precios{grid-template-columns:1fr;}
+}
+
+/* UX CORRECTIVO — sección 7: Tareas en tabla (antes Kanban), mismo lenguaje visual compacto que
+   las demás tablas. */
+table.tareas-tabla{width:100%;}
+table.tareas-tabla th{padding:6px 8px;font-size:9.5px;}
+table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
 
@@ -436,7 +457,7 @@ details.config-block summary:hover{color:var(--primary);}
         <h2>✅ Tareas</h2>
         <div class="acciones"><button class="btn" onclick="abrirFormTarea()">+ Nueva tarea</button></div>
       </div>
-      <div id="tableroTareas" class="kanban"></div>
+      <div id="tableroTareas"></div>
     </section>
 
     <!-- ===== REPORTES ===== -->
@@ -452,8 +473,6 @@ details.config-block summary:hover{color:var(--primary);}
         <div class="filtros">
           <label style="margin:0;">Desde<input type="date" id="repDesde" onchange="pintarReportes()"></label>
           <label style="margin:0;">Hasta<input type="date" id="repHasta" onchange="pintarReportes()"></label>
-          <button type="button" class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="repRangoRapido('mes_actual')">Este mes</button>
-          <button type="button" class="btn-secundario btn-chico" style="align-self:flex-end;" onclick="repRangoRapido('mes_anterior')">Mes anterior</button>
         </div>
         <div id="repContenido"></div>
       </div>
@@ -534,8 +553,11 @@ details.config-block summary:hover{color:var(--primary);}
         <summary>Envío y pauta</summary>
         <label>Embalaje por defecto (S/) — se cobra en pedidos por Shalom</label>
         <input type="number" id="cfgEmbalaje" step="0.5" onchange="guardarCfgNumero('embalajeDefault', this.value)">
-        <label>Gasto total en pauta publicitaria (S/) — para calcular ROI en Reportes</label>
-        <input type="number" id="cfgGastoPauta" step="1" onchange="guardarCfgNumero('gastoPauta', this.value)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 4px;">
+          <label style="margin:0;">Gastos de pauta publicitaria</label>
+          <button type="button" class="btn-secundario btn-chico" onclick="abrirFormGastoPauta()">+ Registrar gasto de pauta</button>
+        </div>
+        <div id="cfgGastosPautaLista"></div>
       </details>
 
       <details class="config-block">
@@ -553,7 +575,7 @@ details.config-block summary:hover{color:var(--primary);}
 
       <details class="config-block">
         <summary>Cuenta de este dispositivo</summary>
-        <p class="vacio" style="text-align:left;padding:0 0 6px;">Los datos se sincronizan automáticamente entre dispositivos. Si este dispositivo va a cambiar de dueño o dejó de ser de confianza, cerrá la sesión.</p>
+        <p class="vacio" style="text-align:left;padding:0 0 6px;">Este equipo mantiene tu sesión iniciada para acceder al CRM y sincronizar los datos. Si vas a prestar, vender o dejar de usar este equipo, cierra la sesión para evitar que otra persona pueda entrar. Cerrar sesión NO borra datos del CRM.</p>
         <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
       </details>
 
@@ -613,7 +635,7 @@ details.config-block summary:hover{color:var(--primary);}
 </div>
 
 <!-- Modal genérico -->
-<div id="modalOverlay" class="modal-overlay oculto" onclick="if(event.target===this)cerrarModal()">
+<div id="modalOverlay" class="modal-overlay oculto">
   <div class="modal" id="modalBox"></div>
 </div>
 
@@ -669,6 +691,10 @@ function porId(arr,id){return arr.find(x=>x.id===id);}
 function dbVacia(){
   return{
     leads:[], clientes:[], pedidos:[], stock:[], movimientosStock:[], pagosProveedor:[], liquidacionesSocio:[], tareas:[],
+    // UX CORRECTIVO (2026-08-21) — sección 13: gastos de pauta FECHADOS, para poder calcular
+    // publicidad por período en Reportes. config.gastoPauta (global, sin fecha) se conserva tal
+    // cual por compatibilidad histórica, pero deja de usarse en reportes por período.
+    gastosPauta:[],
     usuarios:[
       {id:'u-roberto',nombre:'Roberto',pin:'1234',color:'#15557f',rol:'admin'},
       {id:'u-genesis',nombre:'Genesis',pin:'4321',color:'#8e3b8e',rol:'admin'},
@@ -1296,14 +1322,14 @@ function pintarLeads(){
   // UX PREMIUM (2026-08-21) — sección 13: Estado debe verse sin desplazarse horizontalmente,
   // así que va antes que Responsable y ambos quedan pegados a Nombre/Celular. NO cambia
   // guardarLead()/estados/colores/filtros — es solo el ORDEN de columnas de esta tabla.
-  cont.innerHTML=`<div class="tabla-excel"><table class="leads-tabla"><thead><tr>
+  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
       <th>Nombre</th><th>Celular</th><th>Estatus</th><th>Responsable</th><th>Fecha</th><th>Hora</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Email</th><th>Ciudad / Provincia</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
         <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
         <td>${campo(l,'telefono')}</td>
         <td>
-          <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 8px;min-width:140px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
+          <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 10px;min-width:168px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
           </select>
         </td>
@@ -1597,12 +1623,11 @@ function pintarClientes(){
   if(clientes.length===0){cont.innerHTML=`<div class="vacio">${buscar||filtroRecompra?'Ningún cliente coincide con la búsqueda/filtro.':'No hay clientes todavía.'}</div>`;return;}
   const pad='padding:7px 10px;';
   cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-    <th>Cliente</th><th>Ubicación</th><th>Marcas</th><th>Última compra</th><th>Recompra</th><th>Pedidos</th><th>WhatsApp</th>
+    <th>Cliente</th><th>Ubicación</th><th>Marcas</th><th>Última compra</th><th>Recompra</th><th>Pedidos</th>
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
       const r=estadoRecompraCliente(c.id);
       const lugar=[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — ')||'—';
-      const waUrl=telefonoWhatsApp(c.telefono);
       return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
         <td style="${pad}text-align:left;">
           <strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}
@@ -1613,7 +1638,6 @@ function pintarClientes(){
         <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
         <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></td>
         <td style="${pad}">${nPedidos}</td>
-        <td style="${pad}">${waUrl?`<button type="button" class="btn-secundario btn-chico" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:`<span class="chip chip-gris" style="font-size:10px;" title="Sin teléfono válido">—</span>`}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca un cliente para ver su historial y registrar una nueva compra.</p>`;
@@ -1647,22 +1671,21 @@ function abrirFichaCliente(clienteId){
 
     <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Relación comercial</p>
     ${marcas.length?`<div style="margin-bottom:8px;">${marcas.map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')}</div>`:''}
-    <div class="grid-cards" style="grid-template-columns:repeat(3,1fr);">
-      <div class="stat"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras realizadas</div></div>
-      <div class="stat"><div class="num">${money(totalComprado)}</div><div class="lbl">Total comprado</div></div>
-      <div class="stat">
+    <div class="cliente-resumen">
+      <div class="cliente-resumen-item"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras realizadas</div></div>
+      <div class="cliente-resumen-item"><div class="num">${money(totalComprado)}</div><div class="lbl">Total comprado</div></div>
+      <div class="cliente-resumen-item">
         <div class="num" style="font-size:15px;">${r.ultimaCompra?fechaBonita(r.ultimaCompra):'—'}</div>
         <div class="lbl">Última compra</div>
-        <div style="margin-top:6px;"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></div>
+        <div style="margin-top:4px;"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></div>
       </div>
     </div>
 
-    <p class="vacio" style="text-align:left;padding:14px 0 4px;font-weight:600;color:var(--text);">Acciones</p>
-    <div class="acciones-modal" style="justify-content:flex-start;margin-top:0;">
+    <div class="cliente-acciones">
       <button type="button" class="btn" onclick="cerrarModal();abrirFormPedido('${c.id}')">🧾 Nueva compra</button>
+      ${waUrl?`<button type="button" class="btn-secundario" onclick="abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:''}
       <button type="button" class="btn-secundario" onclick="abrirFormTarea({clienteId:'${c.id}'})">✅ + Tarea</button>
       <button type="button" class="btn-secundario" onclick="abrirEditarCliente('${c.id}')">✏️ Editar datos</button>
-      ${waUrl?`<button type="button" class="btn-secundario" onclick="abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:''}
       ${c.activo===false?`<button type="button" class="btn-secundario" onclick="reactivarCliente('${c.id}')">Reactivar cliente</button>`:''}
     </div>
 
@@ -2856,20 +2879,20 @@ function abrirFormStock(){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nuevo producto de stock</h3>
     <form class="stock-form" onsubmit="return guardarStock(event)">
-      <div class="fila-2">
+      <div class="fila-marca-producto">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required></div>
       </div>
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
-      <div class="fila-2">
+      <div class="fila-codigo-presentacion">
         <div><label>Código (opcional)</label><input id="st-codigo" placeholder="Ej. BN-PP-VA-15"></div>
         <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,'')}</select></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-sabor-unidad">
         <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,'')}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="unidades"></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-cantidades">
         <div><label>Cantidad inicial</label><input type="number" id="st-cantidad" value="0" min="0"></div>
         <div><label>Stock mínimo (alerta)</label><input type="number" id="st-min" value="5" min="0"></div>
       </div>
@@ -2881,7 +2904,7 @@ function abrirFormStock(){
         </select>
         <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
       </div>
-      <div class="fila-2">
+      <div class="fila-precios">
         <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="0"></div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
       </div>
@@ -3040,20 +3063,20 @@ function abrirEditarStock(id){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar producto</h3>
     <form class="stock-form" onsubmit="return guardarEditarStock(event,'${id}')">
-      <div class="fila-2">
+      <div class="fila-marca-producto">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${opcionesMarca.map(m=>`<option ${m===s.marca?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required value="${esc(s.producto)}"></div>
       </div>
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
-      <div class="fila-2">
+      <div class="fila-codigo-presentacion">
         <div><label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15"></div>
         <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,s.presentacion)}</select></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-sabor-unidad">
         <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,s.sabor)}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
       </div>
-      <div class="fila-2">
+      <div class="fila-cantidades">
         <div><label>Cantidad en stock</label>
           <input type="number" id="st-cantidad" value="${s.cantidad}" disabled style="background:var(--bg-soft);color:var(--muted);">
           <button type="button" class="link-historial" style="margin-top:4px;" onclick="cerrarModal();abrirFormAjusteStock('${id}')">Ajustar stock</button>
@@ -3068,7 +3091,7 @@ function abrirEditarStock(id){
         </select>
         <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
       </div>
-      <div class="fila-2">
+      <div class="fila-precios">
         <div id="st-fila-costo"><label>Costo actual (S/)</label>
           <input type="number" id="st-costo" value="${s.costoPromedio}" disabled style="background:var(--bg-soft);color:var(--muted);">
           <button type="button" class="link-historial" style="margin-top:4px;" onclick="cerrarModal();abrirFormCorregirCosto('${id}')">Corregir costo actual</button>
@@ -4134,28 +4157,33 @@ function vinculoTarea(t){
   if(t.clienteId){const c=porId(db.clientes,t.clienteId);return c?{tipo:'cliente',id:c.id,nombre:(c.nombre+' '+(c.apellido||'')).trim()}:null;}
   return null;
 }
+// UX CORRECTIVO (2026-08-21) — sección 7: tabla en vez de Kanban. db.tareas/guardarTarea()/
+// moverTarea()/vinculoTarea() no cambian — solo el render.
+const ESTADOS_TAREA=[['pendiente','Pendiente'],['en progreso','En progreso'],['hecho','Hecho']];
 function pintarTareas(){
-  const cols=[['pendiente','Pendiente'],['en progreso','En progreso'],['hecho','Hecho']];
   const cont=document.getElementById('tableroTareas');
-  cont.innerHTML=cols.map(([clave,titulo])=>{
-    const tareas=db.tareas.filter(t=>t.estado===clave).sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
-    return `<div class="kanban-col"><h4>${titulo} (${tareas.length})</h4>${
-      tareas.length===0?'<div class="vacio">Sin tareas</div>':tareas.map(t=>{
+  const tareas=db.tareas.slice().sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
+  if(tareas.length===0){cont.innerHTML='<div class="vacio">No hay tareas todavía.</div>';return;}
+  cont.innerHTML=`<div class="tabla-excel"><table class="tareas-tabla"><thead><tr>
+      <th>Tarea</th><th>Vinculado a</th><th>Responsable</th><th>Vence</th><th>Estado</th><th>Acción</th>
+      </tr></thead><tbody>${tareas.map(t=>{
         const v=vinculoTarea(t);
-        return `
-      <div class="kanban-card">
-        <div>${esc(t.texto)}</div>
-        <div class="asignado">👤 ${esc(t.asignadoA)}${t.fechaLimite?' · vence '+fechaBonita(t.fechaLimite):''}</div>
-        ${v?`<button type="button" class="link-lead" style="padding:2px 0;font-size:12px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">🔗 ${esc(v.nombre)} (${v.tipo})</button>`:''}
-        <div class="mover">
-          ${cols.filter(([c])=>c!==clave).map(([c,tit])=>`<button class="btn-secundario btn-chico" onclick="moverTarea('${t.id}','${c}')">→ ${tit}</button>`).join('')}
-          <button class="btn-icono" onclick="abrirFormTarea('${t.id}')" title="Editar">✏️</button>
-          <button class="btn-icono" onclick="eliminarTarea('${t.id}')" title="Eliminar">✕</button>
-        </div>
-      </div>`;
-      }).join('')
-    }</div>`;
-  }).join('');
+        return `<tr>
+          <td style="text-align:left;">${esc(t.texto)}</td>
+          <td style="text-align:left;">${v?`<button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'—'}</td>
+          <td style="text-align:left;">${esc(t.asignadoA||'—')}</td>
+          <td>${t.fechaLimite?fechaBonita(t.fechaLimite):'—'}</td>
+          <td>
+            <select onchange="moverTarea('${t.id}',this.value)">
+              ${ESTADOS_TAREA.map(([c,tit])=>`<option value="${c}" ${c===t.estado?'selected':''}>${tit}</option>`).join('')}
+            </select>
+          </td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btn-icono" onclick="abrirFormTarea('${t.id}')" title="Editar">✏️</button>
+            <button type="button" class="btn-icono" onclick="eliminarTarea('${t.id}')" title="Eliminar">✕</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
 }
 function abrirFormTarea(prefill){
   if(typeof prefill==='string'){
@@ -4232,26 +4260,36 @@ function eliminarTarea(id){
 // trae guardado, con 60 solo como fallback si un ítem de reparto no lo trae). Devuelve null si
 // el item no tiene costo histórico guardado (venta de antes de que existiera este snapshot) —
 // quien llama debe tratar null como "no calculable", nunca inventar un costo.
+// UX CORRECTIVO (2026-08-21) — sección 12A: si el item es de reparto_ingresos pero NO trae
+// porcentajeReparto congelado, ya NO se asume 60 — se trata igual que costo faltante: no
+// calculable. El % de reparto es tan parte del snapshot histórico como el costo; consultar
+// Config hoy (o inventar 60) podría aplicar un % que no regía en el momento de esa venta.
 function gananciaZBItem(it){
   if(typeof it.costoProveedorVenta!=='number')return null;
+  if(it.modalidadComercial==='reparto_ingresos'&&it.porcentajeReparto==null)return null;
   const ingreso=it.cantidad*it.precioUnit;
   const costo=it.cantidad*it.costoProveedorVenta;
   const utilidadBruta=Math.max(0,round2(ingreso-costo));
   if(it.modalidadComercial==='reparto_ingresos'){
-    const pct=it.porcentajeReparto!=null?it.porcentajeReparto:60;
-    const participacionSocio=round2(utilidadBruta*pct/100);
+    const participacionSocio=round2(utilidadBruta*it.porcentajeReparto/100);
     return round2(utilidadBruta-participacionSocio);
   }
   return utilidadBruta;
 }
+// UX CORRECTIVO — sección 12B: antes, UN item no calculable descartaba TODA la ganancia
+// conocida de esa marca (podía mostrar 0 con ventas reales al lado). Ahora se suma lo que SÍ es
+// calculable; si hay algo no calculable mezclado, huboItemNoCalculable marca el "*" en vez de
+// ocultar el monto conocido. Solo si NINGÚN item de la marca es calculable, la UI debe mostrar
+// "—" (huboItemCalculable queda false).
 function rentabilidadPorMarca(pedidos){
   const porMarca={};
   pedidos.forEach(p=>(p.items||[]).forEach(it=>{
-    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,gananciaZB:0,sinHistoriaCompleta:false};
+    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,gananciaZB:0,huboItemCalculable:false,huboItemNoCalculable:false};
     const fila=porMarca[it.marca];
     fila.ventas+=it.cantidad*it.precioUnit;
     const g=gananciaZBItem(it);
-    if(g===null){fila.sinHistoriaCompleta=true;return;}
+    if(g===null){fila.huboItemNoCalculable=true;return;}
+    fila.huboItemCalculable=true;
     fila.gananciaZB+=g;
   }));
   return Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
@@ -4278,13 +4316,17 @@ function pintarReportes(){
   const totalLeads=leadsEnRango.length;
   const convertidos=leadsEnRango.filter(l=>l.clienteId).length;
   const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
+  // Sección 15: pauta del período (db.gastosPauta, fechado) — YA NO se usa config.gastoPauta
+  // (global, sin fecha) para esto, porque no se puede saber a qué período pertenece.
+  const pautaPeriodo=(db.gastosPauta||[]).filter(g=>g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0);
 
   // Ganancia ZB: solo snapshots congelados en pedido.items[] (gananciaZBItem/rentabilidadPorMarca),
-  // nunca costo/porcentaje actual de Stock/Config. Marca con algún ítem sin costoProveedorVenta
-  // guardado -> sinHistoriaCompleta, se excluye de la suma (fallback documentado, no se inventa).
+  // nunca costo/porcentaje actual de Stock/Config. Suma lo CALCULABLE de cada marca (nunca 0 si
+  // hay ganancia conocida) — el * avisa que hay ventas históricas sin información suficiente
+  // mezcladas ahí (ver sección 12B).
   const rentab=rentabilidadPorMarca(pedidosFacturables);
-  const gananciaZBTotal=rentab.reduce((s,f)=>s+(f.sinHistoriaCompleta?0:f.gananciaZB),0);
-  const hayMarcaSinHistoria=rentab.some(f=>f.sinHistoriaCompleta);
+  const gananciaZBTotal=rentab.reduce((s,f)=>s+f.gananciaZB,0);
+  const hayMarcaSinHistoria=rentab.some(f=>f.huboItemNoCalculable);
 
   const productos={};
   pedidosFacturables.forEach(p=>p.items.forEach(it=>{productos[it.producto]=(productos[it.producto]||0)+it.cantidad;}));
@@ -4293,7 +4335,7 @@ function pintarReportes(){
   document.getElementById('repContenido').innerHTML=`
     <div class="reportes-kpis">
       <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ventas</div></div>
-      <div class="stat"><div class="num"${hayMarcaSinHistoria?` title="Solo incluye marcas con costo histórico guardado en este período"`:''}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Ganancia ZB</div></div>
+      <div class="stat"><div class="num"${hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Ganancia ZB</div></div>
       <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos</div></div>
       <div class="stat"><div class="num">${tasaConv}%</div><div class="lbl">Conversión</div></div>
     </div>
@@ -4304,13 +4346,13 @@ function pintarReportes(){
       </tr></thead><tbody>${rentab.map(f=>`<tr>
         <td style="text-align:left;">${esc(f.marca)}</td>
         <td style="text-align:right;">${money(f.ventas)}</td>
-        <td style="text-align:right;">${f.sinHistoriaCompleta?'—':money(f.gananciaZB)}</td>
+        <td style="text-align:right;"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':money(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</td>
       </tr>`).join('')}</tbody></table></div>`}
 
     <div class="reportes-fila-bloques">
       <div class="reportes-bloque">
         <h3 class="reportes-subtitulo">Leads</h3>
-        <p class="reportes-leads-franja">Recibidos <strong>${totalLeads}</strong> → Compraron <strong>${convertidos}</strong> → Conversión <strong>${tasaConv}%</strong></p>
+        <p class="reportes-leads-franja">Recibidos <strong>${totalLeads}</strong> → Compraron <strong>${convertidos}</strong> → Conversión <strong>${tasaConv}%</strong> → Pauta <strong>${money(pautaPeriodo)}</strong></p>
       </div>
       <div class="reportes-bloque">
         <h3 class="reportes-subtitulo">Más vendidos</h3>
@@ -4532,8 +4574,66 @@ function pintarConfig(){
     </li>`;
   }).join('');
   document.getElementById('cfgEmbalaje').value=db.config.embalajeDefault||0;
-  document.getElementById('cfgGastoPauta').value=db.config.gastoPauta||0;
+  pintarGastosPautaConfig();
   document.getElementById('impResultado').textContent='';
+}
+// UX CORRECTIVO (2026-08-21) — sección 13/14: gastos de pauta FECHADOS (db.gastosPauta), para
+// poder sumar publicidad por período en Reportes. No toca db.config.gastoPauta (se conserva,
+// solo deja de tener campo de captura en Config).
+function abrirFormGastoPauta(){
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar gasto de pauta</h3>
+    <form onsubmit="return guardarGastoPauta(event)">
+      <div class="fila-2">
+        <div><label>Fecha *</label><input type="date" id="gp-fecha" value="${hoyStr()}" required></div>
+        <div><label>Monto (S/) *</label><input type="number" id="gp-monto" step="0.01" min="0.01" required></div>
+      </div>
+      <label>Canal (opcional)</label>
+      <input id="gp-canal" list="gp-lista-canales" placeholder="Ej. Meta, Instagram, TikTok...">
+      <datalist id="gp-lista-canales">
+        <option value="Meta"><option value="Instagram"><option value="Facebook"><option value="TikTok"><option value="Otro">
+      </datalist>
+      <label>Nota (opcional)</label>
+      <input id="gp-nota">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function guardarGastoPauta(ev){
+  ev.preventDefault();
+  const monto=parseFloat(document.getElementById('gp-monto').value)||0;
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
+  db.gastosPauta.push({
+    id:nuevoId(),
+    fecha:document.getElementById('gp-fecha').value||hoyStr(),
+    monto,
+    canal:document.getElementById('gp-canal').value.trim(),
+    nota:document.getElementById('gp-nota').value.trim(),
+    creadoPor:sesion?sesion.nombre:''
+  });
+  guardar();cerrarModal();pintarConfig();
+  return false;
+}
+function eliminarGastoPauta(id){
+  if(!confirm('¿Eliminar este gasto de pauta?'))return;
+  db.gastosPauta=(db.gastosPauta||[]).filter(g=>g.id!==id);
+  guardar();pintarConfig();
+}
+function pintarGastosPautaConfig(){
+  const cont=document.getElementById('cfgGastosPautaLista');
+  if(!cont)return;
+  const gastos=(db.gastosPauta||[]).slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if(gastos.length===0){cont.innerHTML='<div class="vacio" style="padding:10px 0;">Sin gastos de pauta registrados todavía.</div>';return;}
+  cont.innerHTML=`<details>
+    <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Ver gastos registrados (${gastos.length})</summary>
+    <div class="tabla-wrap" style="margin-top:8px;"><table><thead><tr><th>Fecha</th><th>Monto</th><th>Canal</th><th>Nota</th><th></th></tr></thead><tbody>${gastos.map(g=>`<tr>
+      <td>${fechaBonita(g.fecha)}</td><td>${money(g.monto)}</td><td>${esc(g.canal||'—')}</td><td>${esc(g.nota||'—')}</td>
+      <td><button type="button" class="btn-icono" onclick="eliminarGastoPauta('${g.id}')" title="Eliminar">✕</button></td>
+    </tr>`).join('')}</tbody></table></div>
+  </details>`;
 }
 function cambiarPin(id,valor){
   const v=valor.replace(/\D/g,'').slice(0,4);
