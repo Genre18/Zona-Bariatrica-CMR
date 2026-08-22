@@ -100,7 +100,9 @@ main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .filtros input,.filtros select{width:auto;min-width:150px;}
 
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
-.link-historial{background:none;border:none;padding:0;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer;}
+.link-historial{background:none;border:none;padding:3px 6px;font-size:11.5px;font-weight:600;color:var(--muted);text-decoration:none;border-radius:var(--r-xs);cursor:pointer;transition:background .15s,color .15s;}
+.link-historial:hover{background:var(--bg-soft);color:var(--primary);}
+.link-lead:focus-visible,.link-historial:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:var(--r-xs);}
 .tabla-excel{border:1px solid var(--border);border-radius:var(--r-md);overflow:auto;background:var(--card);}
 .tabla-excel table{border-collapse:collapse;width:100%;}
 .tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;text-align:center;}
@@ -129,7 +131,7 @@ table tbody tr:hover{background:var(--bg-soft);}
 .tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);}
 .tabla-wrap table{border:none;border-radius:0;}
 
-.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-pill);font-size:11.5px;font-weight:600;white-space:nowrap;}
+.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-xs);font-size:11.5px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
 .chip-gris{background:var(--bg-soft);color:var(--muted);}
 .chip-azul{background:var(--azul-suave);color:var(--azul);}
 .chip-verde{background:var(--success-suave);color:var(--success);}
@@ -193,9 +195,9 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-marca-wrap td{padding:5px 10px;font-size:12px;}
 
 /* UX PREMIUM — sección 8: Leads + Más vendidos lado a lado en desktop, apilados en angosto. */
-.reportes-fila-bloques{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;align-items:start;}
+.reportes-fila-bloques{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px;align-items:stretch;}
 @media(max-width:720px){.reportes-fila-bloques{grid-template-columns:1fr;}}
-.reportes-bloque{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;}
+.reportes-bloque{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-xs);display:flex;flex-direction:column;}
 .reportes-bloque .reportes-subtitulo{margin-top:0;}
 .reportes-leads-franja{font-size:13.5px;margin:0;}
 .reportes-mas-vendidos{list-style:none;margin:0;padding:0;font-size:13px;}
@@ -253,6 +255,11 @@ table.tareas-tabla th{padding:6px 8px;font-size:9.5px;}
 table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
 .vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
+/* FASE 2 — sección 14: .vacio se usa tanto para estado-vacío real (sin atributo style, siempre
+   centrado) como para ayuda contextual/subtítulo (siempre con style inline text-align:left ya
+   existente). Se diferencian por ese atributo, sin tocar el bloque de JavaScript. El inline solo
+   fija text-align/padding — esto solo ajusta tipografía/color donde el inline no interviene. */
+.vacio[style]{font-size:12.5px;line-height:1.5;color:var(--text-light);}
 
 /* ---------- VISTA SOCIO: estado de cuenta ---------- */
 #vistaSocio{--eq-border:#e2e8f0;background:var(--bg);min-height:100vh;}
@@ -261,14 +268,14 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 #vistaSocio .eq-header-marca{font-size:13px;color:rgba(255,255,255,.6);margin-top:3px;}
 #vistaSocio .eq-header-fecha{font-size:12px;color:rgba(255,255,255,.42);margin-top:6px;}
 #vistaSocio .eq-header-derecha{display:flex;align-items:center;gap:18px;}
-#vistaSocio .eq-btn-salir{background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:6px;padding:6px 14px;font-size:12.5px;font-weight:500;transition:background .15s,border-color .15s,color .15s;}
+#vistaSocio .eq-btn-salir{background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:var(--r-sm);padding:6px 14px;font-size:12.5px;font-weight:500;transition:background .15s,border-color .15s,color .15s;}
 #vistaSocio .eq-btn-salir:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:#fff;}
 
 #vistaSocio .eq-cuerpo{max-width:920px;margin:0 auto;padding:30px 24px 60px;}
 #vistaSocio .eq-seccion{margin-bottom:36px;}
 #vistaSocio .eq-seccion-titulo{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;}
 
-#vistaSocio .eq-resumen{display:flex;border:1px solid var(--eq-border);border-radius:6px;overflow:hidden;background:var(--card);}
+#vistaSocio .eq-resumen{display:flex;border:1px solid var(--eq-border);border-radius:var(--r-md);overflow:hidden;background:var(--card);box-shadow:var(--shadow-xs);}
 #vistaSocio .eq-resumen-item{flex:1;padding:18px 20px;text-align:center;border-right:1px solid var(--eq-border);}
 #vistaSocio .eq-resumen-item:last-child{border-right:none;}
 #vistaSocio .eq-resumen-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px;}
@@ -276,10 +283,13 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
 /* .eq-tabla: estilo de tabla compacto, reutilizado también fuera de #vistaSocio
    (ej. Historial de ventas de Reportes) para que ambas vistas luzcan iguales. */
-.eq-tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:6px;background:var(--card);}
+.eq-tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);}
 table.eq-tabla{width:100%;border-collapse:collapse;}
-table.eq-tabla th,table.eq-tabla td{border:1px solid var(--border);padding:10px 14px;text-align:center;font-size:13px;white-space:nowrap;}
-table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;}
+/* FASE 2 — sección 2/3: mismo criterio "grid ligero" que el resto de tablas compactas
+   (Proveedores/Tareas/Historial/Clientes) — solo divisores horizontales, sin cuadrícula vertical. */
+table.eq-tabla th,table.eq-tabla td{border:none;border-bottom:1px solid var(--border-light);padding:10px 14px;text-align:center;font-size:13px;white-space:nowrap;}
+table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+table.eq-tabla tr:last-child td{border-bottom:none;}
 table.eq-tabla tbody tr:hover{background:var(--bg-soft);}
 .fecha-corta{display:none;}
 
@@ -328,6 +338,22 @@ details.config-block summary:hover{color:var(--primary);}
 .lista-simple li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
 .lista-simple li:last-child{border-bottom:none;}
 
+/* FASE 2 — sección 2/3: variantes "ligeras" de .tabla-excel. Stock (10 columnas) y Leads
+   (contiene inputs) conservan el grid completo a propósito; estas cinco solo quedan con
+   divisores horizontales — mismo contenedor/tipografía/hover, sin cuadrícula pesada. */
+table.proveedores-tabla th,table.proveedores-tabla td,
+table.tareas-tabla th,table.tareas-tabla td,
+table.historial-tabla th,table.historial-tabla td,
+table.cliente-historial-tabla th,table.cliente-historial-tabla td,
+table.reportes-tabla-marca th,table.reportes-tabla-marca td{
+  border-left:none;border-right:none;border-top:none;border-bottom:1px solid var(--border-light);
+}
+table.proveedores-tabla th,table.tareas-tabla th,table.historial-tabla th,
+table.cliente-historial-tabla th,table.reportes-tabla-marca th{border-bottom:1px solid var(--border);}
+table.proveedores-tabla tr:last-child td,table.tareas-tabla tr:last-child td,
+table.historial-tabla tr:last-child td,table.cliente-historial-tabla tr:last-child td,
+table.reportes-tabla-marca tr:last-child td{border-bottom:none;}
+
 .stock-bajo{color:var(--danger);font-weight:700;}
 .aviso{background:var(--warning-suave);color:var(--warning);border-radius:var(--r-sm);padding:11px 14px;font-size:13px;margin-bottom:12px;border:1px solid var(--warning-br);}
 
@@ -335,6 +361,43 @@ details.config-block summary:hover{color:var(--primary);}
   .fila-2{grid-template-columns:1fr;}
   .kanban{grid-template-columns:1fr;}
 }
+
+/* ================= FASE 2 — VISUAL SYSTEM 10/10 (2026-08-22) ================= */
+
+/* Sección 9A: Desde/Hasta de Reportes → un solo filtro de período, no dos inputs sueltos.
+   Clase aditiva sobre el <div class="filtros"> ya existente — no toca id/onchange. */
+.filtro-periodo{display:inline-flex;align-items:stretch;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;}
+.filtro-periodo label{display:flex;align-items:center;gap:8px;margin:0;padding:0 14px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.filtro-periodo label:first-child{border-right:1px solid var(--border-light);}
+.filtro-periodo input[type=date]{border:none;width:auto;padding:9px 2px;font-size:13px;background:transparent;}
+.filtro-periodo input[type=date]:focus{box-shadow:none;}
+@media(max-width:480px){
+  .filtro-periodo{display:flex;flex-wrap:wrap;width:100%;}
+  .filtro-periodo label{flex:1 1 140px;}
+  .filtro-periodo label:first-child{border-right:none;border-bottom:1px solid var(--border-light);}
+}
+/* Fase 1 dejó #resumenProveedores en 3 columnas de mínimo 150px (450px) — a 390px de viewport
+   eso fuerza scroll horizontal de página. Se agrega solo el breakpoint angosto, sin tocar el
+   layout de escritorio/tablet ya aprobado. */
+@media(max-width:480px){
+  #resumenProveedores{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));}
+}
+
+/* Sección 9E: menú "⋯" de Historial como popover real, no como bloque que empuja el layout.
+   Clases aditivas sobre el <details>/<div> ya existentes — no toca ningún onclick. */
+.toolbar-historial details.menu-mas-opciones{position:relative;}
+.menu-mas-opciones-panel{position:absolute;top:calc(100% + 6px);right:0;z-index:10;background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow-md);padding:6px;min-width:190px;display:flex;flex-direction:column;gap:2px;}
+.menu-mas-opciones-panel .link-lead{border-radius:var(--r-xs);}
+.menu-mas-opciones-panel .link-lead:hover{background:var(--bg-soft);text-decoration:none;}
+
+/* Sección 10: distinguir visualmente los bloques de Config sin crear secciones nuevas —
+   Normal (sin acento) / Cuenta (acento neutro) / Seguridad-destructivo (acento rojo).
+   Clases aditivas sobre <details class="config-block"> ya existentes. */
+details.config-block[open] summary{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-light);}
+details.config-block.config-block-cuenta{border-left:3px solid var(--text-light);}
+details.config-block.config-block-peligro{border-left:3px solid var(--danger-br);}
+details.config-block.config-block-peligro summary{color:var(--danger);}
+details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 </style>
 </head>
 <body>
@@ -481,7 +544,7 @@ details.config-block summary:hover{color:var(--primary);}
       </div>
 
       <div id="repVistaResumen">
-        <div class="filtros">
+        <div class="filtros filtro-periodo">
           <label style="margin:0;">Desde<input type="date" id="repDesde" onchange="pintarReportes()"></label>
           <label style="margin:0;">Hasta<input type="date" id="repHasta" onchange="pintarReportes()"></label>
         </div>
@@ -500,11 +563,11 @@ details.config-block summary:hover{color:var(--primary);}
           <input id="histBuscar" placeholder="Buscar en historial..." oninput="pintarHistorial()">
           <label style="margin:0;">Desde<input type="date" id="histDesde" onchange="pintarHistorial()"></label>
           <label style="margin:0;">Hasta<input type="date" id="histHasta" onchange="pintarHistorial()"></label>
-          <details>
+          <details class="menu-mas-opciones">
             <summary title="Más opciones" aria-label="Más opciones">⋯</summary>
-            <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
-              <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('pedidos')">Exportar pedidos CSV</button>
-              <button type="button" class="link-lead" style="text-align:left;padding:2px 0;" onclick="exportarCSV('leads')">Exportar leads CSV</button>
+            <div class="menu-mas-opciones-panel">
+              <button type="button" class="link-lead" style="text-align:left;padding:6px 8px;" onclick="exportarCSV('pedidos')">Exportar pedidos CSV</button>
+              <button type="button" class="link-lead" style="text-align:left;padding:6px 8px;" onclick="exportarCSV('leads')">Exportar leads CSV</button>
             </div>
           </details>
         </div>
@@ -584,13 +647,13 @@ details.config-block summary:hover{color:var(--primary);}
         <div id="impResultado" class="pin-error" style="color:var(--primary-dark);height:auto;"></div>
       </details>
 
-      <details class="config-block">
+      <details class="config-block config-block-cuenta">
         <summary>Cuenta de este dispositivo</summary>
         <p class="vacio" style="text-align:left;padding:0 0 6px;">Este equipo mantiene tu sesión iniciada para acceder al CRM y sincronizar los datos. Si vas a prestar, vender o dejar de usar este equipo, cierra la sesión para evitar que otra persona pueda entrar. Cerrar sesión NO borra datos del CRM.</p>
         <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
       </details>
 
-      <details class="config-block">
+      <details class="config-block config-block-peligro">
         <summary>Respaldo de datos</summary>
         <p class="vacio" style="text-align:left;padding:0 0 6px;">Los datos se sincronizan con la nube y este dispositivo conserva una copia local. También puedes descargar un respaldo manual antes de cambios importantes.</p>
         <div class="fila-2">
