@@ -4010,6 +4010,70 @@ function pintarProveedores(){
 // confiable. Ver limitación documentada en la entrega. El modelo comercial SÍ se muestra acá
 // (discreto, bajo el título) porque ayuda a entender el cálculo — la vista principal no lo
 // muestra, esta sí puede.
+// UX (2026-08-22) — agrupa "Pendiente de pago" por VENTA/PEDIDO real (p.id), no por producto.
+// SOLO reagrupa lo que ya calculan totalDoctorItem() / la obligación por costo existente
+// (cantidad×costoProveedorVenta) — no inventa ninguna fórmula, no toca datos, no recalcula
+// saldos. Un mismo pedido con 2 marcas nunca mezcla items entre filas: cada llamada solo
+// recorre los items que coinciden con ESE proveedor+marca+modelo puntual.
+function ventasAgrupadasPorPedidoCredito(proveedor,marca,modelo){
+  const porPedido=new Map();
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      let corresponde,montoItem=0,detalleItem=null;
+      if(modelo==='reparto_ingresos'){
+        corresponde=it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor&&it.marca===marca;
+        if(corresponde){
+          detalleItem=totalDoctorItem(it);
+          montoItem=detalleItem?detalleItem.total:0;
+        }
+      }else{
+        corresponde=it.proveedorVenta===proveedor&&it.modalidadComercial===modelo&&it.marca===marca;
+        if(corresponde)montoItem=it.cantidad*(it.costoProveedorVenta||0);
+      }
+      if(!corresponde)return;
+      if(!porPedido.has(p.id))porPedido.set(p.id,{pedidoId:p.id,fecha:p.fecha,items:[],total:0,huboItemNoCalculable:false});
+      const g=porPedido.get(p.id);
+      g.items.push({producto:it.producto,cantidad:it.cantidad,monto:montoItem,detalle:detalleItem});
+      if(modelo==='reparto_ingresos'&&!detalleItem)g.huboItemNoCalculable=true;
+      g.total=round2(g.total+montoItem);
+    });
+  });
+  return[...porPedido.values()].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+// Versión corta y legible del ID real del pedido (mismo ID de siempre — nuevoId() — nunca se
+// renumera ni se crea uno nuevo). El id completo queda disponible en el title del <td>.
+function idCortoPedido(id){
+  return '#'+String(id||'').slice(-6).toUpperCase();
+}
+function toggleDetalleVenta(id){
+  const row=document.getElementById(id);
+  if(!row)return;
+  const abierta=row.style.display!=='none';
+  row.style.display=abierta?'none':'table-row';
+  const btn=document.getElementById(id+'-btn');
+  if(btn)btn.textContent=btn.textContent.replace(abierta?'▴':'▾',abierta?'▾':'▴');
+}
+// Una fila de tabla por venta/pedido + una fila oculta (misma tabla, sin modal nuevo) con el
+// desglose por producto. "Productos" responde "¿qué generó esta obligación?" — "Pagos
+// realizados" (aparte, sin tocar) responde "¿qué dinero hemos transferido?".
+function filaVentaAgrupada(g,modelo){
+  const idDetalle='pdet-'+g.pedidoId;
+  const n=g.items.length;
+  const etiquetaProductos=n===1?'1 producto':`${n} productos`;
+  const filasDetalle=modelo==='reparto_ingresos'
+    ?g.items.map(it=>`<div style="padding:3px 0;">${esc(it.producto)} ×${it.cantidad}<div style="font-size:11px;color:var(--muted);">${it.detalle?`Costo: ${money(it.detalle.costo)} · Participación: ${money(it.detalle.participacion)} · Total doctor: ${money(it.detalle.total)}`:'Sin costo o porcentaje histórico congelado — no calculable.'}</div></div>`).join('')
+    :g.items.map(it=>`<div style="padding:3px 0;">${esc(it.producto)} ×${it.cantidad}<div style="font-size:11px;color:var(--muted);">Monto correspondiente: ${money(it.monto)}</div></div>`).join('');
+  return `<tr>
+      <td>${fechaCelda(g.fecha)}</td>
+      <td title="${escAttr(g.pedidoId)}">${idCortoPedido(g.pedidoId)}</td>
+      <td style="text-align:left;"><button type="button" id="${idDetalle}-btn" class="link-historial" onclick="toggleDetalleVenta('${idDetalle}')">${etiquetaProductos} ▾</button></td>
+      <td>${money(g.total)}${g.huboItemNoCalculable?' *':''}</td>
+    </tr>
+    <tr id="${idDetalle}" style="display:none;">
+      <td colspan="4" style="text-align:left;background:var(--bg-soft);">${filasDetalle}</td>
+    </tr>`;
+}
 function abrirDetalleProveedor(proveedor,modelo,marca){
   const modeloLabel=MODELO_LABEL_PROVEEDORES[modelo]||modelo;
   if(modelo==='compra_directa'){
@@ -4048,17 +4112,13 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     // PRE-PAUTA: filtrado también por marca. Si el proveedor tiene más de una marca en esta
     // modalidad, los pagos no se le atribuyen a esta marca en particular (sección 13) — se
     // avisa en vez de mostrar un "Pagado"/"Registrar pago" que podría ser incorrecto.
-    const ventas=[];
-    db.pedidos.forEach(p=>{
-      if(p.estadoPago==='cancelado')return;
-      (p.items||[]).forEach(it=>{
-        if(it.proveedorVenta===proveedor&&it.modalidadComercial===modelo&&it.marca===marca)ventas.push({fecha:p.fecha,producto:it.producto,cantidad:it.cantidad,monto:it.cantidad*(it.costoProveedorVenta||0)});
-      });
-    });
-    ventas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    // UX (2026-08-22): agrupado por venta/pedido (ventasAgrupadasPorPedidoCredito) en vez de
+    // una fila por producto — el monto de cada fila sigue siendo la MISMA suma de siempre
+    // (cantidad×costoProveedorVenta por item), solo cambia cómo se presenta.
+    const gruposVenta=ventasAgrupadasPorPedidoCredito(proveedor,marca,modelo);
     const esUnica=marcasDeProveedorEnModalidad(proveedor,modelo).size===1;
     const pagos=esUnica?pagosProveedorModalidad(proveedor,modelo):[];
-    const generado=round2(ventas.reduce((s,v)=>s+v.monto,0));
+    const generado=round2(gruposVenta.reduce((s,g)=>s+g.total,0));
     const pagado=esUnica?pagos.reduce((s,pg)=>s+(pg.monto||0),0):0;
     const saldo=Math.max(0,round2(generado-pagado));
     abrirModal(`
@@ -4068,7 +4128,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(pagado)}</strong></p>
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
-      ${ventas.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${ventas.map(v=>`<tr><td>${fechaCelda(v.fecha)}</td><td style="text-align:left;">${esc(v.producto)}</td><td>${money(v.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>`}
       <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
       ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="acciones-modal">
@@ -4087,20 +4147,14 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     const pagosDirectos=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&l.marca===marca);
     const pagosLegacy=esUnica?(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&!l.marca):[];
     const pagos=[...pagosDirectos,...pagosLegacy].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    const filasVenta=[];
-    db.pedidos.forEach(p=>{
-      if(p.estadoPago==='cancelado')return;
-      (p.items||[]).forEach(it=>{
-        if(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor&&it.marca===marca){
-          filasVenta.push({fecha:p.fecha,producto:it.producto,venta:it.cantidad*it.precioUnit,td:totalDoctorItem(it)});
-        }
-      });
-    });
-    filasVenta.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    // UX (2026-08-22): agrupado por venta/pedido (ventasAgrupadasPorPedidoCredito) en vez de
+    // una fila por producto — cada item sigue usando exactamente totalDoctorItem() (sin tocar),
+    // solo cambia cómo se presenta el desglose.
+    const gruposVenta=ventasAgrupadasPorPedidoCredito(proveedor,marca,'reparto_ingresos');
     const generado=generadoCreditoRepartoProveedorMarca(proveedor,marca);
     const pagado=pagadoCreditoRepartoProveedorMarca(proveedor,marca);
     const pendiente=Math.max(0,round2(generado-pagado));
-    const hayNoCalculable=filasVenta.some(f=>!f.td);
+    const hayNoCalculable=gruposVenta.some(g=>g.huboItemNoCalculable);
     const hayLegacySinMarca=(db.liquidacionesSocio||[]).some(l=>l.proveedor===proveedor&&!l.marca);
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
@@ -4110,7 +4164,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
       <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
-      ${filasVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Venta</th><th>Costo</th><th>Participación</th><th>Total doctor</th></tr></thead><tbody>${filasVenta.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td style="text-align:left;">${esc(f.producto)}</td><td>${money(f.venta)}</td><td>${f.td?money(f.td.costo):'—'}</td><td>${f.td?money(f.td.participacion):'—'}</td><td>${f.td?money(f.td.total):'—'}</td></tr>`).join('')}</tbody></table></div>`}
+      ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.map(g=>filaVentaAgrupada(g,'reparto_ingresos')).join('')}</tbody></table></div>`}
       <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
       ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="acciones-modal">
