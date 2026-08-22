@@ -237,8 +237,8 @@ table.cliente-historial-tabla td{padding:5px 8px;font-size:12px;}
 .stock-form .fila-marca-producto{display:grid;grid-template-columns:35fr 65fr;gap:7px;}
 .stock-form .fila-codigo-presentacion{display:grid;grid-template-columns:40fr 60fr;gap:7px;}
 .stock-form .fila-sabor-unidad{display:grid;grid-template-columns:60fr 40fr;gap:7px;}
-.stock-form .fila-cantidades{display:grid;grid-template-columns:130px 130px;gap:7px;}
-.stock-form .fila-precios{display:grid;grid-template-columns:170px 170px;gap:7px;}
+.stock-form .fila-cantidades{display:grid;grid-template-columns:110px 110px;gap:7px;}
+.stock-form .fila-precios{display:grid;grid-template-columns:150px 150px;gap:7px;}
 @media(max-width:480px){
   .stock-form .fila-marca-producto,.stock-form .fila-codigo-presentacion,.stock-form .fila-sabor-unidad,
   .stock-form .fila-cantidades,.stock-form .fila-precios{grid-template-columns:1fr;}
@@ -3678,50 +3678,102 @@ function cambiarMesSocio(valor){
   socioMesFiltro=valor||'';
   pintarVistaSocio();
 }
-// BLOQUE UX (2026-08-21) — SPRINT Proveedores (B3): una sola fila por (proveedor/socio + marca
-// + modelo) para la tabla principal. SOLO agrupa/suma lo que YA calculan saldoEntrega/
-// pagosDeEntrega/obligacionVentaProveedor/pagosProveedorModalidad/ventasRepartoDeSocio/
-// liquidacionesDeSocio/saldoRepartoSocio — ninguna fórmula nueva, ninguna de esas funciones se
-// toca. Reemplaza visualmente a pintarCuentasConsignacionBajoPedido()/pintarRepartoIngresos()
-// (se dejan definidas, sin llamar, por si se necesitan de vuelta) pero NO a pintarPagosSinClasificar().
-const MODELO_LABEL_PROVEEDORES={consignacion:'Stock consignado',compra_directa:'Compra directa',bajo_pedido:'Bajo pedido',reparto_ingresos:'Reparto de utilidad'};
-// MICRO-SPRINT (2026-08-21) — 3 indicadores económicos de Proveedores. Los tres son funciones
-// de LECTURA que reutilizan exactamente las fórmulas ya existentes (obligacionVentaProveedor/
-// ventasRepartoDeSocio/saldoRepartoSocio vía filasProveedoresTabla, pagosProveedor,
-// liquidacionesSocio) — ninguna fórmula económica nueva.
-//
-// A) DEUDA TOTAL DEL STOCK — solo modalidad 'consignacion' (proveedor entrega stock físico que
-// Zona Bariátrica sostiene hasta venderlo): cantidad ACTUAL × costoPromedio VIGENTE de cada
-// producto. costoPromedio es el campo correcto acá porque es stock que TODAVÍA no se vendió —
-// no tiene (ni puede tener) un costoProveedorVenta congelado; eso solo existe una vez vendido.
-// No confundir con "usar costo actual para revalorizar ventas pasadas" (prohibido en otro
-// lado): acá no hay venta pasada que revalorizar, solo existencias sin vender.
+// PRE-PAUTA (2026-08-22) — sección 1/20: 'consignacion' es una clave técnica LEGACY que hoy
+// representa, en el modelo real del negocio, "Stock a crédito" (el proveedor entrega mercadería
+// física y Zona Bariátrica queda obligada por TODO su costo, se va pagando conforme se vende).
+// NO se migra la clave persistida esta vez (no se toca modalidadComercial/modalidadMarca en
+// datos existentes) — SOLO cambia la etiqueta humana. Ver sección 20 del sprint para el motivo:
+// evitar riesgo sobre pedidos/movimientos/respaldos reales justo antes del pico de pauta.
+const MODELO_LABEL_PROVEEDORES={consignacion:'Stock a crédito',compra_directa:'Compra directa',bajo_pedido:'Bajo pedido',reparto_ingresos:'Crédito + reparto'};
+// PRE-PAUTA — cuántas marcas distintas vende/reparte un proveedor bajo una modalidad dada.
+// pagosProveedor y liquidacionesSocio NO guardan a qué marca corresponde cada registro — si el
+// proveedor tiene una única marca en esa modalidad, un pago/liquidación es de esa marca sin
+// ninguna duda; si tiene varias, NO se puede repartir arbitrariamente (sección 13) y esos
+// registros quedan fuera del cálculo por marca (ver pagosLiquidacionesSinMarcaAtribuible()).
+function marcasDeProveedorEnModalidad(proveedor,modalidad){
+  const set=new Set();
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      if(modalidad==='reparto_ingresos'){
+        if(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor)set.add(it.marca);
+      }else if(it.modalidadComercial===modalidad&&it.proveedorVenta===proveedor){
+        set.add(it.marca);
+      }
+    });
+  });
+  return set;
+}
+// PRE-PAUTA — sección 4/5: "Total doctor" de UNA venta de crédito+reparto = costo del producto
+// (crédito) + participación sobre la utilidad — NUNCA solo la participación. Es la misma regla
+// estricta que gananciaZBItem() (Reportes): SOLO snapshots congelados en el propio ítem, JAMÁS
+// un 60% por defecto — si falta costoProveedorVenta o porcentajeReparto, no calculable (null).
+// NO reemplaza ni toca ventasRepartoDeSocio()/saldoRepartoSocio() (esas siguen siendo "solo
+// participación", tal cual las usa pintarVistaSocio() — el portal propio del socio sobre SU
+// comisión, que este sprint no toca).
+function totalDoctorItem(it){
+  if(typeof it.costoProveedorVenta!=='number'||it.porcentajeReparto==null)return null;
+  const costo=round2(it.cantidad*it.costoProveedorVenta);
+  const ingreso=it.cantidad*it.precioUnit;
+  const utilidadBruta=Math.max(0,round2(ingreso-costo));
+  const participacion=round2(utilidadBruta*it.porcentajeReparto/100);
+  return{costo,participacion,total:round2(costo+participacion)};
+}
+// A) DEUDA TOTAL DEL STOCK — sección 8: "¿Cuánto debemos por mercancía recibida a crédito?",
+// para UNIDADES TODAVÍA NO VENDIDAS (deuda = costo del producto, nunca precio de venta, nunca
+// el 60% futuro sobre stock sin vender). Contempla los DOS modelos de crédito real:
+// 'consignacion' (Stock a crédito) y 'reparto_ingresos' (Crédito + reparto) — antes solo
+// contemplaba 'consignacion'.
 // - compra_directa NO entra: esas unidades ya son propiedad de Zona Bariátrica; su deuda por
 //   RECIBIRLAS (saldoEntrega) es un concepto aparte, visible en "Ver detalle".
 // - bajo_pedido NO entra: nunca genera movimientosStock, nunca hay stock físico que valorizar.
-// - reparto_ingresos NO entra: el compromiso económico ahí nace al VENDER, no por tener
-//   unidades guardadas — expresarlo como "deuda de stock" sería inventar una cifra sin
-//   respaldo real en el modelo de datos actual (ver limitación documentada en la entrega).
+// Sección 9 (por qué esto NO subestima la deuda): esta cifra es DELIBERADAMENTE solo "lo que
+// sigue en stock sin vender". Lo que YA se vendió y sigue sin pagarse (costo + participación en
+// el caso de reparto) es un concepto DISTINTO y se refleja completo en "Por pagar según
+// ventas" — sumarlo also acá sería doble conteo, porque una unidad vendida sale de s.cantidad
+// (vía descontarStock) exactamente cuando pasa a vivir en el ítem del pedido. Los dos
+// indicadores juntos (A + B) son las dos mitades complementarias de la deuda total real.
 function deudaTotalStockProveedores(){
-  return db.stock.filter(s=>s.activo!==false&&(db.config.modalidadMarca||{})[s.marca]==='consignacion')
-    .reduce((sum,s)=>sum+(s.cantidad||0)*(s.costoPromedio||0),0);
+  return db.stock.filter(s=>{
+    if(s.activo===false)return false;
+    const modalidad=(db.config.modalidadMarca||{})[s.marca];
+    return modalidad==='consignacion'||modalidad==='reparto_ingresos';
+  }).reduce((sum,s)=>sum+(s.cantidad||0)*(s.costoPromedio||0),0);
 }
-// B) POR PAGAR SEGÚN VENTAS — obligación ya generada por VENTAS reales y todavía no pagada,
-// para consignación + bajo pedido (obligacionVentaProveedor) y reparto de utilidad
-// (saldoRepartoSocio = participación del socio ya generada − liquidado). Excluye compra_directa
-// a propósito: ahí la deuda nace al RECIBIR la entrega, no al vender (saldoEntrega, otro
-// concepto) — sumarla acá sería mezclar dos orígenes económicos distintos bajo el mismo número.
+// B) POR PAGAR SEGÚN VENTAS — obligación ya generada por VENTAS reales y todavía no pagada.
+// Para 'consignacion'/'bajo_pedido': costo de las unidades vendidas (igual que antes). Para
+// 'reparto_ingresos': costo + participación de cada venta (totalDoctorItem) — antes esta
+// modalidad solo aportaba la participación (S/54.60), dejando el costo (S/199) sin representar
+// en ningún lado. Excluye compra_directa a propósito (esa deuda nace al RECIBIR, no al vender).
+// Se calcula sumando filasProveedoresTabla() (ya separada por marca) — sin fórmula duplicada.
 function porPagarSegunVentas(){
   return filasProveedoresTabla().filter(f=>f.modelo!=='compra_directa').reduce((s,f)=>s+f.pendiente,0);
 }
-// C) PAGADO — total histórico real pagado/liquidado a proveedores y socios, sin importar la
-// modalidad (incluye pagos de compra_directa, consignación/bajo pedido y liquidaciones de
-// reparto). Fuente única: db.pagosProveedor + db.liquidacionesSocio, sin recalcular nada.
+// C) PAGADO — total histórico real pagado/liquidado, sin importar modalidad. Auditoría (sección
+// 6/11, D/E): pagosProveedor (modalidad consignación/bajo pedido) y liquidacionesSocio (reparto)
+// NUNCA representan la misma transferencia históricamente, porque los flujos de UI que los crean
+// son mutuamente excluyentes por modalidad (guardarPagoProveedorModalidad solo se alcanza desde
+// filas de consignación/bajo pedido; guardarLiquidacion solo desde filas de reparto) — no hay
+// riesgo de doble conteo entre ambas colecciones hoy. El riesgo real es hacia ADELANTE: una
+// transferencia única de S/253.60 (costo+participación) todavía solo puede registrarse como
+// liquidación hasta el tope de la participación (guardarLiquidacion sigue validando contra
+// saldoRepartoSocio(), sin tocar) — ver limitación documentada en la entrega.
 function totalPagadoProveedores(){
   return (db.pagosProveedor||[]).reduce((s,pg)=>s+(pg.monto||0),0)+(db.liquidacionesSocio||[]).reduce((s,l)=>s+(l.monto||0),0);
 }
+// PRE-PAUTA — sección 12/13: una fila por Proveedor+Marca (antes: una fila por proveedor+
+// modalidad con marcas.join(', ')). pedido.items[] SIEMPRE trae marca (campo confiable) — la
+// obligación (costo, y para reparto también participación) se separa sin ambigüedad. Lo que NO
+// se puede separar sin ambigüedad son los PAGOS/LIQUIDACIONES (no guardan marca): si el
+// proveedor tiene una única marca en esa modalidad, el pago es de esa marca sin duda; si tiene
+// varias, esos pagos NO se reparten arbitrariamente (quedan en pagosSinAtribuirPorMarca=true,
+// pagado=0 para todas las filas de ese proveedor+modalidad, y se listan aparte — ver
+// pagosLiquidacionesSinMarcaAtribuible()). Sigue sin duplicar obligacionVentaProveedor()/
+// ventasRepartoDeSocio()/saldoRepartoSocio(): esas funciones protegidas no se tocan.
 function filasProveedoresTabla(){
   const filas=[];
+
+  // ---- compra_directa: ya estaba separado por marca (vía entregas -> stock -> marca) ----
   const gruposCD=new Map();
   db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.proveedor).forEach(m=>{
     const s=porId(db.stock,m.stockId);
@@ -3733,34 +3785,86 @@ function filasProveedoresTabla(){
   gruposCD.forEach(g=>{
     const generado=g.entregas.reduce((s,e)=>s+(e.monto||0),0);
     const pendiente=g.entregas.reduce((s,e)=>s+saldoEntrega(e),0);
-    filas.push({proveedor:g.proveedor,marca:g.marca,modelo:'compra_directa',generado,pagado:round2(generado-pendiente),pendiente:round2(pendiente)});
+    filas.push({proveedor:g.proveedor,marca:g.marca,modelo:'compra_directa',generado:round2(generado),pagado:round2(generado-pendiente),pendiente:round2(pendiente)});
   });
-  cuentasConsignacionBajoPedido().forEach(c=>{
-    const marcas=[...new Set(db.pedidos.filter(p=>p.estadoPago!=='cancelado').flatMap(p=>(p.items||[]).filter(it=>it.proveedorVenta===c.proveedor&&it.modalidadComercial===c.modalidad).map(it=>it.marca)))];
-    const generado=obligacionVentaProveedor(c.proveedor,c.modalidad);
-    const pagado=pagosProveedorModalidad(c.proveedor,c.modalidad).reduce((s,pg)=>s+(pg.monto||0),0);
-    filas.push({proveedor:c.proveedor,marca:marcas.join(', ')||'—',modelo:c.modalidad,generado,pagado,pendiente:Math.max(0,round2(generado-pagado))});
+
+  // ---- consignación (Stock a crédito) / bajo pedido: costo por marca ----
+  const gruposCons=new Map();
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      if((it.modalidadComercial!=='consignacion'&&it.modalidadComercial!=='bajo_pedido')||!it.proveedorVenta)return;
+      const clave=it.proveedorVenta+'||'+it.modalidadComercial+'||'+it.marca;
+      if(!gruposCons.has(clave))gruposCons.set(clave,{proveedor:it.proveedorVenta,modalidad:it.modalidadComercial,marca:it.marca,costo:0});
+      gruposCons.get(clave).costo+=it.cantidad*(it.costoProveedorVenta||0);
+    });
   });
-  sociosConReparto().forEach(socio=>{
-    const marcas=marcasRepartoDeSocio(socio);
-    const generado=ventasRepartoDeSocio(socio).reduce((s,f)=>s+f.monto,0);
-    const pagado=liquidacionesDeSocio(socio).reduce((s,l)=>s+(l.monto||0),0);
-    filas.push({proveedor:socio,marca:marcas.join(', ')||'sin marca asignada',modelo:'reparto_ingresos',generado,pagado,pendiente:saldoRepartoSocio(socio)});
+  gruposCons.forEach(g=>{
+    const esUnica=marcasDeProveedorEnModalidad(g.proveedor,g.modalidad).size===1;
+    const pagosTotales=esUnica?pagosProveedorModalidad(g.proveedor,g.modalidad).reduce((s,pg)=>s+(pg.monto||0),0):0;
+    const generado=round2(g.costo);
+    filas.push({proveedor:g.proveedor,marca:g.marca,modelo:g.modalidad,generado,pagado:round2(pagosTotales),pendiente:Math.max(0,round2(generado-pagosTotales)),pagosSinAtribuirPorMarca:!esUnica});
   });
+
+  // ---- reparto de utilidad (Crédito + reparto): costo + participación por marca ----
+  const gruposRep=new Map();
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      if(it.modalidadComercial!=='reparto_ingresos'||!it.socioReparto)return;
+      const clave=it.socioReparto+'||'+it.marca;
+      if(!gruposRep.has(clave))gruposRep.set(clave,{proveedor:it.socioReparto,marca:it.marca,costo:0,participacion:0,huboItemNoCalculable:false});
+      const g=gruposRep.get(clave);
+      const td=totalDoctorItem(it);
+      if(!td){g.huboItemNoCalculable=true;return;}
+      g.costo+=td.costo;
+      g.participacion+=td.participacion;
+    });
+  });
+  gruposRep.forEach(g=>{
+    const esUnica=marcasDeProveedorEnModalidad(g.proveedor,'reparto_ingresos').size===1;
+    const liquidadoTotal=esUnica?liquidacionesDeSocio(g.proveedor).reduce((s,l)=>s+(l.monto||0),0):0;
+    const generado=round2(g.costo+g.participacion);
+    filas.push({proveedor:g.proveedor,marca:g.marca,modelo:'reparto_ingresos',generado,pagado:round2(liquidadoTotal),pendiente:Math.max(0,round2(generado-liquidadoTotal)),huboItemNoCalculable:g.huboItemNoCalculable,pagosSinAtribuirPorMarca:!esUnica});
+  });
+
   return filas.sort((a,b)=>a.proveedor.localeCompare(b.proveedor)||a.marca.localeCompare(b.marca));
 }
+// PRE-PAUTA — sección 13: pagos/liquidaciones reales que existen pero no se pudieron atribuir a
+// una fila (proveedor+marca) porque ese proveedor tiene más de una marca bajo la misma
+// modalidad. Siguen contando en "Pagado" (indicador global) — solo no reducen el pendiente de
+// NINGUNA fila específica hasta que alguien identifique a cuál corresponden.
+function pagosLiquidacionesSinMarcaAtribuible(){
+  const modalidadesCons=new Set();
+  (db.pagosProveedor||[]).forEach(pg=>{if(pg.modalidad)modalidadesCons.add(pg.proveedor+'||'+pg.modalidad);});
+  const pagos=(db.pagosProveedor||[]).filter(pg=>pg.modalidad&&marcasDeProveedorEnModalidad(pg.proveedor,pg.modalidad).size>1)
+    .map(pg=>({proveedor:pg.proveedor,fecha:pg.fecha,monto:pg.monto,detalle:pg.nota||MODELO_LABEL_PROVEEDORES[pg.modalidad]||pg.modalidad}));
+  const liquidaciones=(db.liquidacionesSocio||[]).filter(l=>marcasDeProveedorEnModalidad(l.proveedor,'reparto_ingresos').size>1)
+    .map(l=>({proveedor:l.proveedor,fecha:l.fecha,monto:l.monto,detalle:l.nota||'Crédito + reparto'}));
+  return[...pagos,...liquidaciones].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function pintarPagosSinMarcaAtribuible(){
+  const registros=pagosLiquidacionesSinMarcaAtribuible();
+  if(registros.length===0)return '';
+  return `<h3 style="font-size:15px;margin:22px 0 8px;">Pagos sin marca identificada</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">Este proveedor/socio tiene más de una marca bajo la misma modalidad y el registro no guarda a cuál corresponde. Sigue contando en "Pagado", pero no reduce el pendiente de ninguna marca en particular hasta que se sepa cuál es.</p>
+    <div class="tabla-wrap"><table><thead><tr>
+      <th>Proveedor</th><th>Fecha</th><th>Monto</th><th>Detalle</th>
+      </tr></thead><tbody>${registros.map(r=>`<tr>
+        <td>${esc(r.proveedor)}</td><td>${fechaBonita(r.fecha)}</td><td>${money(r.monto)}</td><td>${esc(r.detalle||'—')}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+}
 // SPRINT FINAL (2026-08-21) — Estado en lenguaje humano para la fila de Proveedores. "Por
-// confirmar" SOLO se usa cuando es identificable de forma fiable con datos que YA existen: hay
-// saldo pendiente pero también hay pagos históricos SIN CLASIFICAR (pagosHistoricosSinClasificar,
-// ya existía) a nombre de ese mismo proveedor — o sea, puede que ya se le haya pagado con un pago
-// que nadie asoció todavía a esta cuenta. No es una heurística por venta individual (el modelo de
-// datos actual no permite atar un pago a una venta puntual en consignación/bajo pedido — ver
-// limitación documentada en la entrega) — es una señal a nivel de proveedor, 100% reconstruible
-// sin inventar nada ni escribir datos nuevos.
+// confirmar" se usa cuando es identificable de forma fiable con datos que YA existen: hay saldo
+// pendiente pero también hay pagos históricos SIN CLASIFICAR a nombre de ese proveedor, o (PRE-
+// PAUTA 2026-08-22) esta fila tiene pagos que existen pero no se pudieron atribuir a su marca
+// (pagosSinAtribuirPorMarca) — en ambos casos puede que ya se le haya pagado con algo que nadie
+// asoció todavía a esta cuenta puntual. No es una heurística por venta individual — es una señal
+// 100% reconstruible sin inventar nada ni escribir datos nuevos.
 function estadoProveedorFila(f){
   if(f.pendiente>0.005){
     const hayPagoSinClasificar=pagosHistoricosSinClasificar().some(pg=>pg.proveedor===f.proveedor);
-    if(hayPagoSinClasificar)return{estado:'por_confirmar',label:'Por confirmar',chip:'chip-gris'};
+    if(hayPagoSinClasificar||f.pagosSinAtribuirPorMarca)return{estado:'por_confirmar',label:'Por confirmar',chip:'chip-gris'};
     return{estado:'pendiente',label:'Pendiente',chip:'chip-naranja'};
   }
   return{estado:'al_dia',label:'Al día',chip:'chip-verde'};
@@ -3802,9 +3906,9 @@ function pintarProveedores(){
 
   // Movimientos recibidos SALIÓ de Proveedores (ver Reportes → Historial → Entradas de
   // productos) — la lógica que los genera/calcula (movimientosStock, saldoEntrega) no cambió.
-  // Pagos históricos sin clasificar solo se muestra si existen (pintarPagosSinClasificar ya
-  // devuelve '' cuando no hay — sin cambios).
-  document.getElementById('listaPagosSinClasificar').innerHTML=pintarPagosSinClasificar();
+  // Pagos históricos sin clasificar / sin marca atribuible solo se muestran si existen (ambas
+  // funciones devuelven '' cuando no hay nada que revisar).
+  document.getElementById('listaPagosSinClasificar').innerHTML=pintarPagosSinClasificar()+pintarPagosSinMarcaAtribuible();
 }
 // B7: detalle compacto por proveedor/socio+modelo, reutilizando exactamente los mismos datos
 // que ya usa la tabla principal (obligacionVentaProveedor/saldoEntrega/ventasRepartoDeSocio/
@@ -3822,7 +3926,13 @@ function pintarProveedores(){
 function abrirDetalleProveedor(proveedor,modelo,marca){
   const modeloLabel=MODELO_LABEL_PROVEEDORES[modelo]||modelo;
   if(modelo==='compra_directa'){
-    const entregas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&m.modalidadComercial==='compra_directa'&&m.proveedor===proveedor).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    // PRE-PAUTA: filtrado también por marca (antes traía TODAS las entregas del proveedor,
+    // mezclando marcas si tenía más de una en compra_directa).
+    const entregas=db.movimientosStock.filter(m=>{
+      if(m.tipo!=='entrada'||m.modalidadComercial!=='compra_directa'||m.proveedor!==proveedor)return false;
+      const s=porId(db.stock,m.stockId);
+      return s&&s.marca===marca;
+    }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
     const generado=entregas.reduce((s,e)=>s+(e.monto||0),0);
     const pendiente=entregas.reduce((s,e)=>s+saldoEntrega(e),0);
     abrirModal(`
@@ -3848,49 +3958,75 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     return;
   }
   if(modelo==='consignacion'||modelo==='bajo_pedido'){
+    // PRE-PAUTA: filtrado también por marca. Si el proveedor tiene más de una marca en esta
+    // modalidad, los pagos no se le atribuyen a esta marca en particular (sección 13) — se
+    // avisa en vez de mostrar un "Pagado"/"Registrar pago" que podría ser incorrecto.
     const ventas=[];
     db.pedidos.forEach(p=>{
       if(p.estadoPago==='cancelado')return;
       (p.items||[]).forEach(it=>{
-        if(it.proveedorVenta===proveedor&&it.modalidadComercial===modelo)ventas.push({fecha:p.fecha,producto:it.producto,cantidad:it.cantidad,monto:it.cantidad*(it.costoProveedorVenta||0)});
+        if(it.proveedorVenta===proveedor&&it.modalidadComercial===modelo&&it.marca===marca)ventas.push({fecha:p.fecha,producto:it.producto,cantidad:it.cantidad,monto:it.cantidad*(it.costoProveedorVenta||0)});
       });
     });
     ventas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    const pagos=pagosProveedorModalidad(proveedor,modelo);
-    const generado=obligacionVentaProveedor(proveedor,modelo);
-    const saldo=saldoProveedorModalidad(proveedor,modelo);
+    const esUnica=marcasDeProveedorEnModalidad(proveedor,modelo).size===1;
+    const pagos=esUnica?pagosProveedorModalidad(proveedor,modelo):[];
+    const generado=round2(ventas.reduce((s,v)=>s+v.monto,0));
+    const pagado=esUnica?pagos.reduce((s,pg)=>s+(pg.monto||0),0):0;
+    const saldo=Math.max(0,round2(generado-pagado));
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
       <h3 style="margin-bottom:2px;">${esc(proveedor)}</h3>
       <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)}</p>
-      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(generado-saldo)}</strong></p>
+      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(pagado)}</strong></p>
+      ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
       ${ventas.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${ventas.map(v=>`<tr><td>${fechaCelda(v.fecha)}</td><td style="text-align:left;">${esc(v.producto)}</td><td>${money(v.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
       ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-        ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
+        ${saldo>0.005&&esUnica?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
       </div>`);
     return;
   }
   if(modelo==='reparto_ingresos'){
-    const ventas=ventasRepartoDeSocio(proveedor);
-    const liquidaciones=liquidacionesDeSocio(proveedor);
-    const generado=ventas.reduce((s,f)=>s+f.monto,0);
-    const saldo=saldoRepartoSocio(proveedor);
+    // PRE-PAUTA — sección 14: por marca, y "Total doctor" = costo (crédito) + participación,
+    // mostrado línea por línea (Venta/Costo/Participación/Total doctor), nunca solo la
+    // participación. totalDoctorItem() nunca asume 60% (a diferencia de ventasRepartoDeSocio(),
+    // que sigue intacta y se usa tal cual en el portal propio del socio).
+    const esUnica=marcasDeProveedorEnModalidad(proveedor,'reparto_ingresos').size===1;
+    const liquidaciones=esUnica?liquidacionesDeSocio(proveedor):[];
+    const filasVenta=[];
+    db.pedidos.forEach(p=>{
+      if(p.estadoPago==='cancelado')return;
+      (p.items||[]).forEach(it=>{
+        if(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor&&it.marca===marca){
+          filasVenta.push({fecha:p.fecha,producto:it.producto,venta:it.cantidad*it.precioUnit,td:totalDoctorItem(it)});
+        }
+      });
+    });
+    filasVenta.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    const generado=round2(filasVenta.reduce((s,f)=>s+(f.td?f.td.total:0),0));
+    const pagado=esUnica?round2(liquidaciones.reduce((s,l)=>s+(l.monto||0),0)):0;
+    const pendiente=Math.max(0,round2(generado-pagado));
+    const hayNoCalculable=filasVenta.some(f=>!f.td);
+    const saldoSoloParticipacion=esUnica?saldoRepartoSocio(proveedor):0;
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
       <h3 style="margin-bottom:2px;">${esc(proveedor)}</h3>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)} (utilidad × % del socio)</p>
-      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${saldo>0.005?'color:var(--danger);':''}">${money(saldo)}</strong> · Pagado: <strong>${money(generado-saldo)}</strong></p>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;">${esc(marca||'—')} · ${esc(modeloLabel)} — costo del producto + participación sobre la utilidad</p>
+      <p style="font-size:13px;margin:0 0 12px;">Por pagar: <strong style="${pendiente>0.005?'color:var(--danger);':''}">${money(pendiente)}</strong>${hayNoCalculable?' *':''} · Pagado: <strong>${money(pagado)}</strong></p>
+      ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
+      ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Pendiente de pago</p>
-      ${ventas.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${ventas.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td style="text-align:left;">${esc(f.producto)}</td><td>${money(f.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      ${filasVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Producto</th><th>Venta</th><th>Costo</th><th>Participación</th><th>Total doctor</th></tr></thead><tbody>${filasVenta.map(f=>`<tr><td>${fechaCelda(f.fecha)}</td><td style="text-align:left;">${esc(f.producto)}</td><td>${money(f.venta)}</td><td>${f.td?money(f.td.costo):'—'}</td><td>${f.td?money(f.td.participacion):'—'}</td><td>${f.td?money(f.td.total):'—'}</td></tr>`).join('')}</tbody></table></div>`}
       <p class="vacio" style="text-align:left;padding:10px 0 4px;font-weight:600;color:var(--text);">Pagos realizados</p>
       ${liquidaciones.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${liquidaciones.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`}
+      ${(esUnica&&pendiente>saldoSoloParticipacion+0.005)?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11px;">El botón "+ Liquidación" de abajo todavía solo permite registrar hasta ${money(saldoSoloParticipacion)} (la participación) — el costo del producto (crédito) no tiene todavía una forma de registrarse en la misma operación.</p>`:''}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-        ${saldo>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormLiquidacion('${escJs(proveedor)}')">+ Liquidación</button>`:''}
+        ${saldoSoloParticipacion>0.005&&esUnica?`<button type="button" class="btn" onclick="cerrarModal();abrirFormLiquidacion('${escJs(proveedor)}')">+ Liquidación</button>`:''}
       </div>`);
   }
 }
