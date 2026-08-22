@@ -68,13 +68,17 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
    composición real (logo + shell delimitado), no elementos flotando sobre lienzo vacío. */
 .login-pantalla{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:radial-gradient(130% 100% at 50% -10%,#eef2fb 0%,var(--bg) 55%);}
 .login-shell{width:100%;max-width:440px;background:var(--card);border:1px solid var(--border-light);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);padding:40px 32px 32px;display:flex;flex-direction:column;align-items:center;gap:20px;}
-.login-logo{width:50px;height:50px;object-fit:contain;}
+/* MICRO-FIX (2026-08-22): logo con más protagonismo — de 50px a 80px (+60%), con aire propio
+   (margen superior) y acercado al nombre de marca (margen inferior negativo compensa parte del
+   gap:20px del .login-shell) para que se lea como una composición intencional, no una imagen
+   agrandada dentro de la estructura anterior. */
+.login-logo{width:80px;height:80px;object-fit:contain;margin-top:4px;margin-bottom:-6px;}
 .login-footer-nota{margin:4px 0 0;color:var(--text-light);font-size:11px;}
 .marca-login{text-align:center;}
 .marca-login h1{margin:0;font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
 .marca-login p{margin:4px 0 0;color:var(--muted);font-size:12.5px;}
 .usuarios-login{display:flex;gap:10px;justify-content:center;width:100%;}
-.login-pregunta{margin:0;color:var(--muted);font-size:12.5px;font-weight:600;}
+.login-pregunta{margin:8px 0 0;color:var(--muted);font-size:12.5px;font-weight:600;}
 .usuario-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 10px;text-align:center;flex:1;min-width:0;box-shadow:var(--shadow-xs);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
 .usuario-card .avatar{width:40px;height:40px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;}
 .usuario-card .nombre{font-weight:600;color:var(--text);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -542,6 +546,10 @@ select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-r
    izquierda (Nombre/Apellido/Email/Ciudad), datos cortos y estado centrados (el resto). */
 table.leads-tabla td:nth-child(3),table.leads-tabla td:nth-child(4),
 table.leads-tabla td:nth-child(8),table.leads-tabla td:nth-child(9){text-align:left;}
+/* MICRO-FIX (2026-08-22): .link-lead trae text-align:center;width:100% de su regla global —
+   el <td> ya estaba a la izquierda, pero el botón por dentro seguía centrando su propio texto.
+   Corrige solo esa excepción puntual, sin tocar .link-lead en ningún otro lugar del sistema. */
+table.leads-tabla td:nth-child(3) .link-lead{text-align:left;}
 
 /* Sección 9/12: jerarquía real dentro de los drawers (Clientes/Proveedores) — identidad con
    peso propio, cada bloque siguiente con su eyebrow, historial separado como detalle de apoyo. */
