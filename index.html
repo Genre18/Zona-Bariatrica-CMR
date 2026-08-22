@@ -175,7 +175,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
    Solo esta tabla/estos indicadores — .tabla-excel/.grid-cards globales no se tocan. */
 .proveedores-wrap{max-width:700px;}
 .proveedores-wrap table.proveedores-tabla{width:100%;}
-#resumenProveedores{grid-template-columns:repeat(2,minmax(150px,220px));}
+#resumenProveedores{grid-template-columns:repeat(3,minmax(150px,220px));}
 
 /* UX PREMIUM — sección 6/7: KPIs de Reportes (siempre 4, mismo alto, aprovechan el ancho) y
    Ventas por marca (compacta, proporcionada, NO estirada a todo el ancho). */
@@ -3685,6 +3685,41 @@ function cambiarMesSocio(valor){
 // toca. Reemplaza visualmente a pintarCuentasConsignacionBajoPedido()/pintarRepartoIngresos()
 // (se dejan definidas, sin llamar, por si se necesitan de vuelta) pero NO a pintarPagosSinClasificar().
 const MODELO_LABEL_PROVEEDORES={consignacion:'Stock consignado',compra_directa:'Compra directa',bajo_pedido:'Bajo pedido',reparto_ingresos:'Reparto de utilidad'};
+// MICRO-SPRINT (2026-08-21) — 3 indicadores económicos de Proveedores. Los tres son funciones
+// de LECTURA que reutilizan exactamente las fórmulas ya existentes (obligacionVentaProveedor/
+// ventasRepartoDeSocio/saldoRepartoSocio vía filasProveedoresTabla, pagosProveedor,
+// liquidacionesSocio) — ninguna fórmula económica nueva.
+//
+// A) DEUDA TOTAL DEL STOCK — solo modalidad 'consignacion' (proveedor entrega stock físico que
+// Zona Bariátrica sostiene hasta venderlo): cantidad ACTUAL × costoPromedio VIGENTE de cada
+// producto. costoPromedio es el campo correcto acá porque es stock que TODAVÍA no se vendió —
+// no tiene (ni puede tener) un costoProveedorVenta congelado; eso solo existe una vez vendido.
+// No confundir con "usar costo actual para revalorizar ventas pasadas" (prohibido en otro
+// lado): acá no hay venta pasada que revalorizar, solo existencias sin vender.
+// - compra_directa NO entra: esas unidades ya son propiedad de Zona Bariátrica; su deuda por
+//   RECIBIRLAS (saldoEntrega) es un concepto aparte, visible en "Ver detalle".
+// - bajo_pedido NO entra: nunca genera movimientosStock, nunca hay stock físico que valorizar.
+// - reparto_ingresos NO entra: el compromiso económico ahí nace al VENDER, no por tener
+//   unidades guardadas — expresarlo como "deuda de stock" sería inventar una cifra sin
+//   respaldo real en el modelo de datos actual (ver limitación documentada en la entrega).
+function deudaTotalStockProveedores(){
+  return db.stock.filter(s=>s.activo!==false&&(db.config.modalidadMarca||{})[s.marca]==='consignacion')
+    .reduce((sum,s)=>sum+(s.cantidad||0)*(s.costoPromedio||0),0);
+}
+// B) POR PAGAR SEGÚN VENTAS — obligación ya generada por VENTAS reales y todavía no pagada,
+// para consignación + bajo pedido (obligacionVentaProveedor) y reparto de utilidad
+// (saldoRepartoSocio = participación del socio ya generada − liquidado). Excluye compra_directa
+// a propósito: ahí la deuda nace al RECIBIR la entrega, no al vender (saldoEntrega, otro
+// concepto) — sumarla acá sería mezclar dos orígenes económicos distintos bajo el mismo número.
+function porPagarSegunVentas(){
+  return filasProveedoresTabla().filter(f=>f.modelo!=='compra_directa').reduce((s,f)=>s+f.pendiente,0);
+}
+// C) PAGADO — total histórico real pagado/liquidado a proveedores y socios, sin importar la
+// modalidad (incluye pagos de compra_directa, consignación/bajo pedido y liquidaciones de
+// reparto). Fuente única: db.pagosProveedor + db.liquidacionesSocio, sin recalcular nada.
+function totalPagadoProveedores(){
+  return (db.pagosProveedor||[]).reduce((s,pg)=>s+(pg.monto||0),0)+(db.liquidacionesSocio||[]).reduce((s,l)=>s+(l.monto||0),0);
+}
 function filasProveedoresTabla(){
   const filas=[];
   const gruposCD=new Map();
@@ -3732,17 +3767,17 @@ function estadoProveedorFila(f){
 }
 function pintarProveedores(){
   const filas=filasProveedoresTabla();
-  const totalPendiente=filas.reduce((s,f)=>s+f.pendiente,0);
-  // "Pagado este mes" = pagos a proveedores + liquidaciones a socios cuya FECHA cae en el mes
-  // calendario actual — a propósito NO es lo mismo que "pagado histórico" (filas.pagado de
-  // filasProveedoresTabla es el acumulado de siempre, se sigue usando en Ver detalle).
-  const mesActual=mesDe(hoyStr());
-  const pagadoEsteMes=
-    (db.pagosProveedor||[]).filter(pg=>mesDe(pg.fecha)===mesActual).reduce((s,pg)=>s+(pg.monto||0),0)+
-    (db.liquidacionesSocio||[]).filter(l=>mesDe(l.fecha)===mesActual).reduce((s,l)=>s+(l.monto||0),0);
+  // MICRO-SPRINT (2026-08-21): 3 indicadores económicos — ver deudaTotalStockProveedores()/
+  // porPagarSegunVentas()/totalPagadoProveedores() para la fórmula exacta y por qué cada
+  // modalidad entra o no en cada uno. Reemplaza el resumen anterior de 2 indicadores (Por
+  // pagar / Pagado este mes).
+  const deudaStock=deudaTotalStockProveedores();
+  const porPagarVentas=porPagarSegunVentas();
+  const totalPagado=totalPagadoProveedores();
   document.getElementById('resumenProveedores').innerHTML=`
-    <div class="stat"><div class="num" style="color:${totalPendiente>0.005?'var(--danger)':'var(--primary)'};">${money(totalPendiente)}</div><div class="lbl">Por pagar</div></div>
-    <div class="stat"><div class="num">${money(pagadoEsteMes)}</div><div class="lbl">Pagado este mes</div></div>`;
+    <div class="stat"><div class="num">${money(deudaStock)}</div><div class="lbl">Deuda total del stock</div></div>
+    <div class="stat"><div class="num" style="color:${porPagarVentas>0.005?'var(--danger)':'var(--primary)'};">${money(porPagarVentas)}</div><div class="lbl">Por pagar según ventas</div></div>
+    <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Pagado</div></div>`;
 
   let html;
   if(filas.length===0){
