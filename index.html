@@ -1319,28 +1319,29 @@ function pintarLeads(){
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
   const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
-  // UX PREMIUM (2026-08-21) — sección 13: Estado debe verse sin desplazarse horizontalmente,
-  // así que va antes que Responsable y ambos quedan pegados a Nombre/Celular. NO cambia
-  // guardarLead()/estados/colores/filtros — es solo el ORDEN de columnas de esta tabla.
+  // MICRO-FIX FINAL (2026-08-21): orden tipo CRM de referencia — Fecha..Ciudad/Provincia igual
+  // que antes de UX PREMIUM, y Estatus queda justo antes de Responsable (única reubicación
+  // conservada de aquel sprint). "Celular / Usuario" sigue siendo el mismo l.telefono de
+  // siempre — no se creó ningún campo nuevo, no se normaliza ni se reinterpreta el valor.
   cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-      <th>Nombre</th><th>Celular</th><th>Estatus</th><th>Responsable</th><th>Fecha</th><th>Hora</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Email</th><th>Ciudad / Provincia</th>
+      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular / Usuario</th><th>Email</th><th>Ciudad / Provincia</th><th>Estatus</th><th>Responsable</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
+        <td>${campo(l,'fecha','date')}</td>
+        <td>${campo(l,'hora','time')}</td>
         <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
+        <td>${campo(l,'apellido')}</td>
+        <td>${campo(l,'edad','number')}</td>
+        <td>${campo(l,'dni')}</td>
         <td>${campo(l,'telefono')}</td>
+        <td>${campo(l,'email')}</td>
+        <td>${campo(l,'distrito')}</td>
         <td>
           <select style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};font-weight:600;border:none;border-radius:var(--r-pill);padding:5px 10px;min-width:168px;" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
           </select>
         </td>
         <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
-        <td>${campo(l,'fecha','date')}</td>
-        <td>${campo(l,'hora','time')}</td>
-        <td>${campo(l,'apellido')}</td>
-        <td>${campo(l,'edad','number')}</td>
-        <td>${campo(l,'dni')}</td>
-        <td>${campo(l,'email')}</td>
-        <td>${campo(l,'distrito')}</td>
       </tr>`).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
 }
