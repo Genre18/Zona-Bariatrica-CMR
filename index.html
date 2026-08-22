@@ -32,6 +32,13 @@
   --shadow-md:0 4px 12px rgba(16,24,40,.06),0 2px 4px rgba(16,24,40,.03);
   --shadow-lg:0 12px 28px rgba(16,24,40,.08),0 4px 10px rgba(16,24,40,.04);
   --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+
+  /* REDISEÑO DEFINITIVO (2026-08-22) — sección 15: nombres de token pedidos, como ALIAS de los
+     tokens ya existentes arriba (mismo valor real, cero riesgo de romper nada que ya los usa). */
+  --surface:var(--card); --surface-subtle:var(--bg-soft);
+  --primary-soft:var(--primary-suave);
+  --radius-sm:var(--r-sm); --radius-md:var(--r-md); --radius-lg:var(--r-lg);
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:24px; --space-8:32px;
 }
 *{box-sizing:border-box;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;-webkit-font-smoothing:antialiased;}
@@ -63,8 +70,9 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
 .marca-login h1{margin:0;font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
 .marca-login p{margin:5px 0 0;color:var(--muted);font-size:13px;}
 .usuarios-login{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
-.usuario-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px 30px;text-align:center;min-width:130px;box-shadow:var(--shadow-sm);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
-.usuario-card .avatar{width:52px;height:52px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px;}
+.login-pregunta{margin:0;color:var(--muted);font-size:13px;font-weight:600;}
+.usuario-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;text-align:center;min-width:120px;box-shadow:var(--shadow-sm);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
+.usuario-card .avatar{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;}
 .usuario-card .nombre{font-weight:600;color:var(--text);}
 .usuario-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;width:280px;text-align:center;box-shadow:var(--shadow-lg);}
@@ -79,16 +87,28 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
 
 /* ---------- APP ---------- */
 #app{min-height:100vh;}
-header.app-header{background:var(--dark);color:#fff;padding:13px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
-header.app-header .titulo{font-weight:700;font-size:15.5px;letter-spacing:-.005em;}
-header.app-header .titulo small{display:block;font-weight:400;font-size:11.5px;opacity:.6;margin-top:2px;}
-header.app-header .sesion{display:flex;align-items:center;gap:14px;font-size:12.5px;}
-header.app-header .sesion #sesionNombre{font-weight:600;opacity:.9;}
-nav.tabs{display:flex;gap:4px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border);padding:8px 14px;}
-nav.tabs button{background:none;border:none;padding:9px 18px;font-size:13.5px;font-weight:500;color:var(--muted);white-space:nowrap;border-radius:var(--r-pill);letter-spacing:.005em;transition:background .15s,color .15s;}
-nav.tabs button:hover{background:var(--bg-soft);color:var(--text);}
-nav.tabs button:focus-visible{outline:2px solid var(--primary);outline-offset:2px;}
-nav.tabs button.activo{color:var(--primary);background:var(--primary-suave);font-weight:600;}
+/* REDISEÑO DEFINITIVO (2026-08-22) — header y nav fusionados en una sola barra:
+   marca | navegación | sesión. Antes eran dos barras separadas (header oscuro + nav blanco). */
+header.app-header{background:var(--dark);color:#fff;padding:0 20px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.app-header-marca{display:flex;flex-direction:column;padding:14px 0;flex-shrink:0;}
+.app-header-marca .titulo{font-weight:700;font-size:15.5px;letter-spacing:-.005em;}
+.app-header-tagline{display:block;font-weight:400;font-size:11px;opacity:.55;margin-top:1px;}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;background:transparent;border-bottom:none;padding:0;flex:1;}
+nav.tabs button{background:none;border:none;padding:16px 14px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;border-radius:0;letter-spacing:.005em;transition:color .15s;position:relative;}
+nav.tabs button:hover{color:#fff;}
+nav.tabs button:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:-3px;}
+nav.tabs button.activo{color:#fff;font-weight:600;}
+nav.tabs button.activo::after{content:'';position:absolute;left:14px;right:14px;bottom:0;height:2px;background:var(--primary);border-radius:2px 2px 0 0;}
+header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:12.5px;flex-shrink:0;padding:14px 0;}
+.app-header-fecha{opacity:.55;font-size:11px;white-space:nowrap;}
+.avatar-chip{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;background:var(--rol);color:#fff;font-weight:700;font-size:12.5px;cursor:default;}
+@media(max-width:768px){
+  header.app-header{padding:10px 14px 0;gap:8px;}
+  .app-header-marca{padding:2px 0 8px;}
+  header.app-header .sesion{padding:2px 0 8px;margin-left:auto;}
+  nav.tabs{order:3;width:100%;border-top:1px solid rgba(255,255,255,.12);}
+  nav.tabs button{padding:11px 12px;}
+}
 main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .sec{display:none;}
 .sec.activa{display:block;}
@@ -398,6 +418,34 @@ details.config-block.config-block-cuenta{border-left:3px solid var(--text-light)
 details.config-block.config-block-peligro{border-left:3px solid var(--danger-br);}
 details.config-block.config-block-peligro summary{color:var(--danger);}
 details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
+
+/* ============ REDISEÑO DEFINITIVO — Arquitectura B+C (2026-08-22) ============ */
+
+/* Sección 6/8: "listado + panel contextual" para la ficha de Clientes y el detalle de
+   Proveedores. Reutiliza el MISMO abrirModal()/cerrarModal() (clic afuera sigue sin cerrar,
+   comportamiento intacto) — solo se le pasa 'panel-derecha' como claseExtra y esta clase lo
+   ancla a la derecha, a todo el alto. Si el navegador no soporta :has(), el modal simplemente
+   se ve como el modal centrado normal (degradación segura, nunca rompe la apertura/cierre). */
+.modal-overlay:has(.modal.panel-derecha){justify-content:flex-end;align-items:stretch;padding:0;}
+.modal.panel-derecha{max-width:460px;width:100%;min-height:100vh;border-radius:0;box-shadow:var(--shadow-lg);}
+@media(max-width:640px){.modal.panel-derecha{max-width:100%;}}
+
+/* Sección 11: Tareas como tablero visual por estado (reemplaza la tabla plana). */
+.tareas-tablero{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start;}
+@media(max-width:860px){.tareas-tablero{grid-template-columns:1fr;}}
+.tareas-columna-titulo{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding:0 2px;}
+.tareas-columna-cuenta{background:var(--bg-soft);color:var(--muted);border-radius:var(--r-pill);padding:1px 8px;font-size:10.5px;font-weight:700;}
+.tarea-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow-xs);transition:box-shadow .15s;}
+.tarea-card:hover{box-shadow:var(--shadow-sm);}
+.tarea-card-texto{font-size:13px;color:var(--text);line-height:1.4;margin-bottom:8px;}
+.tarea-card-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);margin-bottom:10px;}
+.tarea-card-pie{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--border-light);padding-top:8px;}
+.tarea-card-pie select{width:auto;min-width:0;flex:1;padding:5px 8px;font-size:11.5px;}
+
+/* Sección 13: Config como pantalla de settings agrupada (Cuenta y acceso / Operación /
+   Publicidad / Datos y seguridad), en vez de 6 bloques sueltos en fila. */
+.config-grupo-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin:22px 2px 8px;}
+.config-grupo-titulo:first-of-type{margin-top:0;}
 </style>
 </head>
 <body>
@@ -406,7 +454,7 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 <div id="pantallaLoginNube" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:26px;padding:20px;background:linear-gradient(180deg,var(--bg) 0%,#eef2fa 100%);">
   <div class="marca-login">
     <h1>Zona Bariátrica</h1>
-    <p>Iniciá sesión para continuar</p>
+    <p>Gestión comercial</p>
   </div>
   <div class="pin-box" style="width:280px;">
     <form onsubmit="return iniciarSesionNube(event)">
@@ -424,8 +472,9 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 <div id="pantallaLogin" class="oculto">
   <div class="marca-login">
     <h1>Zona Bariátrica</h1>
-    <p>Panel interno — CRM, ventas, stock y tareas</p>
+    <p>Gestión comercial</p>
   </div>
+  <p class="login-pregunta">¿Quién está ingresando?</p>
   <div id="usuariosLogin" class="usuarios-login"></div>
 
   <div id="pinBox" class="pin-box oculto">
@@ -446,22 +495,25 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 <!-- ================= APP ================= -->
 <div id="app" class="oculto">
   <header class="app-header">
-    <div class="titulo">Zona Bariátrica <small id="fechaHoyTxt"></small></div>
+    <div class="app-header-marca">
+      <div class="titulo">Zona Bariátrica</div>
+      <small class="app-header-tagline">Gestión comercial</small>
+    </div>
+    <nav class="tabs" id="navTabs">
+      <button id="tab-leads" onclick="irA('leads')">Leads</button>
+      <button id="tab-clientes" onclick="irA('clientes')">Clientes</button>
+      <button id="tab-stock" onclick="irA('stock')">Stock</button>
+      <button id="tab-proveedores" onclick="irA('proveedores')">Proveedores</button>
+      <button id="tab-tareas" onclick="irA('tareas')">Tareas</button>
+      <button id="tab-reportes" onclick="irA('reportes')">Reportes</button>
+      <button id="tab-config" onclick="irA('config')">Config</button>
+    </nav>
     <div class="sesion">
-      <span id="sesionNombre"></span>
+      <small id="fechaHoyTxt" class="app-header-fecha"></small>
+      <span id="sesionNombre" class="avatar-chip"></span>
       <button class="btn-secundario btn-chico" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3);" onclick="cerrarSesion()">Salir</button>
     </div>
   </header>
-
-  <nav class="tabs" id="navTabs">
-    <button id="tab-leads" onclick="irA('leads')">Leads</button>
-    <button id="tab-clientes" onclick="irA('clientes')">Clientes</button>
-    <button id="tab-stock" onclick="irA('stock')">Stock</button>
-    <button id="tab-proveedores" onclick="irA('proveedores')">Proveedores</button>
-    <button id="tab-tareas" onclick="irA('tareas')">Tareas</button>
-    <button id="tab-reportes" onclick="irA('reportes')">Reportes</button>
-    <button id="tab-config" onclick="irA('config')">Config</button>
-  </nav>
 
   <main id="mainApp">
 
@@ -590,6 +642,10 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
     <section class="sec" id="sec-config">
       <div class="barra-sec"><h2>Configuración</h2></div>
 
+      <!-- REDISEÑO DEFINITIVO (2026-08-22) — sección 13: agrupado en 4 bloques conceptuales.
+           "Envío y pauta" se separó en 2 <details> (Envío / Gastos de pauta) para que Publicidad
+           quede sola — mismos ids/onchange/onclick de siempre, solo cambia el agrupamiento. -->
+      <div class="config-grupo-titulo">Cuenta y acceso</div>
       <details class="config-block" open>
         <summary>Usuarios y PIN</summary>
         <ul class="lista-simple" id="listaUsuariosConfig"></ul>
@@ -614,6 +670,13 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
         </div>
       </details>
 
+      <details class="config-block config-block-cuenta">
+        <summary>Cuenta de este dispositivo</summary>
+        <p class="vacio" style="text-align:left;padding:0 0 6px;">Este equipo mantiene tu sesión iniciada para acceder al CRM y sincronizar los datos. Si vas a prestar, vender o dejar de usar este equipo, cierra la sesión para evitar que otra persona pueda entrar. Cerrar sesión NO borra datos del CRM.</p>
+        <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
+      </details>
+
+      <div class="config-grupo-titulo">Operación</div>
       <details class="config-block">
         <summary>Marcas</summary>
         <ul class="lista-simple" id="listaMarcasConfig"></ul>
@@ -624,14 +687,9 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
       </details>
 
       <details class="config-block">
-        <summary>Envío y pauta</summary>
+        <summary>Envío</summary>
         <label>Embalaje por defecto (S/) — se cobra en pedidos por Shalom</label>
         <input type="number" id="cfgEmbalaje" step="0.5" onchange="guardarCfgNumero('embalajeDefault', this.value)">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 4px;">
-          <label style="margin:0;">Gastos de pauta publicitaria</label>
-          <button type="button" class="btn-secundario btn-chico" onclick="abrirFormGastoPauta()">+ Registrar gasto de pauta</button>
-        </div>
-        <div id="cfgGastosPautaLista"></div>
       </details>
 
       <details class="config-block">
@@ -647,12 +705,17 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
         <div id="impResultado" class="pin-error" style="color:var(--primary-dark);height:auto;"></div>
       </details>
 
-      <details class="config-block config-block-cuenta">
-        <summary>Cuenta de este dispositivo</summary>
-        <p class="vacio" style="text-align:left;padding:0 0 6px;">Este equipo mantiene tu sesión iniciada para acceder al CRM y sincronizar los datos. Si vas a prestar, vender o dejar de usar este equipo, cierra la sesión para evitar que otra persona pueda entrar. Cerrar sesión NO borra datos del CRM.</p>
-        <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
+      <div class="config-grupo-titulo">Publicidad</div>
+      <details class="config-block">
+        <summary>Gastos de pauta</summary>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 4px;">
+          <label style="margin:0;">Gastos de pauta publicitaria</label>
+          <button type="button" class="btn-secundario btn-chico" onclick="abrirFormGastoPauta()">+ Registrar gasto de pauta</button>
+        </div>
+        <div id="cfgGastosPautaLista"></div>
       </details>
 
+      <div class="config-grupo-titulo">Datos y seguridad</div>
       <details class="config-block config-block-peligro">
         <summary>Respaldo de datos</summary>
         <p class="vacio" style="text-align:left;padding:0 0 6px;">Los datos se sincronizan con la nube y este dispositivo conserva una copia local. También puedes descargar un respaldo manual antes de cambios importantes.</p>
@@ -1300,7 +1363,13 @@ function entrarApp(){
   document.getElementById('pantallaLogin').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
   document.documentElement.style.setProperty('--rol',sesion.color);
-  document.getElementById('sesionNombre').textContent=(MODO_PRUEBAS?'🧪 ':'👋 ')+sesion.nombre;
+  // REDISEÑO DEFINITIVO (2026-08-22) — cambio mínimo de JS documentado: el header ahora muestra
+  // solo la inicial en un avatar circular (mismo lenguaje visual que las tarjetas de login),
+  // no el nombre completo ni el emoji de modo pruebas. El nombre completo sigue disponible como
+  // tooltip (title) para no perder esa información. No cambia sesion/MODO_PRUEBAS/entrarApp.
+  const elSesionNombre=document.getElementById('sesionNombre');
+  elSesionNombre.textContent=esc(sesion.nombre[0]);
+  elSesionNombre.title=sesion.nombre+(MODO_PRUEBAS?' · modo pruebas':'');
   document.getElementById('fechaHoyTxt').textContent=new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long'});
   document.querySelector('header.app-header').classList.toggle('oculto',sesion.rol==='socio');
   if(sesion.rol==='socio'){
@@ -1788,7 +1857,7 @@ function abrirFichaCliente(clienteId){
       }).join('')}</tbody></table></div>`}
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-    </div>`);
+    </div>`,'panel-derecha');
 }
 function abrirEditarCliente(id){
   const c=porId(db.clientes,id);
@@ -3650,7 +3719,7 @@ function abrirFormPagoProveedorModalidad(proveedor,modalidad){
       <label>Nota (opcional)</label><input id="pp-nota" placeholder="Ej. pago parcial">
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-        <button class="btn">Guardar pago</button>
+        <button class="btn">Confirmar pago</button>
       </div>
     </form>
     ${pagos.length?`<details style="margin-top:16px;">
@@ -3845,7 +3914,7 @@ function abrirFormPagoCreditoReparto(proveedor,marca){
       <label>Nota (opcional)</label><input id="cr-nota" placeholder="Ej. pago completo de agosto">
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-        <button class="btn">Guardar pago</button>
+        <button class="btn">Confirmar pago</button>
       </div>
     </form>`);
 }
@@ -4115,6 +4184,16 @@ function ventasAgrupadasPorPedidoCredito(proveedor,marca,modelo){
 function idCortoPedido(id){
   return '#'+String(id||'').slice(-6).toUpperCase();
 }
+// REDISEÑO DEFINITIVO (2026-08-22) — sección 10: número de PRESENTACIÓN, no un ID nuevo. Se
+// recalcula en cada llamada ordenando TODOS los pedidos por fecha (con el id como desempate
+// estable cuando hay más de uno en la misma fecha) — no se guarda en ningún lado, no migra
+// nada histórico, no reemplaza p.id. Si por lo que sea el pedido ya no existe en db.pedidos,
+// cae de vuelta a idCortoPedido() (mismo criterio que ya se usaba antes de este cambio).
+function correlativoVenta(pedidoId){
+  const orden=db.pedidos.slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.id).localeCompare(String(b.id)));
+  const idx=orden.findIndex(p=>p.id===pedidoId);
+  return idx===-1?idCortoPedido(pedidoId):('Venta '+String(idx+1).padStart(4,'0'));
+}
 function toggleDetalleVenta(id){
   const row=document.getElementById(id);
   if(!row)return;
@@ -4135,7 +4214,7 @@ function filaVentaAgrupada(g,modelo){
     :g.items.map(it=>`<div style="padding:3px 0;">${esc(it.producto)} ×${it.cantidad}<div style="font-size:11px;color:var(--muted);">Monto correspondiente: ${money(it.monto)}</div></div>`).join('');
   return `<tr>
       <td>${fechaCelda(g.fecha)}</td>
-      <td title="${escAttr(g.pedidoId)}">${idCortoPedido(g.pedidoId)}</td>
+      <td title="${escAttr(g.pedidoId)}">${correlativoVenta(g.pedidoId)}</td>
       <td style="text-align:left;"><button type="button" id="${idDetalle}-btn" class="link-historial" onclick="toggleDetalleVenta('${idDetalle}')">${etiquetaProductos} ▾</button></td>
       <td>${money(g.total)}${g.huboItemNoCalculable?' *':''}</td>
     </tr>
@@ -4174,7 +4253,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
         ${entregas.some(e=>saldoEntrega(e)>0.005)?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedor('${entregas.find(e=>saldoEntrega(e)>0.005).id}')">Registrar pago</button>`:''}
-      </div>`);
+      </div>`,'panel-derecha');
     return;
   }
   if(modelo==='consignacion'||modelo==='bajo_pedido'){
@@ -4203,7 +4282,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
         ${saldo>0.005&&esUnica?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
-      </div>`);
+      </div>`,'panel-derecha');
     return;
   }
   if(modelo==='reparto_ingresos'){
@@ -4239,7 +4318,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
         ${pendiente>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>`:''}
-      </div>`);
+      </div>`,'panel-derecha');
   }
 }
 function pagosHistoricosSinClasificar(){
@@ -4461,7 +4540,7 @@ function abrirFormPagoProveedor(entregaId){
       <label>Nota (opcional)</label><input id="pp-nota" placeholder="Ej. pago parcial">
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-        <button class="btn">Guardar pago</button>
+        <button class="btn">Confirmar pago</button>
       </div>
     </form>
     ${pagos.length?`<details style="margin-top:16px;">
@@ -4558,30 +4637,40 @@ function vinculoTarea(t){
 // UX CORRECTIVO (2026-08-21) — sección 7: tabla en vez de Kanban. db.tareas/guardarTarea()/
 // moverTarea()/vinculoTarea() no cambian — solo el render.
 const ESTADOS_TAREA=[['pendiente','Pendiente'],['en progreso','En progreso'],['hecho','Hecho']];
+// REDISEÑO DEFINITIVO (2026-08-22) — sección 11: tablero visual por estado (Pendiente/En
+// progreso/Hecho), sin drag&drop y sin tocar ESTADOS_TAREA/moverTarea/abrirFormTarea/
+// eliminarTarea/vinculoTarea. El cambio de estado sigue siendo el mismo select ligado a
+// moverTarea() de siempre, solo cambia cómo se agrupa/presenta cada tarea.
 function pintarTareas(){
   const cont=document.getElementById('tableroTareas');
   const tareas=db.tareas.slice().sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
   if(tareas.length===0){cont.innerHTML='<div class="vacio">No hay tareas todavía.</div>';return;}
-  cont.innerHTML=`<div class="tabla-excel"><table class="tareas-tabla"><thead><tr>
-      <th>Tarea</th><th>Vinculado a</th><th>Responsable</th><th>Vence</th><th>Estado</th><th>Acción</th>
-      </tr></thead><tbody>${tareas.map(t=>{
+  cont.innerHTML=`<div class="tareas-tablero">${ESTADOS_TAREA.map(([codigo,titulo])=>{
+    const deEsteEstado=tareas.filter(t=>t.estado===codigo);
+    return `<div class="tareas-columna">
+      <div class="tareas-columna-titulo">${esc(titulo)}<span class="tareas-columna-cuenta">${deEsteEstado.length}</span></div>
+      ${deEsteEstado.length===0?'<div class="vacio" style="padding:16px 6px;">Sin tareas.</div>':deEsteEstado.map(t=>{
         const v=vinculoTarea(t);
-        return `<tr>
-          <td style="text-align:left;">${esc(t.texto)}</td>
-          <td style="text-align:left;">${v?`<button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'—'}</td>
-          <td style="text-align:left;">${esc(t.asignadoA||'—')}</td>
-          <td>${t.fechaLimite?fechaBonita(t.fechaLimite):'—'}</td>
-          <td>
+        return `<div class="tarea-card">
+          <div class="tarea-card-texto">${esc(t.texto)}</div>
+          <div class="tarea-card-meta">
+            ${v?`<button type="button" class="link-lead" style="padding:0;font-size:11.5px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'<span>Sin vincular</span>'}
+            <span>${esc(t.asignadoA||'—')}</span>
+            <span>${t.fechaLimite?fechaBonita(t.fechaLimite):'Sin fecha'}</span>
+          </div>
+          <div class="tarea-card-pie">
             <select onchange="moverTarea('${t.id}',this.value)">
               ${ESTADOS_TAREA.map(([c,tit])=>`<option value="${c}" ${c===t.estado?'selected':''}>${tit}</option>`).join('')}
             </select>
-          </td>
-          <td style="white-space:nowrap;">
-            <button type="button" class="btn-icono" onclick="abrirFormTarea('${t.id}')" title="Editar">✏️</button>
-            <button type="button" class="btn-icono" onclick="eliminarTarea('${t.id}')" title="Eliminar">✕</button>
-          </td>
-        </tr>`;
-      }).join('')}</tbody></table></div>`;
+            <span style="white-space:nowrap;">
+              <button type="button" class="btn-icono" onclick="abrirFormTarea('${t.id}')" title="Editar">✏️</button>
+              <button type="button" class="btn-icono" onclick="eliminarTarea('${t.id}')" title="Eliminar">✕</button>
+            </span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('')}</div>`;
 }
 function abrirFormTarea(prefill){
   if(typeof prefill==='string'){
