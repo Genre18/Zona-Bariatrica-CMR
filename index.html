@@ -226,6 +226,11 @@ table.historial-tabla td{padding:5px 8px;font-size:12px;}
 @media(max-width:480px){.cliente-resumen{grid-template-columns:1fr;}}
 .cliente-acciones{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
 .cliente-acciones .btn,.cliente-acciones .btn-secundario{padding:6px 12px;font-size:12.5px;}
+/* CLIENTES 10/10 (2026-08-21): historial de compras compacto tipo Excel, mismo lenguaje que
+   Stock/Historial. Solo esta tabla — .tabla-excel global no se toca. */
+table.cliente-historial-tabla{width:100%;}
+table.cliente-historial-tabla th{padding:6px 8px;font-size:9.5px;}
+table.cliente-historial-tabla td{padding:5px 8px;font-size:12px;}
 
 /* UX CORRECTIVO — sección 6: anchos semánticos SOLO dentro de .stock-form (no toca .fila-2
    global — Leads/Clientes/Tareas/etc. la siguen usando 50/50 igual). */
@@ -1659,47 +1664,56 @@ function abrirFichaCliente(clienteId){
   const r=estadoRecompraCliente(c.id);
   const marcas=marcasDeCliente(c);
   const waUrl=telefonoWhatsApp(c.telefono);
+  // MICRO-SPRINT CLIENTES 10/10 (2026-08-21): ficha simplificada — sin títulos intermedios
+  // ("Ubicación / entrega", "Relación comercial", "Acciones"), sin emojis en los botones,
+  // Recompra pasa a ser el dato principal del 3er bloque (con "Última compra" chico debajo).
+  // direccionCompleta()/estadoRecompraCliente()/marcasDeCliente()/telefonoWhatsApp() sin tocar.
+  let contactoTxt='—';
+  if(c.telefono&&c.dni)contactoTxt=`${esc(c.telefono)} · DNI ${esc(c.dni)}`;
+  else if(c.telefono)contactoTxt=esc(c.telefono);
+  else if(c.dni)contactoTxt=`DNI ${esc(c.dni)}`;
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
 
     <h3 style="margin-bottom:2px;">${esc(c.nombre)} ${esc(c.apellido)}${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}</h3>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">${esc(c.dni||'sin DNI')} · ${esc(c.telefono||'—')}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">${contactoTxt}</div>
 
-    <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Ubicación / entrega</p>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:4px;">
       ${esc(direccionCompleta(c))} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}
     </div>
+    ${marcas.length?`<div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Marcas: ${marcas.map(m=>esc(m)).join(' · ')}</div>`:'<div style="margin-bottom:14px;"></div>'}
 
-    <p class="vacio" style="text-align:left;padding:0 0 4px;font-weight:600;color:var(--text);">Relación comercial</p>
-    ${marcas.length?`<div style="margin-bottom:8px;">${marcas.map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')}</div>`:''}
     <div class="cliente-resumen">
-      <div class="cliente-resumen-item"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras realizadas</div></div>
+      <div class="cliente-resumen-item"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras</div></div>
       <div class="cliente-resumen-item"><div class="num">${money(totalComprado)}</div><div class="lbl">Total comprado</div></div>
       <div class="cliente-resumen-item">
-        <div class="num" style="font-size:15px;">${r.ultimaCompra?fechaBonita(r.ultimaCompra):'—'}</div>
-        <div class="lbl">Última compra</div>
-        <div style="margin-top:4px;"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></div>
+        <div class="num" style="font-size:15px;"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></div>
+        <div class="lbl">Recompra</div>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:4px;">Última compra: ${r.ultimaCompra?fechaBonita(r.ultimaCompra):'—'}</div>
       </div>
     </div>
 
     <div class="cliente-acciones">
-      <button type="button" class="btn" onclick="cerrarModal();abrirFormPedido('${c.id}')">🧾 Nueva compra</button>
-      ${waUrl?`<button type="button" class="btn-secundario" onclick="abrirWhatsAppCliente('${c.id}')">💬 WhatsApp</button>`:''}
-      <button type="button" class="btn-secundario" onclick="abrirFormTarea({clienteId:'${c.id}'})">✅ + Tarea</button>
-      <button type="button" class="btn-secundario" onclick="abrirEditarCliente('${c.id}')">✏️ Editar datos</button>
-      ${c.activo===false?`<button type="button" class="btn-secundario" onclick="reactivarCliente('${c.id}')">Reactivar cliente</button>`:''}
+      <button type="button" class="btn" onclick="cerrarModal();abrirFormPedido('${c.id}')">Nueva compra</button>
+      ${waUrl?`<button type="button" class="btn-secundario" onclick="abrirWhatsAppCliente('${c.id}')">WhatsApp</button>`:''}
+      <button type="button" class="btn-secundario" onclick="abrirFormTarea({clienteId:'${c.id}'})">+ Tarea</button>
+      <button type="button" class="btn-secundario" onclick="abrirEditarCliente('${c.id}')">Editar</button>
+      ${c.activo===false?`<button type="button" class="btn-secundario" onclick="reactivarCliente('${c.id}')">Reactivar</button>`:''}
     </div>
 
     <h4 style="font-size:13.5px;margin:18px 0 6px;">Historial de compras</h4>
-    ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':pedidos.map(p=>`
-      <div class="card"${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
-        <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);">
-          <span>${fechaBonita(p.fecha)} · ${esc(p.metodoEnvio)} · ${esc(p.metodoPago||'—')}${p.estadoPago==='cancelado'?' · <span class="chip chip-rojo">cancelado</span>':''}</span>
-          <strong style="color:var(--text);">${money(p.total)}</strong>
-        </div>
-        <div style="margin-top:4px;font-size:13px;">${p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ')}</div>
-        ${p.notas?`<div class="nota-linea" style="margin-top:6px;">${esc(p.notas)}</div>`:''}
-      </div>`).join('')}
+    ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><thead><tr>
+      <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th>
+      </tr></thead><tbody>${pedidos.map(p=>{
+        const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ');
+        const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
+        return `<tr${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
+          <td>${fechaBonita(p.fecha)}</td>
+          <td style="text-align:left;">${productosTxt}</td>
+          <td style="text-align:right;">${money(p.total)}</td>
+          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`}
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
     </div>`);
