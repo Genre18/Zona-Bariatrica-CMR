@@ -1,4 +1,5 @@
 index.backup-*.html
 backup/
+capturas/
 supabase/
 *.tmp

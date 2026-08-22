@@ -518,11 +518,15 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .leads-tabla-wrap::-webkit-scrollbar{height:8px;width:8px;}
 .leads-tabla-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 .leads-tabla-wrap::-webkit-scrollbar-track{background:transparent;}
-table.leads-tabla{min-width:1240px;}
-table.leads-tabla th{padding:9px 8px;font-size:9.5px;position:sticky;top:0;z-index:2;}
-table.leads-tabla td{padding:6px 8px;font-size:12px;}
-table.leads-tabla td input{font-size:12px;padding:5px 6px;}
-select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-radius:var(--r-xs);padding:5px 9px;min-width:140px;}
+/* PRODUCT UI REFINEMENT (2026-08-22) — fix de la regresión: table-layout:fixed respeta los
+   anchos del <colgroup> (~1030px, entra en main max-width:1100px) en vez de ensancharse con el
+   contenido. El scroll horizontal queda como fallback real solo si la pantalla es angosta. */
+table.leads-tabla{table-layout:fixed;width:100%;}
+table.leads-tabla th{padding:9px 6px;font-size:9.5px;position:sticky;top:0;z-index:2;overflow:hidden;text-overflow:ellipsis;}
+table.leads-tabla td{padding:6px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;}
+table.leads-tabla td input{font-size:12px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;}
+table.leads-tabla td .link-lead,table.leads-tabla td .chip{overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%;vertical-align:middle;}
+select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-radius:var(--r-xs);padding:5px 7px;width:100%;}
 
 /* Sección 9/12: jerarquía real dentro de los drawers (Clientes/Proveedores) — identidad con
    peso propio, cada bloque siguiente con su eyebrow, historial separado como detalle de apoyo. */
@@ -533,6 +537,15 @@ select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-r
 .drawer-estado-relacion{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .drawer-estado-detalle{font-size:12px;color:var(--muted);}
 .drawer-seccion-final{padding-top:16px;border-top:1px solid var(--border-light);margin-bottom:4px;}
+/* PRODUCT UI REFINEMENT (2026-08-22) — sección 5: lenguaje visual común para agrupar campos de
+   formularios por significado (Identificación/Presentación/Inventario/Economía/Modelo
+   comercial...), reutilizado en cualquier <form> del sistema. Mismos ids/labels/required/
+   onchange de siempre — solo se insertan estos separadores como texto/línea, nada más. */
+.form-grupo-titulo{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin:16px 0 4px;}
+.form-grupo-titulo:first-child{margin-top:0;}
+.form-divisor{border-top:1px solid var(--border-light);margin:14px 0 10px;}
+.stock-form .form-grupo-titulo{margin:12px 0 3px;font-size:10px;}
+.stock-form .form-divisor{margin:10px 0 8px;}
 .drawer-saldo-hero{display:flex;gap:28px;padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid var(--border-light);}
 .drawer-saldo-val{margin-top:4px;font-size:25px;font-weight:700;letter-spacing:-.015em;color:var(--text);font-variant-numeric:tabular-nums;}
 .drawer-saldo-val-alerta{color:var(--danger);}
@@ -807,7 +820,8 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
           <button type="button" class="config-nav-item" onclick="irAGrupoConfig('cfg-grupo-datos',this)">Datos y seguridad</button>
         </nav>
         <div class="config-contenido">
-      <div class="config-grupo-titulo" id="cfg-grupo-cuenta">Cuenta y acceso</div>
+      <div class="config-grupo" id="cfg-grupo-cuenta">
+      <div class="config-grupo-titulo">Cuenta y acceso</div>
       <details class="config-block" open>
         <summary>Usuarios y PIN</summary>
         <ul class="lista-simple" id="listaUsuariosConfig"></ul>
@@ -838,7 +852,10 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <button class="btn-peligro btn-chico" onclick="cerrarSesionNube()">Cerrar sesión de este dispositivo</button>
       </details>
 
-      <div class="config-grupo-titulo" id="cfg-grupo-operacion">Operación</div>
+      </div>
+
+      <div class="config-grupo oculto" id="cfg-grupo-operacion">
+      <div class="config-grupo-titulo">Operación</div>
       <details class="config-block">
         <summary>Marcas</summary>
         <ul class="lista-simple" id="listaMarcasConfig"></ul>
@@ -867,7 +884,10 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <div id="impResultado" class="pin-error" style="color:var(--primary-dark);height:auto;"></div>
       </details>
 
-      <div class="config-grupo-titulo" id="cfg-grupo-publicidad">Publicidad</div>
+      </div>
+
+      <div class="config-grupo oculto" id="cfg-grupo-publicidad">
+      <div class="config-grupo-titulo">Publicidad</div>
       <details class="config-block">
         <summary>Gastos de pauta</summary>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 4px;">
@@ -877,7 +897,10 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <div id="cfgGastosPautaLista"></div>
       </details>
 
-      <div class="config-grupo-titulo" id="cfg-grupo-datos">Datos y seguridad</div>
+      </div>
+
+      <div class="config-grupo oculto" id="cfg-grupo-datos">
+      <div class="config-grupo-titulo">Datos y seguridad</div>
       <details class="config-block config-block-peligro">
         <summary>Respaldo de datos</summary>
         <p class="vacio" style="text-align:left;padding:0 0 6px;">Los datos se sincronizan con la nube y este dispositivo conserva una copia local. También puedes descargar un respaldo manual antes de cambios importantes.</p>
@@ -890,6 +913,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
           <button class="btn-peligro" onclick="restaurarDeFabrica()">Restaurar de fábrica (borra todo)</button>
         </div>
       </details>
+      </div>
         </div>
       </div>
     </section>
@@ -1629,18 +1653,29 @@ function pintarLeads(){
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
-  const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
+  // PRODUCT UI REFINEMENT (2026-08-22) — sección 2: title=tooltip para poder truncar con
+  // ellipsis sin perder el valor completo (columnas angostas + table-layout:fixed más abajo).
+  const campo=(l,c,tipo)=>`<input type="${tipo||'text'}" value="${esc(l[c]||'')}" title="${escAttr(l[c]||'')}" onchange="actualizarCampoLead('${l.id}','${c}',this.value)">`;
   // MICRO-FIX FINAL (2026-08-21): orden tipo CRM de referencia — Fecha..Ciudad/Provincia igual
   // que antes de UX PREMIUM, y Estatus queda justo antes de Responsable (única reubicación
   // conservada de aquel sprint). "Celular / Usuario" sigue siendo el mismo l.telefono de
   // siempre — no se creó ningún campo nuevo, no se normaliza ni se reinterpreta el valor.
-  cont.innerHTML=`<div class="tabla-excel leads-tabla-wrap"><table class="leads-tabla"><thead><tr>
-      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th>Celular / Usuario</th><th>Email</th><th>Ciudad / Provincia</th><th>Estatus</th><th>Responsable</th>
+  // PRODUCT UI REFINEMENT — sección 2: REGRESIÓN corregida. La tabla anterior forzaba
+  // min-width:1240px (más ancha que el propio <main>), lo que obligaba a scroll horizontal
+  // SIEMPRE en desktop y escondía Estatus/Responsable fuera de pantalla. Ahora usa colgroup +
+  // table-layout:fixed con anchos que suman ~1030px (cabe en main max-width:1100px) — Estatus
+  // queda visible sin scroll en desktop normal. Mismas 11 columnas, mismo orden, mismos campos.
+  cont.innerHTML=`<div class="tabla-excel leads-tabla-wrap"><table class="leads-tabla"><colgroup>
+      <col style="width:96px;"><col style="width:62px;"><col style="width:104px;"><col style="width:96px;">
+      <col style="width:46px;"><col style="width:78px;"><col style="width:92px;"><col style="width:122px;">
+      <col style="width:92px;"><col style="width:148px;"><col style="width:88px;">
+    </colgroup><thead><tr>
+      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th><th title="Ciudad / Provincia">Ciudad / Provincia</th><th>Estatus</th><th>Responsable</th>
     </tr></thead><tbody>${leads.map(l=>`
       <tr>
         <td>${campo(l,'fecha','date')}</td>
         <td>${campo(l,'hora','time')}</td>
-        <td><button type="button" class="link-lead" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
+        <td><button type="button" class="link-lead" title="${escAttr(nombreLead(l))}" onclick="abrirFichaLead('${l.id}')">${esc(nombreLead(l))}</button></td>
         <td>${campo(l,'apellido')}</td>
         <td>${campo(l,'edad','number')}</td>
         <td>${campo(l,'dni')}</td>
@@ -1738,7 +1773,7 @@ function abrirFichaLead(leadId){
 
     <div class="acciones-modal">
       <button type="button" class="btn-peligro" onclick="eliminarLead('${l.id}')">Eliminar</button>
-      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(nombreLead(l))}'})">✅ + Seguimiento</button>`}
+      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(nombreLead(l))}'})">+ Seguimiento</button>`}
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
     </div>`);
 }
@@ -1747,11 +1782,14 @@ function abrirFormLead(){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nuevo lead</h3>
     <form onsubmit="return guardarLead(event)">
+      <div class="form-grupo-titulo">Contacto</div>
       <label style="margin-top:0;">Celular *</label><input id="ld-telefono" required placeholder="Ej. 987654321" autofocus>
       <div class="fila-2">
         <div><label>Nombre</label><input id="ld-nombre"></div>
         <div><label>Apellido</label><input id="ld-apellido"></div>
       </div>
+
+      <div class="form-grupo-titulo">Seguimiento</div>
       <label>Usuario / Responsable</label>
       <select id="ld-atendidopor">
         ${usuariosAdmin().map(u=>`<option value="${esc(u.nombre)}" ${sesion&&u.nombre===sesion.nombre?'selected':''}>${esc(u.nombre)}</option>`).join('')}
@@ -1768,8 +1806,9 @@ function abrirFormLead(){
         ${METODOS_PAGO_LEAD.map(m=>`<option>${esc(m)}</option>`).join('')}
       </select>
       <div id="ld-aviso-tarjeta" class="aviso oculto" style="margin-top:6px;">Tarjeta de crédito · se adiciona 4% al total de la compra.</div>
-      <hr style="margin:16px 0 4px;border:none;border-top:1px solid var(--border);">
-      <p class="vacio" style="text-align:left;padding:0 0 4px;">Datos opcionales adicionales</p>
+
+      <div class="form-divisor"></div>
+      <div class="form-grupo-titulo">Datos opcionales adicionales</div>
       <div class="fila-2">
         <div><label>DNI/CE</label><input id="ld-dni"></div>
         <div><label>Edad</label><input type="number" id="ld-edad"></div>
@@ -2112,6 +2151,7 @@ function abrirFormCliente(leadId){
     <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
     `:''}
     <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})">
+      <div class="form-grupo-titulo">Datos del cliente</div>
       <div class="fila-2">
         <div><label>Nombre *</label><input id="cl-nombre" required value="${lead?esc(lead.nombre||''):''}"></div>
         <div><label>Apellido *</label><input id="cl-apellido" required value="${lead?esc(lead.apellido||''):''}"></div>
@@ -2120,7 +2160,9 @@ function abrirFormCliente(leadId){
         <div><label>DNI *</label><input id="cl-dni" required value="${lead?esc(lead.dni||''):''}"></div>
         <div><label>Teléfono *</label><input id="cl-telefono" required value="${lead?esc(lead.telefono||''):''}"></div>
       </div>
-      <label>Dirección de envío *</label><input id="cl-direccion" required>
+
+      <div class="form-grupo-titulo">Dirección de envío</div>
+      <label style="margin-top:0;">Dirección de envío *</label><input id="cl-direccion" required>
       <div class="fila-2">
         <div><label>Departamento *</label><input id="cl-departamento" required placeholder="Ej. Arequipa"></div>
         <div><label>Provincia *</label><input id="cl-provincianombre" required placeholder="Ej. Arequipa"></div>
@@ -2132,8 +2174,8 @@ function abrirFormCliente(leadId){
       <label>¿Envío a provincia?</label>
       <select id="cl-provincia"><option value="1">Sí (envío Shalom)</option><option value="0">No, es local (InDrive)</option></select>
 
-      <hr style="margin:18px 0 10px;border:none;border-top:1px solid var(--border);">
-      <label style="margin-top:0;">🧾 Pedido de este cliente</label>
+      <div class="form-divisor"></div>
+      <div class="form-grupo-titulo">Pedido de este cliente</div>
       <div class="fila-2">
         <select id="pi-marca" onchange="pedidoLlenarProductos()">
           <option value="">Marca...</option>
@@ -2176,7 +2218,7 @@ function abrirFormCliente(leadId){
 
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-        <button class="btn">🧾 Generar pedido</button>
+        <button class="btn">Generar pedido</button>
       </div>
     </form>`);
   pedidoLlenarProductos();pedidoRenderItems();
@@ -2270,7 +2312,7 @@ function mostrarTicket(pedido,cliente){
     </div>`).join('');
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>✅ Pedido guardado</h3>
+    <h3>Pedido guardado</h3>
     <div id="ticketImprimible" class="card" style="background:var(--bg-soft);">
       <div style="text-align:center;margin-bottom:8px;">
         <strong>Zona Bariátrica</strong><br>
@@ -2292,7 +2334,7 @@ function mostrarTicket(pedido,cliente){
       </div>
     </div>
     <div class="acciones-modal">
-      <button type="button" class="btn-secundario" onclick="imprimirTicket('${pedido.id}')">🖨️ Imprimir ticket</button>
+      <button type="button" class="btn-secundario" onclick="imprimirTicket('${pedido.id}')">Imprimir ticket</button>
       <button class="btn" onclick="cerrarModal()">Listo</button>
     </div>`);
 }
@@ -2456,7 +2498,7 @@ function abrirFormPedido(clienteIdPre){
   const marcas=marcasVendibles();
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>🧾 Nueva compra (recompra)</h3>
+    <h3>Nueva compra (recompra)</h3>
     <form onsubmit="return guardarPedido(event)">
       ${clientePre?`
       <div class="card" style="background:var(--bg-soft);margin-bottom:12px;">
@@ -3159,10 +3201,10 @@ function abrirMenuContextualStock(ev,id){
   div.className='menu-contextual';
   div.innerHTML=`
     <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar producto</button>
-    <button type="button" onclick="cerrarMenuContextual();abrirFormAjusteStock('${id}')">📐 Ajustar stock</button>
-    <button type="button" onclick="cerrarMenuContextual();abrirFormCorregirCosto('${id}')">💲 Corregir costo</button>
-    <button type="button" onclick="cerrarMenuContextual();abrirKardexStock('${id}')">📋 Ver movimientos</button>
-    <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'♻️ Reactivar':'🗄️ Archivar'}</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirFormAjusteStock('${id}')">Ajustar stock</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirFormCorregirCosto('${id}')">Corregir costo</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirKardexStock('${id}')">Ver movimientos</button>
+    <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'Reactivar':'Archivar'}</button>
   `;
   document.body.appendChild(div);
   const maxLeft=window.innerWidth-div.offsetWidth-8;
@@ -3216,11 +3258,14 @@ function abrirFormStock(){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nuevo producto de stock</h3>
     <form class="stock-form" onsubmit="return guardarStock(event)">
+      <div class="form-grupo-titulo">Identificación</div>
       <div class="fila-marca-producto">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required></div>
       </div>
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
+
+      <div class="form-grupo-titulo">Presentación</div>
       <div class="fila-codigo-presentacion">
         <div><label>Código (opcional)</label><input id="st-codigo" placeholder="Ej. BN-PP-VA-15"></div>
         <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,'')}</select></div>
@@ -3229,10 +3274,14 @@ function abrirFormStock(){
         <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,'')}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="unidades"></div>
       </div>
+
+      <div class="form-grupo-titulo">Inventario</div>
       <div class="fila-cantidades">
         <div><label>Cantidad inicial</label><input type="number" id="st-cantidad" value="0" min="0"></div>
         <div><label>Stock mínimo (alerta)</label><input type="number" id="st-min" value="5" min="0"></div>
       </div>
+
+      <div class="form-grupo-titulo" id="st-grupo-modelo">Modelo comercial</div>
       <div id="st-fila-proveedor"><label>Proveedor</label>
         <select id="st-proveedor" onchange="stockToggleNuevoProveedor(this)">
           <option value="">— Sin asignar —</option>
@@ -3241,12 +3290,14 @@ function abrirFormStock(){
         </select>
         <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
       </div>
+
+      <div class="form-grupo-titulo">Economía</div>
       <div class="fila-precios">
         <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="0"></div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
       </div>
-      <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 2px;">
+      <div class="form-divisor"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 2px;">
         <label style="margin:0;">Precios especiales por cantidad (opcional)</label>
         <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
       </div>
@@ -3325,10 +3376,15 @@ function actualizarCamposMarcaStock(){
   // costoProveedorVenta en cada venta (ver pedidoAgregarItem) y de eso depende la fórmula.
   // Solo se oculta "proveedor" (no aplica: la contraparte económica es el socio del reparto).
   filaProveedor.classList.toggle('oculto',esReparto);
+  // PRODUCT UI REFINEMENT (2026-08-22): el eyebrow visual "Modelo comercial" debe ocultarse
+  // junto con su único contenido (Proveedor) cuando la marca es de reparto — si no, quedaba un
+  // título de grupo vacío flotando. No cambia la condición esReparto ni ningún otro campo.
+  const grupoModelo=document.getElementById('st-grupo-modelo');
+  if(grupoModelo)grupoModelo.classList.toggle('oculto',esReparto);
   if(esReparto){
     const r=(db.config.repartoMarca||{})[marca]||{};
     info.classList.remove('oculto');
-    info.textContent=`🤝 Marca de socio (${r.socio||'sin asignar en Config → Marcas'}) · reparto de utilidad ${r.porcentaje!=null?r.porcentaje:60}%. No necesita proveedor, pero el costo SÍ es obligatorio: la utilidad repartible se calcula como precio de venta − costo (nunca sobre el precio de venta bruto).`;
+    info.textContent=`Marca de socio (${r.socio||'sin asignar en Config → Marcas'}) · reparto de utilidad ${r.porcentaje!=null?r.porcentaje:60}%. No necesita proveedor, pero el costo SÍ es obligatorio: la utilidad repartible se calcula como precio de venta − costo (nunca sobre el precio de venta bruto).`;
     document.getElementById('st-proveedor').value='';
     document.getElementById('st-proveedor-nuevo').value='';
     document.getElementById('st-proveedor-nuevo').classList.add('oculto');
@@ -3400,11 +3456,14 @@ function abrirEditarStock(id){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar producto</h3>
     <form class="stock-form" onsubmit="return guardarEditarStock(event,'${id}')">
+      <div class="form-grupo-titulo">Identificación</div>
       <div class="fila-marca-producto">
         <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${opcionesMarca.map(m=>`<option ${m===s.marca?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
         <div><label>Producto *</label><input id="st-producto" required value="${esc(s.producto)}"></div>
       </div>
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
+
+      <div class="form-grupo-titulo">Presentación</div>
       <div class="fila-codigo-presentacion">
         <div><label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15"></div>
         <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,s.presentacion)}</select></div>
@@ -3413,6 +3472,8 @@ function abrirEditarStock(id){
         <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,s.sabor)}</select></div>
         <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
       </div>
+
+      <div class="form-grupo-titulo">Inventario</div>
       <div class="fila-cantidades">
         <div><label>Cantidad en stock</label>
           <input type="number" id="st-cantidad" value="${s.cantidad}" disabled style="background:var(--bg-soft);color:var(--muted);">
@@ -3420,6 +3481,8 @@ function abrirEditarStock(id){
         </div>
         <div><label>Stock mínimo (alerta)</label><input type="number" id="st-min" value="${s.min}" min="0"></div>
       </div>
+
+      <div class="form-grupo-titulo" id="st-grupo-modelo">Modelo comercial</div>
       <div id="st-fila-proveedor"><label>Proveedor</label>
         <select id="st-proveedor" onchange="stockToggleNuevoProveedor(this)">
           <option value="">— Sin asignar —</option>
@@ -3428,6 +3491,8 @@ function abrirEditarStock(id){
         </select>
         <input id="st-proveedor-nuevo" class="oculto" placeholder="Nombre del nuevo proveedor" style="margin-top:6px;">
       </div>
+
+      <div class="form-grupo-titulo">Economía</div>
       <div class="fila-precios">
         <div id="st-fila-costo"><label>Costo actual (S/)</label>
           <input type="number" id="st-costo" value="${s.costoPromedio}" disabled style="background:var(--bg-soft);color:var(--muted);">
@@ -3435,8 +3500,8 @@ function abrirEditarStock(id){
         </div>
         <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
       </div>
-      <hr style="margin:14px 0 4px;border:none;border-top:1px solid var(--border);">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 2px;">
+      <div class="form-divisor"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 2px;">
         <label style="margin:0;">Precios especiales por cantidad (opcional)</label>
         <button type="button" class="btn-secundario btn-chico" onclick="stockAgregarTramoVolumen()">+ Agregar tramo</button>
       </div>
@@ -5116,11 +5181,12 @@ function cambiarVistaReportes(vista){
   document.getElementById('repTab-historial').className=vista==='historial'?'btn btn-chico':'btn-secundario btn-chico';
   if(vista==='resumen')pintarReportes();else pintarHistorial();
 }
-// ART DIRECTION (2026-08-22) — sección 15: navegación del layout de 2 columnas de Config.
-// Función nueva y aislada: solo hace scroll + resalta el ítem activo, no lee ni escribe db.
+// PRODUCT UI REFINEMENT (2026-08-22) — sección 3: la sidebar de Config ahora es navegación
+// REAL (muestra solo el grupo activo) en vez de un índice que hacía scroll sobre una página
+// larga. Sigue siendo una función nueva y aislada: solo alterna .oculto y resalta el ítem
+// activo, no lee ni escribe db, no toca ningún <details>/id/onclick existente.
 function irAGrupoConfig(id,btn){
-  const el=document.getElementById(id);
-  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.config-grupo').forEach(g=>g.classList.toggle('oculto',g.id!==id));
   document.querySelectorAll('.config-nav-item').forEach(b=>b.classList.remove('activo'));
   if(btn)btn.classList.add('activo');
 }
