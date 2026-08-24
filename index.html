@@ -1116,16 +1116,25 @@ async function cargar(){
     if(!error&&data)remoto=data.data;
   }catch(e){console.error('No se pudo leer la nube, se usa el respaldo local',e);}
   const raw=localStorage.getItem(CLAVE);
+  // FIX INCIDENTE SYNC (2026-08-24): si la lectura a la nube falla o vuelve vacía (ej. sesión
+  // expirada tras la laptop dormida varios días) se sigue pudiendo trabajar con el respaldo
+  // local de ESTE dispositivo — pero ya NO se sube automáticamente a la nube. Antes, guardar()
+  // se llamaba siempre acá abajo sin condición, así que un dispositivo con localStorage viejo
+  // pisaba en silencio la base compartida completa (leads+clientes+stock+todo) apenas cargaba
+  // la página, sin que nadie tocara nada. Ver también resincronizarSiHayCambios() más abajo
+  // (defensa complementaria: refresca solo-lectura al volver a la pestaña).
+  let vieneDeRespaldoLocal=false;
   if(remoto&&Object.keys(remoto).length>0){
     db=remoto;
   }else if(raw){
     try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
+    vieneDeRespaldoLocal=true;
   }else{
     db=dbVacia();
   }
   normalizarDbCargada();
   selloDisco=JSON.stringify(db);
-  guardar();
+  guardar({omitirNube:vieneDeRespaldoLocal});
 }
 // FIX D1 (PRE-P3, cierre ETAPA D, 2026-08-20): única cadena de defaults + migraciones,
 // reusada por cargar() y restaurarRespaldo() — antes restaurarRespaldo() corría solo un
@@ -1390,8 +1399,14 @@ function fusionarConDisco(discoObj){
 // dbVacia()) debe reemplazar TODO, sin que la protección normal le vuelva a mezclar encima
 // los datos anteriores. opciones.reemplazoAutoritativo=true salta esa fusión — nada más
 // cambia (mismo guardado en localStorage + mismo push a Supabase de siempre).
+// FIX INCIDENTE SYNC (2026-08-24): opciones.omitirNube=true guarda en localStorage de este
+// dispositivo pero NO empuja a Supabase — usado solo por cargar() cuando db viene de un
+// respaldo local (no de la nube), para no pisar la base compartida con una copia vieja. Todos
+// los demás llamados de guardar() (el 99% de los casos: agregar lead, vender, pagar, etc.) NO
+// pasan esta opción y siguen sincronizando exactamente igual que siempre.
 function guardar(opciones){
   const reemplazoAutoritativo=opciones&&opciones.reemplazoAutoritativo;
+  const omitirNube=opciones&&opciones.omitirNube;
   const enDisco=localStorage.getItem(CLAVE);
   if(!reemplazoAutoritativo&&enDisco&&selloDisco!==null&&enDisco!==selloDisco){
     try{fusionarConDisco(JSON.parse(enDisco));}catch(e){}
@@ -1399,7 +1414,7 @@ function guardar(opciones){
   const raw=JSON.stringify(db);
   localStorage.setItem(CLAVE,raw);
   selloDisco=raw;
-  guardarEnNube(raw,sesion?sesion.nombre:null);
+  if(!omitirNube)guardarEnNube(raw,sesion?sesion.nombre:null);
 }
 function guardarEnNube(raw,autor){
   clearTimeout(guardarNubeTimeout);
@@ -1458,6 +1473,30 @@ function suscribirCambiosNube(){
       rerenderizarSeccionActual();
     })
     .subscribe();
+  // FIX INCIDENTE SYNC (2026-08-24): defensa complementaria a la de cargar(). Si la pestaña
+  // estuvo mucho tiempo en segundo plano (laptop dormida, celular bloqueado, cambio de wifi),
+  // el canal de Realtime de arriba puede perder eventos sin avisar — la pestaña queda con datos
+  // viejos en memoria sin saberlo, y el próximo guardado real (agregar un lead, vender, etc.)
+  // los subiría pisando lo más nuevo. Al volver a estar visible, se relee la nube UNA VEZ, SOLO
+  // LECTURA (nunca escribe), y si difiere de lo que esta pestaña tiene, se actualiza — mismo
+  // patrón ya usado arriba para un evento de Realtime real. Si la lectura falla, no hace nada.
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')resincronizarSiHayCambios();
+  });
+}
+async function resincronizarSiHayCambios(){
+  if(!sesion)return;
+  try{
+    const{data,error}=await sb.from('crm_estado').select('data').eq('id',1).single();
+    if(error||!data)return;
+    const raw=JSON.stringify(data.data);
+    if(raw!==selloDisco){
+      db=data.data;
+      selloDisco=raw;
+      localStorage.setItem(CLAVE,raw);
+      rerenderizarSeccionActual();
+    }
+  }catch(e){}
 }
 function rerenderizarSeccionActual(){
   if(!sesion)return;
