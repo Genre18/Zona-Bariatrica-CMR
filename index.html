@@ -2381,7 +2381,7 @@ function abrirFormCliente(leadId){
         <div><label>Referencia</label><input id="cl-referencia" placeholder="Ej. frente al parque, casa celeste"></div>
       </div>
       <label>¿Envío a provincia?</label>
-      <select id="cl-provincia"><option value="1">Sí (envío Shalom)</option><option value="0">No, es local (InDrive)</option></select>
+      <select id="cl-provincia" onchange="document.getElementById('pd-envio').value=this.value==='1'?'shalom':'indrive';pedidoActualizarEnvio();"><option value="1">Sí</option><option value="0">No</option></select>
 
       <div class="form-divisor"></div>
       <div class="form-grupo-titulo">Pedido de este cliente</div>
