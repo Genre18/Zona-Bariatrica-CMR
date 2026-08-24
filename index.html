@@ -5488,13 +5488,13 @@ function pintarHistorial(){
         // nuevos (ver eliminarPedido/confirmarCancelarPedido); canceladoPor/canceladoFecha ya
         // existían. Un pedido cancelado ANTES de este cambio simplemente no tiene motivo/
         // autorizadoPor — se muestra solo lo que sí se sabe, sin inventar nada.
-        const detalleCancelacion=p.estadoPago==='cancelado'?`<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;text-align:left;">Eliminó ${esc(p.canceladoPor||'—')}${p.autorizadoPor?' · autorizó '+esc(p.autorizadoPor):''}${p.canceladoFecha?' · '+fechaBonita(p.canceladoFecha):''}${p.motivoCancelacion?'<br>Motivo: '+esc(p.motivoCancelacion):''}</div>`:'';
+        const detalleCancelacion=p.estadoPago==='cancelado'?`<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;">Eliminó ${esc(p.canceladoPor||'—')}${p.autorizadoPor?' · autorizó '+esc(p.autorizadoPor):''}${p.canceladoFecha?' · '+fechaBonita(p.canceladoFecha):''}${p.motivoCancelacion?'<br>Motivo: '+esc(p.motivoCancelacion):''}</div>`:'';
         return `<tr>
           <td>${fechaCelda(p.fecha)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:left;">${productosTxt}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span>${detalleCancelacion}</td>
+          <td style="text-align:left;white-space:normal;max-width:220px;"><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span>${detalleCancelacion}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
     return;
