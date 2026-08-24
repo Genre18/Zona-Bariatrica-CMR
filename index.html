@@ -834,6 +834,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
             <option value="pagos">Pagos a proveedores</option>
             <option value="liquidaciones">Liquidaciones</option>
             <option value="movimientos">Movimientos de stock</option>
+            <option value="eliminaciones">Compras eliminadas</option>
           </select>
           <input id="histBuscar" placeholder="Buscar en historial..." oninput="pintarHistorial()">
           <label style="margin:0;">Desde<input type="date" id="histDesde" onchange="pintarHistorial()"></label>
@@ -5484,17 +5485,45 @@ function pintarHistorial(){
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
         const productosTxt=esc(p.items.map(it=>`${it.cantidad}x ${it.producto}`).join(', '));
         const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
-        // AUDITORÍA DE CANCELACIONES (2026-08-24): motivoCancelacion/autorizadoPor son campos
-        // nuevos (ver eliminarPedido/confirmarCancelarPedido); canceladoPor/canceladoFecha ya
-        // existían. Un pedido cancelado ANTES de este cambio simplemente no tiene motivo/
-        // autorizadoPor — se muestra solo lo que sí se sabe, sin inventar nada.
-        const detalleCancelacion=p.estadoPago==='cancelado'?`<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;">Eliminó ${esc(p.canceladoPor||'—')}${p.autorizadoPor?' · autorizó '+esc(p.autorizadoPor):''}${p.canceladoFecha?' · '+fechaBonita(p.canceladoFecha):''}${p.motivoCancelacion?'<br>Motivo: '+esc(p.motivoCancelacion):''}</div>`:'';
         return `<tr>
           <td>${fechaCelda(p.fecha)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:left;">${productosTxt}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td style="text-align:left;white-space:normal;max-width:220px;"><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span>${detalleCancelacion}</td>
+          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+    return;
+  }
+  // COMPRAS ELIMINADAS (2026-08-24): vista propia en vez de meter el detalle de la cancelación
+  // dentro de cada fila de "Ventas" (eso empujaba la tabla y era difícil de leer). Mismos datos
+  // (motivoCancelacion/autorizadoPor/canceladoPor/canceladoFecha), solo que en su propia tabla
+  // con una columna para cada dato. Filtra por fecha de ELIMINACIÓN (no la fecha de la compra
+  // original), porque el punto de esta vista es auditar cuándo se eliminó algo.
+  if(tipo==='eliminaciones'){
+    let filas=db.pedidos.filter(p=>p.estadoPago==='cancelado'&&enRango(p.canceladoFecha||p.fecha));
+    if(buscar)filas=filas.filter(p=>{
+      const c=porId(db.clientes,p.clienteId);
+      const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
+      return nombreCliente.toLowerCase().includes(buscar)||
+        (p.canceladoPor||'').toLowerCase().includes(buscar)||
+        (p.autorizadoPor||'').toLowerCase().includes(buscar)||
+        (p.motivoCancelacion||'').toLowerCase().includes(buscar);
+    });
+    filas.sort((a,b)=>(b.canceladoFecha||b.fecha||'').localeCompare(a.canceladoFecha||a.fecha||''));
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin compras eliminadas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
+      <th>Fecha compra</th><th>Cliente</th><th>Total</th><th>Eliminó</th><th>Autorizó</th><th>Fecha eliminación</th><th>Motivo</th>
+      </tr></thead><tbody>${filas.map(p=>{
+        const c=porId(db.clientes,p.clienteId);
+        const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
+        return `<tr>
+          <td>${fechaCelda(p.fecha)}</td>
+          <td style="text-align:left;">${nombreCliente}</td>
+          <td style="text-align:right;">${money(p.total)}</td>
+          <td style="text-align:left;">${esc(p.canceladoPor||'—')}</td>
+          <td style="text-align:left;">${esc(p.autorizadoPor||'—')}</td>
+          <td>${p.canceladoFecha?fechaCelda(p.canceladoFecha):'—'}</td>
+          <td style="text-align:left;white-space:normal;max-width:260px;">${esc(p.motivoCancelacion||'—')}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
     return;
