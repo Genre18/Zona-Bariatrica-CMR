@@ -1135,25 +1135,31 @@ async function cargar(){
     if(!error&&data)remoto=data.data;
   }catch(e){console.error('No se pudo leer la nube, se usa el respaldo local',e);}
   const raw=localStorage.getItem(CLAVE);
-  // FIX INCIDENTE SYNC (2026-08-24): si la lectura a la nube falla o vuelve vacía (ej. sesión
-  // expirada tras la laptop dormida varios días) se sigue pudiendo trabajar con el respaldo
-  // local de ESTE dispositivo — pero ya NO se sube automáticamente a la nube. Antes, guardar()
-  // se llamaba siempre acá abajo sin condición, así que un dispositivo con localStorage viejo
-  // pisaba en silencio la base compartida completa (leads+clientes+stock+todo) apenas cargaba
-  // la página, sin que nadie tocara nada. Ver también resincronizarSiHayCambios() más abajo
-  // (defensa complementaria: refresca solo-lectura al volver a la pestaña).
-  let vieneDeRespaldoLocal=false;
+  // FIX INCIDENTE SYNC (2026-08-24, revisión 2): cargar() SOLO LEE — nunca vuelve a escribir en
+  // la nube por su cuenta, sin importar de dónde haya salido db. Descubrimos que la primera
+  // versión de este fix (que solo omitía el push cuando la lectura remota fallaba) no alcanzaba:
+  // incluso con la lectura remota exitosa había una carrera real — si el dispositivo A leía la
+  // nube justo antes de que el dispositivo B terminara de guardar algo nuevo, A recibía la
+  // versión vieja y, como cargar() siempre reenviaba lo que acababa de leer, la volvía a subir
+  // pisando lo de B (confirmado con un caso real: actualizado_por=null a los pocos segundos de
+  // que alguien solo ABRIÓ la página, sin haber tocado nada — esa marca null solo puede salir de
+  // acá, porque en este punto todavía no se eligió sesión). Cargar la página nunca debería, por
+  // sí sola, cambiar lo que hay en la nube — eso le corresponde únicamente a una acción real del
+  // usuario (agregar un lead, vender, pagar...), que sigue sincronizando exactamente igual que
+  // siempre a través del resto de guardar()/guardarEnNube(), sin cambios. Si las migraciones de
+  // normalizarDbCargada() actualizan algo, ese resultado queda guardado en este dispositivo y se
+  // sincroniza solo en el próximo guardado real — no hace falta apurarlo. Ver también
+  // resincronizarSiHayCambios() más abajo (defensa complementaria, también de solo lectura).
   if(remoto&&Object.keys(remoto).length>0){
     db=remoto;
   }else if(raw){
     try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
-    vieneDeRespaldoLocal=true;
   }else{
     db=dbVacia();
   }
   normalizarDbCargada();
   selloDisco=JSON.stringify(db);
-  guardar({omitirNube:vieneDeRespaldoLocal});
+  guardar({omitirNube:true});
 }
 // FIX D1 (PRE-P3, cierre ETAPA D, 2026-08-20): única cadena de defaults + migraciones,
 // reusada por cargar() y restaurarRespaldo() — antes restaurarRespaldo() corría solo un
