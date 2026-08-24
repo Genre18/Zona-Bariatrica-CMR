@@ -1968,13 +1968,6 @@ function abrirFormLead(){
         </div>
         <div><label>¿Por qué producto preguntó / qué le interesa?</label><input id="ld-interes"></div>
       </div>
-      <label>Método de pago preferido (opcional)</label>
-      <select id="ld-metodopago" onchange="document.getElementById('ld-aviso-tarjeta').classList.toggle('oculto',this.value!=='Tarjeta de crédito')">
-        <option value="" selected>— Sin definir —</option>
-        ${METODOS_PAGO_LEAD.map(m=>`<option>${esc(m)}</option>`).join('')}
-      </select>
-      <div id="ld-aviso-tarjeta" class="aviso oculto" style="margin-top:6px;">Tarjeta de crédito · se adiciona 4% al total de la compra.</div>
-
       <div class="form-divisor"></div>
       <div class="form-grupo-titulo">Datos opcionales adicionales</div>
       <div class="fila-2">
@@ -2023,7 +2016,7 @@ function guardarLead(ev){
     hora:document.getElementById('ld-hora').value,
     estado:'sin contactar',
     atendidoPor:(elAtendido&&elAtendido.value)||sesion.nombre,
-    metodoPagoPreferido:document.getElementById('ld-metodopago').value,
+    metodoPagoPreferido:'',
     notas:nota?[{id:nuevoId(),texto:nota,autor:sesion.nombre,fecha:hoyStr()}]:[],
     clienteId:null
   };
