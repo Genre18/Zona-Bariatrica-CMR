@@ -490,6 +490,10 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .tarea-card:last-child{margin-bottom:0;}
 .tarea-card:hover{box-shadow:var(--shadow-sm);border-color:var(--border-light);}
 .tarea-card-texto{font-size:13px;color:var(--text);line-height:1.4;margin-bottom:8px;font-weight:500;}
+/* MICRO-SPRINT LEADS+TAREAS (2026-08-24) — sección 8: descripción secundaria, más suave y un
+   poco más chica que el título; se recorta a 2 líneas (el texto completo queda en el title). Si
+   no hay descripción, este bloque ni siquiera se genera — no deja hueco vacío en la tarjeta. */
+.tarea-card-descripcion{font-size:12px;color:var(--muted);line-height:1.4;margin:-4px 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .tarea-card-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);margin-bottom:10px;}
 .tarea-card-pie{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--border-light);padding-top:8px;}
 .tarea-card-pie select{width:auto;min-width:0;flex:1;padding:5px 8px;font-size:11.5px;}
@@ -556,6 +560,12 @@ table.leads-tabla td{padding:6px 6px;font-size:12px;overflow:hidden;text-overflo
 table.leads-tabla td input{font-size:12px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;}
 table.leads-tabla td .link-lead,table.leads-tabla td .chip{overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%;vertical-align:middle;}
 select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-radius:var(--r-xs);padding:5px 7px;width:100%;}
+/* MICRO-SPRINT LEADS (2026-08-24) — sección 2: flecha de orden en el encabezado "Estatus".
+   Hereda la tipografía del <th> (mayúscula/gris/espaciada) para no verse como un botón pesado
+   — solo agrega el cursor y el hover discreto. */
+.th-orden-btn{background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:color .15s;}
+.th-orden-btn:hover{color:var(--primary);}
+.th-orden-icono{font-size:10px;opacity:.7;}
 /* UX PRECISIÓN LEADS (2026-08-22) — sección 3: alineación semántica — texto libre a la
    izquierda (Nombre/Apellido/Email/Ciudad), datos cortos y estado centrados (el resto). */
 table.leads-tabla td:nth-child(3),table.leads-tabla td:nth-child(4),
@@ -1762,6 +1772,23 @@ function pintarFiltroEstadoLeads(){
   sel.innerHTML='<option value="">Todos los estados</option>'+ESTADOS_LEAD.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
   sel.value=actual;
 }
+// MICRO-SPRINT LEADS (2026-08-24) — sección 1: fuente de verdad ÚNICA de si un Lead ya está
+// convertido en Cliente. Reutiliza exactamente la misma relación que ya usaba
+// cambiarEstadoLeadGrid()/la ficha (lead.clienteId) — no se crea un segundo criterio. Además
+// verifica que ese cliente exista realmente en db.clientes (sin migrar ni tocar datos
+// históricos: si algún lead viejo quedara con un clienteId huérfano, simplemente no se trata
+// como convertido, en vez de romper o inventar algo).
+function leadEstaConvertido(l){
+  return !!(l&&l.clienteId&&porId(db.clientes,l.clienteId));
+}
+// Sección 2/3: orden visual "agrupar por Estatus" — SOLO de presentación, variable en memoria,
+// nunca toca db.leads/guardar()/Supabase. Reutiliza ESTADOS_LEAD (ya está en el orden operativo
+// pedido: sin contactar, seguimiento, cliente potencial, renovación, cliente, no contactar).
+let leadsOrdenPorEstado=false;
+function alternarOrdenLeadsPorEstado(){
+  leadsOrdenPorEstado=!leadsOrdenPorEstado;
+  pintarLeads();
+}
 function pintarLeads(){
   pintarFiltroEstadoLeads();
   const buscar=(document.getElementById('leadsBuscar').value||'').toLowerCase();
@@ -1769,6 +1796,15 @@ function pintarLeads(){
   let leads=db.leads.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').toLowerCase().includes(buscar)||(l.dni||'').toLowerCase().includes(buscar));
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
+  // Orden visual por Estatus (modo 2) — se aplica SOLO acá, sobre una copia ya filtrada/buscada;
+  // dentro de cada estado se conserva el mismo criterio temporal de siempre (fecha desc).
+  if(leadsOrdenPorEstado){
+    leads=leads.slice().sort((a,b)=>{
+      const diff=ESTADOS_LEAD.indexOf(a.estado)-ESTADOS_LEAD.indexOf(b.estado);
+      if(diff!==0)return diff;
+      return (b.fecha||'').localeCompare(a.fecha||'');
+    });
+  }
   const cont=document.getElementById('listaLeads');
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
   // UX PRECISIÓN LEADS (2026-08-22) — sección 1: la tabla principal pasa a ser de SOLO
@@ -1792,8 +1828,12 @@ function pintarLeads(){
       <col style="width:40px;"><col style="width:78px;"><col style="width:110px;"><col style="width:130px;">
       <col style="width:95px;"><col style="width:145px;"><col style="width:90px;">
     </colgroup><thead><tr>
-      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th><th title="Ciudad / Provincia">Ciudad / Provincia</th><th>Estatus</th><th>Responsable</th>
-    </tr></thead><tbody>${leads.map(l=>`
+      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th><th title="Ciudad / Provincia">Ciudad / Provincia</th>
+      <th><button type="button" class="th-orden-btn" title="Ordenar por estatus" onclick="alternarOrdenLeadsPorEstado()">Estatus <span class="th-orden-icono">${leadsOrdenPorEstado?'↑':'↕'}</span></button></th>
+      <th>Responsable</th>
+    </tr></thead><tbody>${leads.map(l=>{
+      const convertido=leadEstaConvertido(l);
+      return `
       <tr>
         <td ${texto(l.fecha?fechaBonita(l.fecha):'')}>${l.fecha?fechaCorta(l.fecha):'—'}</td>
         <td ${texto(l.hora)}>${esc(l.hora||'—')}</td>
@@ -1805,12 +1845,13 @@ function pintarLeads(){
         <td ${texto(l.email)}>${esc(l.email||'—')}</td>
         <td ${texto(l.distrito)}>${esc(l.distrito||'—')}</td>
         <td>
+          ${convertido?`<span class="chip chip-verde" title="Ya es cliente — el estatus queda fijo">Cliente</span>`:`
           <select class="leads-estado-select" style="background:${(ESTADO_COLOR_LEAD[l.estado]||{}).bg||'var(--bg-soft)'};color:${(ESTADO_COLOR_LEAD[l.estado]||{}).fg||'var(--muted)'};" onchange="cambiarEstadoLeadGrid('${l.id}',this.value)">
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
-          </select>
+          </select>`}
         </td>
         <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
-      </tr>`).join('')}</tbody></table></div>
+      </tr>`;}).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
 }
 function actualizarCampoLead(id,campo,valor){
@@ -1820,6 +1861,10 @@ function actualizarCampoLead(id,campo,valor){
 }
 function cambiarEstadoLeadGrid(id,valor){
   const lead=porId(db.leads,id);
+  // MICRO-SPRINT LEADS (2026-08-24): defensa adicional — la tabla ya no renderiza el <select>
+  // para un lead convertido (queda como chip fijo), pero si por cualquier motivo esta función
+  // se llamara igual para uno, no debe poder cambiarle el estatus.
+  if(leadEstaConvertido(lead)){pintarLeads();return;}
   if(valor==='cliente'&&!lead.clienteId){
     pintarLeads(); // deja el desplegable como estaba mientras se completa la conversión
     abrirFormCliente(id);
@@ -1844,6 +1889,7 @@ function abrirFichaLead(leadId){
       <div style="font-size:13px;opacity:.9;margin-top:2px;">${esc(l.telefono||'—')} · ${esc(l.distrito||'—')}</div>
     </div>
 
+    ${leadEstaConvertido(l)?`<p class="vacio" style="text-align:left;padding:0 0 10px;">Estatus: <span class="chip chip-verde">Cliente</span> — ya convertido, el estatus queda fijo.</p>`:''}
     <div class="fila-2">
       <div><label>Nombre</label><input id="lf-nombre" value="${esc(l.nombre||'')}" onchange="actualizarCampoLead('${l.id}','nombre',this.value)"></div>
       <div><label>Apellido</label><input id="lf-apellido" value="${esc(l.apellido||'')}" onchange="actualizarCampoLead('${l.id}','apellido',this.value)"></div>
@@ -1895,7 +1941,7 @@ function abrirFichaLead(leadId){
 
     <div class="acciones-modal">
       <button type="button" class="btn-peligro" onclick="eliminarLead('${l.id}')">Eliminar</button>
-      ${l.clienteId?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(nombreLead(l))}'})">+ Seguimiento</button>`}
+      ${leadEstaConvertido(l)?`<span class="chip chip-verde" style="align-self:center;">Ya es cliente</span>`:`<button type="button" class="btn-secundario" onclick="abrirFormTarea({leadId:'${l.id}',texto:'Volver a contactar a ${escJs(nombreLead(l))}'})">+ Seguimiento</button>`}
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
     </div>`);
 }
@@ -5081,6 +5127,7 @@ function pintarTareas(){
         const v=vinculoTarea(t);
         return `<div class="tarea-card">
           <div class="tarea-card-texto">${esc(t.texto)}</div>
+          ${t.descripcion?`<div class="tarea-card-descripcion" title="${escAttr(t.descripcion)}">${esc(t.descripcion)}</div>`:''}
           <div class="tarea-card-meta">
             ${v?`<button type="button" class="link-lead" style="padding:0;font-size:11.5px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'<span>Sin vincular</span>'}
             <span>${esc(t.asignadoA||'—')}</span>
@@ -5103,7 +5150,9 @@ function pintarTareas(){
 function abrirFormTarea(prefill){
   if(typeof prefill==='string'){
     const t=porId(db.tareas,prefill);
-    prefill={id:t.id,texto:t.texto,asignadoA:t.asignadoA,fechaLimite:t.fechaLimite,leadId:t.leadId,clienteId:t.clienteId};
+    // MICRO-SPRINT LEADS+TAREAS (2026-08-24) — sección 6: t.descripcion||'' como fallback —
+    // una tarea histórica sin este campo sigue funcionando igual, sin migración.
+    prefill={id:t.id,texto:t.texto,descripcion:t.descripcion||'',asignadoA:t.asignadoA,fechaLimite:t.fechaLimite,leadId:t.leadId,clienteId:t.clienteId};
   }
   prefill=prefill||{};
   const editando=!!prefill.id;
@@ -5114,7 +5163,8 @@ function abrirFormTarea(prefill){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>${editando?'Editar tarea':'Nueva tarea'}</h3>
     <form onsubmit="return guardarTarea(event${editando?`,'${prefill.id}'`:''})">
-      <label>Tarea *</label><textarea id="tr-texto" rows="2" required>${esc(prefill.texto||'')}</textarea>
+      <label>Título *</label><textarea id="tr-texto" rows="2" required>${esc(prefill.texto||'')}</textarea>
+      <label>Descripción breve (opcional)</label><textarea id="tr-descripcion" rows="2" placeholder="Contexto adicional...">${esc(prefill.descripcion||'')}</textarea>
       <div class="fila-2">
         <div><label>Asignada a</label>
           <select id="tr-asignado">${db.usuarios.map(u=>`<option value="${esc(u.nombre)}" ${u.nombre===(prefill.asignadoA||sesion.nombre)?'selected':''}>${esc(u.nombre)}</option>`).join('')}</select>
@@ -5139,6 +5189,7 @@ function guardarTarea(ev,id){
   const [vTipo,vId]=vinculo?vinculo.split(':'):[null,null];
   const datos={
     texto:document.getElementById('tr-texto').value.trim(),
+    descripcion:document.getElementById('tr-descripcion').value.trim(),
     asignadoA:document.getElementById('tr-asignado').value,
     fechaLimite:document.getElementById('tr-fecha').value||null,
     leadId:vTipo==='lead'?vId:null,
