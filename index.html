@@ -1150,8 +1150,24 @@ async function cargar(){
   // normalizarDbCargada() actualizan algo, ese resultado queda guardado en este dispositivo y se
   // sincroniza solo en el próximo guardado real — no hace falta apurarlo. Ver también
   // resincronizarSiHayCambios() más abajo (defensa complementaria, también de solo lectura).
+  //
+  // HOTFIX INTEGRIDAD (2026-08-24, revisión 3): la revisión 2 evitó el PUSH a la nube en la
+  // carga, pero no evitó la FUSIÓN en memoria. guardar({omitirNube:true}) de todas formas
+  // pasaba por la protección normal de guardar() — "si lo que hay en localStorage de este
+  // dispositivo difiere de lo último conocido, fusiónalo con db" — y en este punto exacto
+  // localStorage TODAVÍA tiene el contenido VIEJO de este dispositivo (recién se sobreescribe
+  // más abajo, dentro de guardar()). Resultado real observado: db=remoto (correcto, de
+  // Supabase) se contaminaba con leads/stock viejos del localStorage de este dispositivo antes
+  // de guardarse — fusionarConDisco() solo deduplica por id, así que un producto viejo con un
+  // id distinto al mismo producto real quedaba duplicado. Cuando la fuente es la nube, esa
+  // lectura debe ser AUTORITATIVA frente al localStorage de este dispositivo — se reutiliza el
+  // mismo mecanismo que ya usan restaurarRespaldo()/restaurarDeFabrica() para esto exacto.
+  // Cuando NO hay remoto (se usa el respaldo local de este dispositivo o dbVacia()), el
+  // comportamiento de recuperación local no cambia — reemplazoAutoritativo sigue en false ahí.
+  let esRemoto=false;
   if(remoto&&Object.keys(remoto).length>0){
     db=remoto;
+    esRemoto=true;
   }else if(raw){
     try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
   }else{
@@ -1159,7 +1175,7 @@ async function cargar(){
   }
   normalizarDbCargada();
   selloDisco=JSON.stringify(db);
-  guardar({omitirNube:true});
+  guardar({omitirNube:true,reemplazoAutoritativo:esRemoto});
 }
 // FIX D1 (PRE-P3, cierre ETAPA D, 2026-08-20): única cadena de defaults + migraciones,
 // reusada por cargar() y restaurarRespaldo() — antes restaurarRespaldo() corría solo un
