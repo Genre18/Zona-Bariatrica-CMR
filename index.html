@@ -2269,7 +2269,7 @@ function abrirFichaCliente(clienteId){
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Historial</div>
       ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><thead><tr>
-        <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th>
+        <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
         </tr></thead><tbody>${pedidos.map(p=>{
           const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ');
           const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
@@ -2278,12 +2278,13 @@ function abrirFichaCliente(clienteId){
             <td style="text-align:left;">${productosTxt}</td>
             <td style="text-align:right;">${money(p.total)}</td>
             <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+            <td>${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-    </div>`,'panel-derecha');
+    </div>`);
 }
 function abrirEditarCliente(id){
   const c=porId(db.clientes,id);
@@ -3267,15 +3268,49 @@ function guardarEditarPedido(ev,id){
   guardar();cerrarModal();pintarPedidos();pintarStock();
   return false;
 }
+// ELIMINAR COMPRA CON AUDITORÍA (2026-08-24): antes esto era un solo confirm() sin dejar
+// rastro de por qué ni quién autorizó. Ahora abre un formulario chico que pide motivo +
+// autorizado por, y confirmarCancelarPedido() hace el trabajo real (mismo revertirVentaTrazable/
+// descontarStock de siempre, sin tocar esa lógica). La fecha se registra sola (hoyStr()), igual
+// que ya hacía canceladoFecha antes de este cambio.
 function eliminarPedido(id){
   const p=porId(db.pedidos,id);
   if(p.estadoPago==='cancelado'){alert('Este pedido ya está cancelado.');return;}
-  if(!confirm('¿Cancelar este pedido? El stock vendido se devolverá. El pedido se conserva en el historial marcado como cancelado.'))return;
-  revertirVentaTrazable(p.items,p.id,'devolucion_cancelacion','Cancelación de pedido');
+  const cliente=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Eliminar compra</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cliente?esc(cliente.nombre+' '+cliente.apellido):'Cliente eliminado'} · ${fechaBonita(p.fecha)} · ${money(p.total)}<br>El stock vendido se devolverá. La compra se conserva en el historial, marcada como cancelada.</p>
+    <form onsubmit="return confirmarCancelarPedido(event,'${p.id}')">
+      <label style="margin-top:0;">¿Por qué se elimina? *</label>
+      <textarea id="cp-motivo" required rows="2" placeholder="Ej. cliente se arrepintió, error al registrar, producto no llegó..."></textarea>
+      <label>Autorizado por *</label>
+      <select id="cp-autorizado" required>
+        <option value="">— Selecciona —</option>
+        ${db.usuarios.map(u=>`<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('')}
+      </select>
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Se registrará con fecha de hoy (${fechaBonita(hoyStr())}).</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn-peligro">Confirmar eliminación</button>
+      </div>
+    </form>`);
+}
+function confirmarCancelarPedido(ev,id){
+  ev.preventDefault();
+  const p=porId(db.pedidos,id);
+  if(p.estadoPago==='cancelado')return false;
+  const motivo=document.getElementById('cp-motivo').value.trim();
+  const autorizadoPor=document.getElementById('cp-autorizado').value;
+  if(!motivo||!autorizadoPor)return false;
+  revertirVentaTrazable(p.items,p.id,'devolucion_cancelacion','Cancelación de pedido: '+motivo);
   p.estadoPago='cancelado';
   p.canceladoPor=sesion.nombre;
   p.canceladoFecha=hoyStr();
+  p.motivoCancelacion=motivo;
+  p.autorizadoPor=autorizadoPor;
   guardar();cerrarModal();pintarPedidos();pintarStock();
+  return false;
 }
 /* ================= STOCK ================= */
 // ETAPA D (PRE-P3, 2026-08-20): helpers centralizados para no duplicar lógica visual entre
@@ -5449,12 +5484,17 @@ function pintarHistorial(){
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
         const productosTxt=esc(p.items.map(it=>`${it.cantidad}x ${it.producto}`).join(', '));
         const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
+        // AUDITORÍA DE CANCELACIONES (2026-08-24): motivoCancelacion/autorizadoPor son campos
+        // nuevos (ver eliminarPedido/confirmarCancelarPedido); canceladoPor/canceladoFecha ya
+        // existían. Un pedido cancelado ANTES de este cambio simplemente no tiene motivo/
+        // autorizadoPor — se muestra solo lo que sí se sabe, sin inventar nada.
+        const detalleCancelacion=p.estadoPago==='cancelado'?`<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;text-align:left;">Eliminó ${esc(p.canceladoPor||'—')}${p.autorizadoPor?' · autorizó '+esc(p.autorizadoPor):''}${p.canceladoFecha?' · '+fechaBonita(p.canceladoFecha):''}${p.motivoCancelacion?'<br>Motivo: '+esc(p.motivoCancelacion):''}</div>`:'';
         return `<tr>
           <td>${fechaCelda(p.fecha)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:left;">${productosTxt}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span>${detalleCancelacion}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
     return;
