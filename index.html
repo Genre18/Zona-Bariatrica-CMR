@@ -2321,23 +2321,23 @@ function abrirFormCliente(leadId){
     <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})">
       <div class="form-grupo-titulo">Datos del cliente</div>
       <div class="fila-2">
-        <div><label>Nombre *</label><input id="cl-nombre" required value="${lead?esc(lead.nombre||''):''}"></div>
-        <div><label>Apellido *</label><input id="cl-apellido" required value="${lead?esc(lead.apellido||''):''}"></div>
+        <div><label>Nombre</label><input id="cl-nombre" value="${lead?esc(lead.nombre||''):''}"></div>
+        <div><label>Apellido</label><input id="cl-apellido" value="${lead?esc(lead.apellido||''):''}"></div>
       </div>
       <div class="fila-2">
-        <div><label>DNI *</label><input id="cl-dni" required value="${lead?esc(lead.dni||''):''}"></div>
-        <div><label>Teléfono *</label><input id="cl-telefono" required value="${lead?esc(lead.telefono||''):''}"></div>
+        <div><label>DNI</label><input id="cl-dni" value="${lead?esc(lead.dni||''):''}"></div>
+        <div><label>Teléfono</label><input id="cl-telefono" value="${lead?esc(lead.telefono||''):''}"></div>
       </div>
 
       <div class="form-grupo-titulo">Dirección de envío</div>
-      <label style="margin-top:0;">Dirección de envío *</label><input id="cl-direccion" required>
+      <label style="margin-top:0;">Dirección de envío</label><input id="cl-direccion">
       <div class="fila-2">
-        <div><label>Departamento *</label><input id="cl-departamento" required placeholder="Ej. Arequipa"></div>
-        <div><label>Provincia *</label><input id="cl-provincianombre" required placeholder="Ej. Arequipa"></div>
+        <div><label>Departamento</label><input id="cl-departamento" placeholder="Ej. Arequipa"></div>
+        <div><label>Provincia</label><input id="cl-provincianombre" placeholder="Ej. Arequipa"></div>
       </div>
       <div class="fila-2">
-        <div><label>Distrito / Ciudad *</label><input id="cl-ciudad" required value="${lead?esc(lead.distrito||''):''}"></div>
-        <div><label>Referencia *</label><input id="cl-referencia" required placeholder="Ej. frente al parque, casa celeste"></div>
+        <div><label>Distrito / Ciudad</label><input id="cl-ciudad" value="${lead?esc(lead.distrito||''):''}"></div>
+        <div><label>Referencia</label><input id="cl-referencia" placeholder="Ej. frente al parque, casa celeste"></div>
       </div>
       <label>¿Envío a provincia?</label>
       <select id="cl-provincia"><option value="1">Sí (envío Shalom)</option><option value="0">No, es local (InDrive)</option></select>
