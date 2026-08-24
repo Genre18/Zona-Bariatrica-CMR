@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<!-- FIX INCIDENTE SYNC (2026-08-24): pide a los navegadores que NO guarden esta página en
+     caché. GitHub Pages sirve con Cache-Control: max-age=600 por defecto — un navegador que
+     abrió el CRM antes de un fix podía seguir corriendo esa copia vieja en memoria/caché hasta
+     10 minutos (o más, según el navegador) sin volver a pedirla, incluida toda la lógica de
+     sincronización desactualizada. No es 100% infalible (algunos navegadores ignoran estas
+     etiquetas y priorizan el header HTTP real, que no podemos cambiar en GitHub Pages), pero es
+     una capa extra de seguridad sin ningún riesgo. Un Ctrl+Shift+R sigue siendo la garantía real. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Zona Bariátrica — Panel interno</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
