@@ -1960,12 +1960,6 @@ function abrirFichaLead(leadId){
     <select id="lf-canal" onchange="actualizarCampoLead('${l.id}','canal',this.value)">
       ${CANALES_LEAD.map(c=>`<option ${c===l.canal?'selected':''}>${esc(c)}</option>`).join('')}
     </select>
-    <label>Método de pago preferido (opcional)</label>
-    <select id="lf-metodopago" onchange="actualizarCampoLead('${l.id}','metodoPagoPreferido',this.value);document.getElementById('lf-aviso-tarjeta').classList.toggle('oculto',this.value!=='Tarjeta de crédito')">
-      <option value="" ${!l.metodoPagoPreferido?'selected':''}>— Sin definir —</option>
-      ${METODOS_PAGO_LEAD.map(m=>`<option ${m===l.metodoPagoPreferido?'selected':''}>${esc(m)}</option>`).join('')}
-    </select>
-    <div id="lf-aviso-tarjeta" class="aviso ${l.metodoPagoPreferido==='Tarjeta de crédito'?'':'oculto'}" style="margin-top:6px;">Tarjeta de crédito · se adiciona 4% al total de la compra.</div>
     ${ESTADOS_LEAD_PERDIDA.includes(l.estado)?`
     <label>Motivo de pérdida (opcional)</label>
     <input id="lf-motivoperdida" value="${esc(l.motivoPerdida||'')}" placeholder="Ej. precio, ya compró en otro lugar, no responde hace 2 semanas..." onchange="actualizarCampoLead('${l.id}','motivoPerdida',this.value)">
