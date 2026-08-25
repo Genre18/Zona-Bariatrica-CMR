@@ -3447,6 +3447,7 @@ function abrirMenuContextualStock(ev,id){
   div.innerHTML=`
     <button type="button" onclick="cerrarMenuContextual();abrirEditarStock('${id}')">✏️ Editar producto</button>
     <button type="button" onclick="cerrarMenuContextual();abrirFormAjusteStock('${id}')">Ajustar stock</button>
+    <button type="button" onclick="cerrarMenuContextual();abrirFormSalidaNoComercial('${id}')">Registrar salida no comercial</button>
     <button type="button" onclick="cerrarMenuContextual();abrirFormCorregirCosto('${id}')">Corregir costo</button>
     <button type="button" onclick="cerrarMenuContextual();abrirKardexStock('${id}')">Ver movimientos</button>
     <button type="button" onclick="cerrarMenuContextual();${archivado?`reactivarStock('${id}')`:`eliminarStock('${id}')`}">${archivado?'Reactivar':'Archivar'}</button>
@@ -3845,6 +3846,104 @@ function guardarAjusteStock(ev,stockId){
   guardar();cerrarModal();pintarStock();
   return false;
 }
+// SALIDA NO COMERCIAL (2026-08-24): unidad que sale físicamente del inventario sin ser una
+// venta (muestra/regalo). Dos casos económicamente distintos:
+//   - Cortesía del proveedor: el proveedor la regala/autoriza — baja stock, cero impacto
+//     económico en cualquier modalidad (nadie debe nada por esa unidad).
+//   - Cortesía de Zona Bariátrica: ZB decide regalar stock que ya es suyo. En Compra directa
+//     esto es seguro de representar HOY porque esa deuda ya nació al RECIBIR el producto
+//     (saldoEntrega/movimientosStock tipo 'entrada') — dar la unidad gratis no crea una deuda
+//     NUEVA, ya estaba contada. Para Stock a crédito/Crédito + reparto (consignación/
+//     reparto_ingresos) la deuda hoy SOLO se calcula a partir de db.pedidos (ventas) en al
+//     menos 3 lugares independientes (obligacionVentaProveedor/filasProveedoresTabla/
+//     ventasAgrupadasPorPedidoCredito) — verlos todos consistentes exigía tocar ese motor
+//     económico, así que esa combinación se bloquea acá a propósito (ver reporte de entrega)
+//     hasta que se decida cómo extenderlo con seguridad.
+function permiteCortesiaZB(marca){
+  return((db.config.modalidadMarca||{})[marca])==='compra_directa';
+}
+function abrirFormSalidaNoComercial(stockId){
+  const s=porId(db.stock,stockId);
+  if(!s)return;
+  if(s.activo===false){alert('Este producto está archivado. Reactívalo antes de registrar una salida no comercial.');return;}
+  const modalidad=(db.config.modalidadMarca||{})[s.marca];
+  const permiteZB=permiteCortesiaZB(s.marca);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Registrar salida no comercial</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(s.marca)} — ${esc(s.producto)} · Stock actual: <strong>${s.cantidad||0}</strong></p>
+    <form onsubmit="return guardarSalidaNoComercial(event,'${stockId}')">
+      <label style="margin-top:0;">Cantidad *</label>
+      <input type="number" id="snc-cantidad" required min="1" step="1" value="1" oninput="actualizarImpactoSalidaNoComercial('${stockId}')">
+      <label>Motivo *</label>
+      <select id="snc-motivo" required>
+        <option value="">Elige un motivo...</option>
+        <option>Muestra</option>
+        <option>Regalo</option>
+        <option>Otro</option>
+      </select>
+      <label>Tipo de cortesía *</label>
+      <select id="snc-tipo" required onchange="actualizarImpactoSalidaNoComercial('${stockId}')">
+        <option value="">Elige una opción...</option>
+        <option value="proveedor">Cortesía del proveedor — No se paga</option>
+        <option value="zona_bariatrica" ${permiteZB?'':'disabled'}>Cortesía de Zona Bariátrica — Sí se paga al proveedor cuando corresponda</option>
+      </select>
+      ${!permiteZB?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Esta marca es ${esc(MODELO_LABEL_PROVEEDORES[modalidad]||'una modalidad sin configurar')}. Por ahora "Cortesía de Zona Bariátrica" solo está disponible para Compra directa — para Stock a crédito/Crédito + reparto esa obligación todavía no se refleja en Proveedores (pendiente de una decisión antes de activarlo).</p>`:''}
+      <label>Nota (opcional)</label><input id="snc-nota" placeholder="Detalle adicional">
+      <div id="snc-impacto" class="aviso oculto" style="margin-top:8px;"></div>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Confirmar salida</button>
+      </div>
+    </form>`);
+  actualizarImpactoSalidaNoComercial(stockId);
+}
+function actualizarImpactoSalidaNoComercial(stockId){
+  const box=document.getElementById('snc-impacto');
+  if(!box)return;
+  const s=porId(db.stock,stockId);
+  const cantidad=parseInt(document.getElementById('snc-cantidad').value,10)||0;
+  const tipo=document.getElementById('snc-tipo').value;
+  if(!s||cantidad<=0||!tipo){box.classList.add('oculto');box.innerHTML='';return;}
+  box.classList.remove('oculto');
+  if(tipo==='proveedor'){
+    box.innerHTML=`Se descontará ${cantidad} unidad(es) del stock.<br>Esta salida NO genera deuda al proveedor.`;
+  }else{
+    const costoTotal=round2(cantidad*(s.costoPromedio||0));
+    box.innerHTML=`Se descontará ${cantidad} unidad(es) del stock.<br>Zona Bariátrica asumirá ${money(costoTotal)} de costo con el proveedor.`;
+  }
+}
+function guardarSalidaNoComercial(ev,stockId){
+  ev.preventDefault();
+  const s=porId(db.stock,stockId);
+  if(!s){alert('Producto no encontrado.');return false;}
+  if(s.activo===false){alert('Este producto está archivado.');return false;}
+  const cantidad=parseInt(document.getElementById('snc-cantidad').value,10);
+  const motivo=document.getElementById('snc-motivo').value;
+  const tipoCortesia=document.getElementById('snc-tipo').value;
+  const nota=document.getElementById('snc-nota').value.trim();
+  if(!cantidad||cantidad<1){alert('La cantidad debe ser mayor a 0.');return false;}
+  if(!motivo){alert('Elige un motivo.');return false;}
+  if(!tipoCortesia){alert('Elige el tipo de cortesía.');return false;}
+  const disponible=s.cantidad||0;
+  if(cantidad>disponible){alert(`No hay stock suficiente. Disponible: ${disponible} unidad(es).`);return false;}
+  if(tipoCortesia==='zona_bariatrica'&&!permiteCortesiaZB(s.marca)){
+    alert('Por ahora, "Cortesía de Zona Bariátrica" solo está disponible para productos en Compra directa.');
+    return false;
+  }
+  const modalidad=(db.config.modalidadMarca||{})[s.marca];
+  const costoUnit=s.costoPromedio||0;
+  s.cantidad=disponible-cantidad;
+  db.movimientosStock.push({
+    id:nuevoId(),tipo:'salida_no_comercial',stockId:s.id,cantidad,
+    motivo,tipoCortesia,nota,
+    costoUnit,totalCosto:round2(cantidad*costoUnit),
+    proveedor:s.proveedor||'',marca:s.marca,modalidadComercial:modalidad||'',
+    fecha:hoyStr(),usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
+  });
+  guardar();cerrarModal();pintarStock();
+  return false;
+}
 function abrirFormCorregirCosto(stockId){
   const s=porId(db.stock,stockId);
   if(!s)return;
@@ -3887,7 +3986,7 @@ function guardarCorregirCosto(ev,stockId){
 const TIPO_MOVIMIENTO_LABEL={
   entrada:'Entrada',entrada_inicial:'Stock inicial',salida:'Venta',ajuste:'Ajuste',
   ajuste_costo:'Corrección de costo',devolucion_cancelacion:'Devolución (cancelación)',
-  correccion_pedido:'Corrección de pedido'
+  correccion_pedido:'Corrección de pedido',salida_no_comercial:'Salida no comercial'
 };
 function abrirKardexStock(stockId){
   const s=porId(db.stock,stockId);
@@ -3901,7 +4000,7 @@ function abrirKardexStock(stockId){
   const filas=movsOrdenados.map(m=>{
     let entrada=0,salida=0;
     if(m.tipo==='entrada'||m.tipo==='entrada_inicial'||m.tipo==='devolucion_cancelacion'){entrada=m.cantidad;saldo+=m.cantidad;}
-    else if(m.tipo==='salida'){salida=m.cantidad;saldo-=m.cantidad;}
+    else if(m.tipo==='salida'||m.tipo==='salida_no_comercial'){salida=m.cantidad;saldo-=m.cantidad;}
     else if(m.tipo==='ajuste'||m.tipo==='correccion_pedido'){
       if(m.cantidad>=0)entrada=m.cantidad;else salida=-m.cantidad;
       saldo+=m.cantidad;
@@ -3924,7 +4023,7 @@ function abrirKardexStock(stockId){
         <td>${f.salida?f.salida:'—'}</td>
         <td><strong>${f.saldoTrasEsteMovimiento}</strong></td>
         <td>${f.m.tipo==='ajuste_costo'?(money(f.m.costoAnterior)+' → '+money(f.m.costoNuevo)):(f.m.costoUnit!=null?money(f.m.costoUnit):'—')}</td>
-        <td>${esc(f.m.motivo||f.m.nota||'—')}</td>
+        <td>${f.m.tipo==='salida_no_comercial'?esc(`${f.m.motivo||'—'} · ${f.m.tipoCortesia==='proveedor'?'Cortesía proveedor':'Cortesía Zona Bariátrica'}${f.m.nota?' · '+f.m.nota:''}`):esc(f.m.motivo||f.m.nota||'—')}</td>
         <td>${esc(f.m.usuario||'—')}</td>
       </tr>`).join('')}</tbody></table></div>`}
     <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
@@ -3953,7 +4052,7 @@ function abrirFormCompra(){
       </div>
     </form>`);
 }
-const TIPOS_MOVIMIENTO_FISICO=['entrada','entrada_inicial','salida','ajuste','devolucion_cancelacion','correccion_pedido'];
+const TIPOS_MOVIMIENTO_FISICO=['entrada','entrada_inicial','salida','ajuste','devolucion_cancelacion','correccion_pedido','salida_no_comercial'];
 function comparaMovimientos(a,ia,b,ib){
   // >0 si a ocurrió después de b. Usa fecha, luego createdAt si ambos lo tienen; si no hay
   // forma de desempatar con certeza (movimientos viejos sin createdAt), cae al orden real en
