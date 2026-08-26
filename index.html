@@ -724,6 +724,8 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <select id="leadsFiltroEstado" onchange="pintarLeads()">
           <option value="">Todos los estados</option>
         </select>
+        <label style="margin:0;">Desde<input type="date" id="leadsFiltroDesde" onchange="pintarLeads()"></label>
+        <label style="margin:0;">Hasta<input type="date" id="leadsFiltroHasta" onchange="pintarLeads()"></label>
       </div>
       <div id="listaLeads"></div>
     </section>
@@ -830,6 +832,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <div class="filtros toolbar-historial">
           <select id="histTipo" onchange="pintarHistorial()">
             <option value="ventas">Ventas</option>
+            <option value="ventas_anuladas">Ventas anuladas</option>
             <option value="entradas">Entradas de productos</option>
             <option value="pagos">Pagos a proveedores</option>
             <option value="liquidaciones">Liquidaciones</option>
@@ -1848,9 +1851,28 @@ function pintarLeads(){
   pintarFiltroEstadoLeads();
   const buscar=(document.getElementById('leadsBuscar').value||'').toLowerCase();
   const filtroEstado=document.getElementById('leadsFiltroEstado').value;
+  const filtroDesde=document.getElementById('leadsFiltroDesde').value;
+  const filtroHasta=document.getElementById('leadsFiltroHasta').value;
+  const elHasta=document.getElementById('leadsFiltroHasta');
+  let avisoFecha='';
+  if(filtroDesde&&filtroHasta&&filtroDesde>filtroHasta){
+    elHasta.setCustomValidity('"Hasta" no puede ser anterior a "Desde".');
+    elHasta.reportValidity();
+    avisoFecha='<p class="vacio" style="text-align:left;">"Hasta" no puede ser anterior a "Desde". Corrige el rango para ver resultados.</p>';
+  }else{
+    elHasta.setCustomValidity('');
+  }
   let leads=db.leads.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').toLowerCase().includes(buscar)||(l.dni||'').toLowerCase().includes(buscar));
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
+  // Filtro por fecha (usa l.fecha REAL del lead; nunca se inventa una fecha para leads sin
+  // ella) — solo Desde: desde inclusive; solo Hasta: hasta inclusive; ambos: intervalo inclusivo.
+  if(avisoFecha){
+    leads=[];
+  }else{
+    if(filtroDesde)leads=leads.filter(l=>(l.fecha||'')>=filtroDesde);
+    if(filtroHasta)leads=leads.filter(l=>(l.fecha||'')<=filtroHasta);
+  }
   // Orden visual por Estatus (modo 2) — se aplica SOLO acá, sobre una copia ya filtrada/buscada;
   // dentro de cada estado se conserva el mismo criterio temporal de siempre (fecha desc).
   if(leadsOrdenPorEstado){
@@ -1861,6 +1883,7 @@ function pintarLeads(){
     });
   }
   const cont=document.getElementById('listaLeads');
+  if(avisoFecha){cont.innerHTML=avisoFecha;return;}
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
   // UX PRECISIÓN LEADS (2026-08-22) — sección 1: la tabla principal pasa a ser de SOLO
   // LECTURA para fecha/hora/apellido/edad/DNI/celular/email/ciudad (antes eran <input> que
@@ -2414,7 +2437,7 @@ function abrirFormCliente(leadId){
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
         <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
@@ -2453,12 +2476,14 @@ function guardarCliente(ev,leadId){
   const itemSinResp=itemSinResponsableDespacho(pedidoItemsTmp);
   if(itemSinResp){alert(`"${itemSinResp.producto}" no tiene definido quién despacha. Configúralo en Config → Marcas antes de vender esa marca.`);return false;}
   const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
-  const descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+  const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
+  const fechaPedido=document.getElementById('pd-fecha').value||hoyStr();
+  const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fechaPedido);
   // FIX B: se valida ANTES de crear el cliente/pedido — si esto fallara después del push,
   // quedaría un cliente sin pedido asociado en memoria.
-  const errorImportes=validarImportesPedido(pedidoItemsTmp,descuento,embalaje,delivery);
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
   if(errorImportes){alert(errorImportes);return false;}
   const cliente={
     id:nuevoId(),
@@ -2483,13 +2508,14 @@ function guardarCliente(ev,leadId){
     lead.clienteId=cliente.id;
     lead.estado='cliente';
   }
-  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
+  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery,metodoPago);
   const pedido={
     id:nuevoId(),
     clienteId:cliente.id,
     items:pedidoItemsTmp.slice(),
     subtotal:t.subtotal,
-    descuento,
+    descuento:desc.descuentoTotal,
+    descuentoPromocionalBN:desc.descuentoPromocionalBN,
     embalaje,
     delivery,
     recargoTarjeta:t.recargoTarjeta,
@@ -2502,7 +2528,7 @@ function guardarCliente(ev,leadId){
     pagoConfirmadoPor:sesion.nombre,
     estadoPago:'pagado', // solo se registra la venta cuando ya llegó el comprobante de pago: nace pagado
     estadoEnvio:'pendiente preparación',
-    fecha:document.getElementById('pd-fecha').value||hoyStr(),
+    fecha:fechaPedido,
     atendidoPor:sesion.nombre,
     notas:document.getElementById('pd-notas').value.trim()
   };
@@ -2535,7 +2561,7 @@ function mostrarTicket(pedido,cliente){
         ${esc(direccionCompleta(cliente))}
       </div>
       <div style="border-top:1px dashed var(--border);padding-top:8px;">${filas}</div>
-      ${pedido.descuento?`<div class="item-linea"><span>Descuento</span><span>−${money(pedido.descuento)}</span></div>`:''}
+      ${lineasDescuentoPedido(pedido).map(l=>`<div class="item-linea"><span>${esc(l.label)}</span><span>−${money(l.monto)}</span></div>`).join('')}
       ${pedido.embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(pedido.embalaje)}</span></div>`:''}
       ${pedido.delivery?`<div class="item-linea"><span>Delivery</span><span>${money(pedido.delivery)}</span></div>`:''}
       ${pedido.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(pedido.recargoTarjeta)}</span></div>`:''}
@@ -2559,10 +2585,11 @@ function imprimirTicket(pedidoId){
     h3{text-align:center;margin:0 0 2px;} .c{text-align:center;color:#555;font-size:11px;margin-bottom:10px;}</style>
     </head><body>
     <h3>Zona Bariátrica</h3>
+    ${pedido.estadoPago==='cancelado'?'<div class="c" style="color:#c0392b;font-weight:700;">*** VENTA ANULADA ***</div>':''}
     <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
     <div><strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}</div>
     <table style="margin-top:8px;">${filas}
-      ${pedido.descuento?`<tr><td>Descuento</td><td style="text-align:right;">−${money(pedido.descuento)}</td></tr>`:''}
+      ${lineasDescuentoPedido(pedido).map(l=>`<tr><td>${esc(l.label)}</td><td style="text-align:right;">−${money(l.monto)}</td></tr>`).join('')}
       ${pedido.embalaje?`<tr><td>Embalaje</td><td style="text-align:right;">${money(pedido.embalaje)}</td></tr>`:''}
       ${pedido.delivery?`<tr><td>Delivery</td><td style="text-align:right;">${money(pedido.delivery)}</td></tr>`:''}
       ${pedido.recargoTarjeta?`<tr><td>Recargo tarjeta (4%)</td><td style="text-align:right;">${money(pedido.recargoTarjeta)}</td></tr>`:''}
@@ -2591,6 +2618,48 @@ function precioUnitarioParaCantidad(stockItem,cantidad){
   const tramos=((stockItem&&stockItem.preciosVolumen)||[]).filter(t=>t.activo!==false&&cantidad>=(t.desde||0));
   if(tramos.length===0)return base;
   return tramos.reduce((mejor,t)=>t.desde>mejor.desde?t:mejor).precioUnit;
+}
+/* ================= PROMOCIÓN BARI&NUTRITION (vigente 2026-08-26) =================
+   Descuento TOTAL sobre el pedido según cantidad TOTAL de unidades de la marca
+   Bari&Nutrition (sin importar si son productos distintos) — regla aparte de
+   preciosVolumen (que sigue siendo precio unitario por producto/cantidad; ambas
+   coexisten sin tocarse). Tramos fijos, NUNCA aumentan después de 4 unidades. */
+const VIGENCIA_PROMO_BN='2026-08-26';
+const TRAMOS_PROMO_BN=[{desde:4,monto:40},{desde:3,monto:25},{desde:2,monto:15},{desde:1,monto:0}];
+function unidadesBNEnItems(items){
+  return (items||[]).filter(it=>it.marca==='Bari&Nutrition').reduce((s,it)=>s+(it.cantidad||0),0);
+}
+function calcularDescuentoPromocionalBN(items){
+  const unidades=unidadesBNEnItems(items);
+  if(unidades<=0)return 0;
+  const tramo=TRAMOS_PROMO_BN.find(t=>unidades>=t.desde);
+  return tramo?tramo.monto:0;
+}
+// Ventas con fecha ANTERIOR a la vigencia nunca aplican/recalculan la promo, sin importar
+// cuándo se cree o edite el pedido — la fecha comercial (pd-fecha) manda, no la fecha de hoy.
+function fechaAplicaPromocionBN(fecha){
+  return !!fecha&&fecha>=VIGENCIA_PROMO_BN;
+}
+// Único punto que combina el descuento manual (input pd-descuento) con la promo automática en
+// un descuentoTotal — reusado por los 3 formularios de pedido (nuevo desde cliente, nuevo desde
+// ficha/lead, edición) y su vista previa en vivo (pedidoActualizarTotales), para que la promo
+// nunca pueda calcularse distinto entre la vista previa y lo que realmente se guarda.
+// pedido.descuento SIGUE siendo el total (compatibilidad con pedidos históricos que no tienen
+// descuentoPromocionalBN); descuentoManual nunca se persiste aparte, se deriva restando.
+function descuentosPedido(items,descuentoManual,fecha){
+  const promo=fechaAplicaPromocionBN(fecha)?calcularDescuentoPromocionalBN(items):0;
+  return{descuentoManual:round2(descuentoManual||0),descuentoPromocionalBN:promo,descuentoTotal:round2((descuentoManual||0)+promo)};
+}
+// Desglosa pedido.descuento en sus líneas de presentación (ticket/detalle histórico), sin
+// duplicar esta lógica en los 3 lugares que la muestran. Pedidos sin descuentoPromocionalBN
+// (todos los anteriores a esta promo) siguen mostrando "Descuento" genérico, igual que siempre.
+function lineasDescuentoPedido(p){
+  const promo=p.descuentoPromocionalBN||0;
+  if(!promo)return p.descuento?[{label:'Descuento',monto:p.descuento}]:[];
+  const manual=Math.max(0,round2((p.descuento||0)-promo));
+  const lineas=[{label:'Promoción B&N',monto:promo}];
+  if(manual)lineas.push({label:'Descuento manual',monto:manual});
+  return lineas;
 }
 // Única función que calcula subtotal/recargoTarjeta/total de un pedido (nuevo o en edición).
 // Fórmula aprobada 2026-08-20, verificada contra los 2 pedidos reales del respaldo (ver informe):
@@ -2754,7 +2823,7 @@ function abrirFormPedido(clienteIdPre){
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
         <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
@@ -2941,14 +3010,18 @@ function pedidoActualizarTotales(){
   const elEmbalaje=document.getElementById('pd-embalaje');
   const elDelivery=document.getElementById('pd-delivery');
   const elMetodo=document.getElementById('pd-metodopago');
-  const descuento=elDescuento?(parseFloat(elDescuento.value)||0):0;
+  const elFecha=document.getElementById('pd-fecha');
+  const descuentoManual=elDescuento?(parseFloat(elDescuento.value)||0):0;
   const embalaje=elEmbalaje?(parseFloat(elEmbalaje.value)||0):0;
   const delivery=elDelivery?(parseFloat(elDelivery.value)||0):0;
   const metodoPago=elMetodo?elMetodo.value:'';
-  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
+  const fecha=elFecha?elFecha.value:hoyStr();
+  const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
+  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery,metodoPago);
   cont.innerHTML=`
     <div class="item-linea"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
-    ${descuento?`<div class="item-linea"><span>Descuento</span><span>−${money(descuento)}</span></div>`:''}
+    ${desc.descuentoPromocionalBN?`<div class="item-linea"><span>Promoción B&amp;N</span><span>−${money(desc.descuentoPromocionalBN)}</span></div>`:''}
+    ${desc.descuentoManual?`<div class="item-linea"><span>Descuento manual</span><span>−${money(desc.descuentoManual)}</span></div>`:''}
     ${embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(embalaje)}</span></div>`:''}
     ${delivery?`<div class="item-linea"><span>Delivery</span><span>${money(delivery)}</span></div>`:''}
     ${t.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(t.recargoTarjeta)}</span></div>`:''}
@@ -2964,18 +3037,21 @@ function guardarPedido(ev){
   const itemSinResp=itemSinResponsableDespacho(pedidoItemsTmp);
   if(itemSinResp){alert(`"${itemSinResp.producto}" no tiene definido quién despacha. Configúralo en Config → Marcas antes de vender esa marca.`);return false;}
   const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
-  const descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+  const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
-  const errorImportes=validarImportesPedido(pedidoItemsTmp,descuento,embalaje,delivery);
+  const fecha=document.getElementById('pd-fecha').value||hoyStr();
+  const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
   if(errorImportes){alert(errorImportes);return false;}
-  const t=calcularTotalesPedido(pedidoItemsTmp,descuento,embalaje,delivery,metodoPago);
+  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery,metodoPago);
   const pedido={
     id:nuevoId(),
     clienteId,
     items:pedidoItemsTmp.slice(),
     subtotal:t.subtotal,
-    descuento,
+    descuento:desc.descuentoTotal,
+    descuentoPromocionalBN:desc.descuentoPromocionalBN,
     embalaje,
     delivery,
     recargoTarjeta:t.recargoTarjeta,
@@ -2988,7 +3064,7 @@ function guardarPedido(ev){
     pagoConfirmadoPor:sesion.nombre,
     estadoPago:'pagado', // solo se registra el pedido cuando ya llegó el comprobante de pago
     estadoEnvio:'pendiente preparación',
-    fecha:document.getElementById('pd-fecha').value||hoyStr(),
+    fecha,
     atendidoPor:sesion.nombre,
     notas:document.getElementById('pd-notas').value.trim()
   };
@@ -3168,7 +3244,7 @@ function abrirEditarPedido(id){
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento (S/)</label><input type="number" id="pd-descuento" step="0.5" value="${p.descuento||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)))}" oninput="pedidoActualizarTotales()"></div>
         <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
@@ -3211,9 +3287,11 @@ function guardarEditarPedido(ev,id){
     // fallara después, el pedido quedaría a medio editar en memoria sin persistir (guardar()
     // nunca se llega a llamar). Mismo patrón que la validación de stock de arriba.
     const embalajeChk=parseFloat(document.getElementById('pd-embalaje').value)||0;
-    const descuentoChk=parseFloat(document.getElementById('pd-descuento').value)||0;
+    const descuentoManualChk=parseFloat(document.getElementById('pd-descuento').value)||0;
     const deliveryChk=parseFloat(document.getElementById('pd-delivery').value)||0;
-    const errorImportes=validarImportesPedido(pedidoItemsTmp,descuentoChk,embalajeChk,deliveryChk);
+    const fechaChk=document.getElementById('pd-fecha').value||hoyStr();
+    const descChk=descuentosPedido(pedidoItemsTmp,descuentoManualChk,fechaChk);
+    const errorImportes=validarImportesPedido(pedidoItemsTmp,descChk.descuentoTotal,embalajeChk,deliveryChk);
     if(errorImportes){alert(errorImportes);return false;}
   }
   const p=porId(db.pedidos,id);
@@ -3250,7 +3328,10 @@ function guardarEditarPedido(ev,id){
     const itemsCorregidos=reconciliarItemsEditados(pedidoItemsTmp,itemsAntesDeEditar);
     p.items=itemsCorregidos;
     p.embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
-    p.descuento=parseFloat(document.getElementById('pd-descuento').value)||0;
+    const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
+    const desc=descuentosPedido(itemsCorregidos,descuentoManual,p.fecha);
+    p.descuento=desc.descuentoTotal;
+    p.descuentoPromocionalBN=desc.descuentoPromocionalBN;
     p.delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
     // p.metodoPago ya se actualizó arriba con el valor del form antes de este bloque.
     const t=calcularTotalesPedido(itemsCorregidos,p.descuento,p.embalaje,p.delivery,p.metodoPago);
@@ -5423,18 +5504,48 @@ function gananciaZBItem(it){
 // calculable; si hay algo no calculable mezclado, huboItemNoCalculable marca el "*" en vez de
 // ocultar el monto conocido. Solo si NINGÚN item de la marca es calculable, la UI debe mostrar
 // "—" (huboItemCalculable queda false).
+// DESCUENTOS Y GANANCIA ZB (2026-08-26): la promo B&N siempre se resta de la fila de
+// Bari&Nutrition (nace de sus propias unidades, sin ambigüedad — obligacionVentaProveedor() de
+// consignación calcula la deuda SOLO por costo, nunca por precio, así que esto no le cambia nada
+// al proveedor). El descuento MANUAL solo se resta de una fila por marca cuando el pedido tiene
+// una única marca Y esa marca NO es reparto_ingresos (Crédito + reparto) — para reparto_ingresos
+// no se decide acá si el descuento lo asume ZB o se reparte con el socio (ver regla de detención
+// del sprint), así que ese monto NUNCA toca la fila de ninguna marca ni gananciaZBItem/
+// totalDoctorItem: queda fuera de las filas y solo se resta del total global (pintarReportes),
+// marcado aparte para reportarlo como decisión pendiente.
 function rentabilidadPorMarca(pedidos){
   const porMarca={};
-  pedidos.forEach(p=>(p.items||[]).forEach(it=>{
-    if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,gananciaZB:0,huboItemCalculable:false,huboItemNoCalculable:false};
-    const fila=porMarca[it.marca];
-    fila.ventas+=it.cantidad*it.precioUnit;
-    const g=gananciaZBItem(it);
-    if(g===null){fila.huboItemNoCalculable=true;return;}
-    fila.huboItemCalculable=true;
-    fila.gananciaZB+=g;
-  }));
-  return Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
+  let descuentosNoAtribuibles=0,huboDescuentoManualEnReparto=false;
+  pedidos.forEach(p=>{
+    const marcasPedido=new Set();
+    (p.items||[]).forEach(it=>{
+      if(!porMarca[it.marca])porMarca[it.marca]={marca:it.marca,ventas:0,gananciaZB:0,huboItemCalculable:false,huboItemNoCalculable:false};
+      const fila=porMarca[it.marca];
+      fila.ventas+=it.cantidad*it.precioUnit;
+      marcasPedido.add(it.marca);
+      const g=gananciaZBItem(it);
+      if(g===null){fila.huboItemNoCalculable=true;return;}
+      fila.huboItemCalculable=true;
+      fila.gananciaZB+=g;
+    });
+    const promoBN=p.descuentoPromocionalBN||0;
+    if(promoBN&&porMarca['Bari&Nutrition'])porMarca['Bari&Nutrition'].gananciaZB=round2(porMarca['Bari&Nutrition'].gananciaZB-promoBN);
+    const manual=Math.max(0,round2((p.descuento||0)-promoBN));
+    if(manual){
+      const marcasArr=[...marcasPedido];
+      const esReparto=marcasArr.some(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos');
+      if(marcasArr.length===1&&!esReparto&&porMarca[marcasArr[0]]){
+        porMarca[marcasArr[0]].gananciaZB=round2(porMarca[marcasArr[0]].gananciaZB-manual);
+      }else{
+        descuentosNoAtribuibles=round2(descuentosNoAtribuibles+manual);
+        if(esReparto)huboDescuentoManualEnReparto=true;
+      }
+    }
+  });
+  const filas=Object.values(porMarca).sort((a,b)=>b.ventas-a.ventas);
+  filas.descuentosNoAtribuibles=descuentosNoAtribuibles;
+  filas.huboDescuentoManualEnReparto=huboDescuentoManualEnReparto;
+  return filas;
 }
 // SPRINT FINAL (2026-08-21) — único campo de fecha real de un lead es l.fecha (siempre lo pone
 // guardarLead()/importarLeadsPegados(), ver esas funciones — con fallback a hoyStr() si el
@@ -5467,7 +5578,8 @@ function pintarReportes(){
   // hay ganancia conocida) — el * avisa que hay ventas históricas sin información suficiente
   // mezcladas ahí (ver sección 12B).
   const rentab=rentabilidadPorMarca(pedidosFacturables);
-  const gananciaZBTotal=rentab.reduce((s,f)=>s+f.gananciaZB,0);
+  const descuentosNoAtribuibles=rentab.descuentosNoAtribuibles||0;
+  const gananciaZBTotal=round2(rentab.reduce((s,f)=>s+f.gananciaZB,0)-descuentosNoAtribuibles);
   const hayMarcaSinHistoria=rentab.some(f=>f.huboItemNoCalculable);
 
   const productos={};
@@ -5482,6 +5594,7 @@ function pintarReportes(){
       <div class="stat"><div class="num" style="color:var(--primary);">${tasaConv}%</div><div class="lbl">Conversión</div></div>
     </div>
 
+    ${descuentosNoAtribuibles>0?`<p class="vacio" style="text-align:left;">Ganancia ZB global ya incluye ${money(descuentosNoAtribuibles)} de descuento manual en pedidos con varias marcas${rentab.huboDescuentoManualEnReparto?' (incluye al menos un pedido de Crédito + reparto — pendiente de decisión sobre si ese descuento lo asume solo Zona Bariátrica o también el socio, ver auditoría del sprint)':''}, no atribuido a ninguna marca en la tabla de abajo.</p>`:''}
     <h3 class="reportes-subtitulo">Ventas por marca</h3>
     ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel reportes-marca-wrap"><table class="reportes-tabla-marca"><thead><tr>
       <th>Marca</th><th>Ventas</th><th>Ganancia ZB</th>
@@ -5567,29 +5680,35 @@ function pintarHistorial(){
   const hasta=document.getElementById('histHasta').value;
   const cont=document.getElementById('histContenido');
   const enRango=fecha=>(!desde||(fecha||'')>=desde)&&(!hasta||(fecha||'')<=hasta);
-  if(tipo==='ventas'){
-    let filas=db.pedidos.filter(p=>enRango(p.fecha));
+  if(tipo==='ventas'||tipo==='ventas_anuladas'){
+    // Ventas = solo pagadas/válidas. Ventas anuladas = solo canceladas. Antes ambas convivían
+    // mezcladas en la misma tabla (con un chip de estado); ahora son dos vistas separadas para
+    // no confundir una venta anulada con una válida. 'pendiente pago' (estado que hoy no se usa
+    // en el flujo real, ver descripción del negocio) no cae en ninguna de las dos a propósito.
+    const esAnuladas=tipo==='ventas_anuladas';
+    let filas=db.pedidos.filter(p=>p.estadoPago===(esAnuladas?'cancelado':'pagado')&&enRango(p.fecha));
     if(buscar)filas=filas.filter(p=>{
       const c=porId(db.clientes,p.clienteId);
       const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
       return nombreCliente.toLowerCase().includes(buscar)||
-        (p.estadoPago||'').toLowerCase().includes(buscar)||
         p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar)||(it.marca||'').toLowerCase().includes(buscar));
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin ventas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th>
+    cont.innerHTML=filas.length===0?`<div class="vacio">Sin ${esAnuladas?'ventas anuladas':'ventas'} para este filtro.</div>`:`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
+      <th>Venta</th><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
       </tr></thead><tbody>${filas.map(p=>{
         const c=porId(db.clientes,p.clienteId);
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
         const productosTxt=esc(p.items.map(it=>`${it.cantidad}x ${it.producto}`).join(', '));
-        const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
+        const chipEstado=esAnuladas?'chip-rojo':'chip-verde';
         return `<tr>
+          <td>${correlativoVenta(p.id)}</td>
           <td>${fechaCelda(p.fecha)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:left;">${productosTxt}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+          <td><span class="chip ${chipEstado}">${esAnuladas?'Anulada':'Pagado'}</span></td>
+          <td><button type="button" class="link-historial" onclick="abrirDetalleVentaHistorial('${p.id}')">Ver detalle</button></td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
     return;
@@ -5698,6 +5817,72 @@ function pintarHistorial(){
         </tr>`;
       }).join('')}</tbody></table></div>`;
   }
+}
+// Ficha de una venta histórica, estrictamente SOLO LECTURA (sin inputs/selects/botones que
+// modifiquen nada): usa únicamente los snapshots ya congelados en pedido.items[]/pedido (nunca
+// el precio/costo ACTUAL del producto), para que abrir esto nunca pueda alterar una venta ya
+// confirmada. Sirve tanto para Ventas como para Ventas anuladas (ver pintarHistorial).
+function abrirDetalleVentaHistorial(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p){alert('Venta no encontrada.');return;}
+  const c=porId(db.clientes,p.clienteId);
+  const anulada=p.estadoPago==='cancelado';
+  const filasProductos=p.items.map(it=>{
+    const presSabor=[it.presentacion,it.sabor].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="text-align:left;">${esc(it.producto)}</td>
+      <td style="text-align:left;">${esc(it.marca||'—')}</td>
+      <td style="text-align:left;">${esc(presSabor||'—')}</td>
+      <td style="text-align:center;">${it.cantidad}</td>
+      <td style="text-align:right;">${money(it.precioUnit)}</td>
+      <td style="text-align:right;">${money(it.cantidad*it.precioUnit)}</td>
+    </tr>`;
+  }).join('');
+  const envioTxt=p.metodoEnvio==='shalom'?'Shalom (provincia)':(p.metodoEnvio==='indrive'?'InDrive (local)':(p.metodoEnvio||'—'));
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <div class="drawer-identidad">
+      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}</h3>
+      <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${esc(p.estadoPago)}</div>
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Cliente</div>
+      ${c?`<div>${esc(c.nombre)} ${esc(c.apellido)}</div><div style="font-size:12.5px;color:var(--muted);">${esc(c.telefono||'—')}${c.dni?' · '+esc(c.dni):''}</div>`:'<div class="vacio">Cliente eliminado.</div>'}
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Productos</div>
+      <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Producto</th><th>Marca</th><th>Present./Sabor</th><th>Cant.</th><th>P. unit.</th><th>Total</th>
+        </tr></thead><tbody>${filasProductos}</tbody></table></div>
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Resumen económico</div>
+      <div class="item-linea"><span>Subtotal</span><span>${money(p.subtotal)}</span></div>
+      ${lineasDescuentoPedido(p).map(l=>`<div class="item-linea"><span>${esc(l.label)}</span><span>−${money(l.monto)}</span></div>`).join('')}
+      ${p.embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(p.embalaje)}</span></div>`:''}
+      ${p.delivery?`<div class="item-linea"><span>Delivery</span><span>${money(p.delivery)}</span></div>`:''}
+      ${p.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(p.recargoTarjeta)}</span></div>`:''}
+      <div class="subtotal-box"><span>TOTAL PAGADO</span><span>${money(p.total)}</span></div>
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Pago</div>
+      <div>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}</div>
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Envío</div>
+      <div>${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</div>
+      ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
+    </div>
+    <div class="drawer-seccion drawer-seccion-final">
+      <div class="drawer-seccion-titulo">Otros</div>
+      <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
+      ${p.notas?`<div style="font-size:12.5px;color:var(--muted);font-style:italic;">"${esc(p.notas)}"</div>`:''}
+      ${anulada&&p.motivoCancelacion?`<div style="font-size:12.5px;color:var(--danger);margin-top:4px;">Motivo de anulación: ${esc(p.motivoCancelacion)}</div>`:''}
+    </div>
+    <div class="acciones-modal">
+      <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+      <button type="button" class="btn" onclick="imprimirTicket('${p.id}')">Reimprimir comprobante</button>
+    </div>`,'panel-derecha');
 }
 function exportarCSV(tipo){
   let filas=[],nombre='';
