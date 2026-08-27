@@ -1047,7 +1047,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
    ========================================================= */
 
 const CLAVE='zbdb_v1';
-const MODO_PRUEBAS=true; // ⚠️ poner en false antes de usar con datos reales de clientes: reactiva el PIN
+const MODO_PRUEBAS=false; // PIN interno ACTIVO (2026-08-27). La seguridad real es el login de Supabase (correo+contraseña); el PIN es solo la 2ª identificación: quién está usando el CRM.
 const SUPABASE_URL='https://zuispovrhevalznsrdax.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_PhNcFR421xTZxfXhSr6wfg_t1HJA2rf';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -1678,8 +1678,17 @@ async function continuarLuegoDeLoginNube(){
   suscribirCambiosNube();
 }
 async function cerrarSesionNube(){
-  if(!confirm('¿Cerrar sesión de este dispositivo? La próxima vez van a tener que volver a ingresar correo y contraseña acá.'))return;
+  if(!confirm('¿Cerrar sesión de este dispositivo? La próxima vez van a tener que volver a ingresar correo y contraseña acá.\n\nAdemás se borra la copia local de los datos en ESTA computadora. Los datos en la nube NO se tocan: al volver a entrar se descargan de nuevo.'))return;
   await sb.auth.signOut();
+  // MICRO-SPRINT SEGURIDAD (2026-08-27): este es el cierre de sesión REAL (Supabase Auth), NO el
+  // cambio interno de usuario (ese es cerrarSesion(), que a propósito NO limpia nada de esto).
+  // Al cerrar de verdad se borra también la copia local completa de la base para que no quede
+  // una copia legible en este equipo si se pierde o se comparte. NO se usa localStorage.clear()
+  // (borraría el token de sesión de Supabase y cualquier otra clave ajena al CRM); se borra solo
+  // la clave del CRM (CLAVE = 'zbdb_v1'). Nada de esto toca Supabase: cargar() vuelve a bajar el
+  // estado real la próxima vez que se inicia sesión.
+  try{localStorage.removeItem(CLAVE);}catch(e){}
+  try{sessionStorage.removeItem('zbUltimoUsuario');}catch(e){}
   location.reload();
 }
 
