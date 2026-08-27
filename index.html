@@ -490,7 +490,7 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
    para que formularios largos no queden cortados arriba. Para un formulario chico y puntual
    como "Registrar pago" (pocos campos), se centra solo ESE modal con align-self, sin tocar el
    overlay global ni ningún otro modal existente. */
-.modal.modal-centrado{align-self:center;}
+.modal.modal-centrado{align-self:center;max-height:85vh;overflow-y:auto;}
 
 /* Sección 11: Tareas como tablero visual por estado (reemplaza la tabla plana). */
 /* ART DIRECTION (2026-08-22) — sección 13: cada columna es una superficie real (no solo un
@@ -4943,14 +4943,17 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
-        ${entregas.length===0?'<div class="vacio">Sin entregas registradas.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th>
-        </tr></thead><tbody>${entregas.map(e=>{
-          const s=porId(db.stock,e.stockId);
-          const saldo=saldoEntrega(e);
-          if(saldo<=0.005)return'';
-          return `<tr><td>${fechaCelda(e.fecha)}</td><td style="text-align:left;">${s?esc(s.producto):'—'}</td><td>${money(saldo)}</td></tr>`;
-        }).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);">Sin pendientes.</td></tr>'}</tbody></table></div>`}
+        ${(()=>{
+          const pend=entregas.filter(e=>saldoEntrega(e)>0.005);
+          if(entregas.length===0)return '<div class="vacio">Sin entregas registradas.</div>';
+          if(pend.length===0)return '<div class="vacio">Sin pendientes.</div>';
+          const filas=pend.slice(0,4).map(e=>{
+            const s=porId(db.stock,e.stockId);
+            return `<tr><td>${fechaCelda(e.fecha)}</td><td style="text-align:left;">${s?esc(s.producto):'—'}</td><td>${money(saldoEntrega(e))}</td></tr>`;
+          }).join('');
+          const nota=pend.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${pend.length-4} más — ver historial completo en Historial → Entradas de productos.</p>`:'';
+          return `<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${filas}</tbody></table></div>${nota}`;
+        })()}
       </div>
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
@@ -4995,7 +4998,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
-        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>`}
+        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.slice(0,4).map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>${gruposVenta.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gruposVenta.length-4} más — ver historial completo en Historial → Ventas.</p>`:''}`}
       </div>
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
@@ -5048,7 +5051,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
-        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.map(g=>filaVentaAgrupada(g,'reparto_ingresos')).join('')}</tbody></table></div>`}
+        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.slice(0,4).map(g=>filaVentaAgrupada(g,'reparto_ingresos')).join('')}</tbody></table></div>${gruposVenta.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gruposVenta.length-4} más — ver historial completo en Historial → Ventas.</p>`:''}`}
       </div>
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
