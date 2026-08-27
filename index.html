@@ -2589,7 +2589,7 @@ function imprimirTicket(pedidoId){
     <h3>Zona Bariátrica</h3>
     ${pedido.estadoPago==='cancelado'?'<div class="c" style="color:#c0392b;font-weight:700;">*** VENTA ANULADA ***</div>':''}
     <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
-    <div><strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}</div>
+    <div>${cliente?`<strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}`:'<strong>Cliente eliminado</strong>'}</div>
     <table style="margin-top:8px;">${filas}
       ${lineasDescuentoPedido(pedido).map(l=>`<tr><td>${esc(l.label)}</td><td style="text-align:right;">−${money(l.monto)}</td></tr>`).join('')}
       ${pedido.embalaje?`<tr><td>Embalaje</td><td style="text-align:right;">${money(pedido.embalaje)}</td></tr>`:''}
