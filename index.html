@@ -4918,6 +4918,11 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     }).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
     const generado=entregas.reduce((s,e)=>s+(e.monto||0),0);
     const pendiente=entregas.reduce((s,e)=>s+saldoEntrega(e),0);
+    // A pedido explícito (2026-08-26): el botón se muestra SIEMPRE que exista al menos una
+    // entrega, incluso con saldo S/0 (pago adelantado) — si ninguna entrega tiene saldo, se
+    // usa la más reciente (entregas ya viene ordenado desc) como destino del pago. Sin entregas,
+    // no hay nada a lo que asociar un pago, así que no se muestra.
+    const entregaObjetivo=entregas.find(e=>saldoEntrega(e)>0.005)||entregas[0];
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
       <div class="drawer-identidad">
@@ -4934,7 +4939,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(generado-pendiente)}</div>
         </div>
       </div>
-      ${entregas.some(e=>saldoEntrega(e)>0.005)?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedor('${entregas.find(e=>saldoEntrega(e)>0.005).id}')">Registrar pago</button>`:''}
+      ${entregaObjetivo?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedor('${entregaObjetivo.id}')">Registrar pago</button>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
         ${entregas.length===0?'<div class="vacio">Sin entregas registradas.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
@@ -4984,7 +4989,8 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
       </div>
-      ${saldo>0.005&&esUnica?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
+      <!-- A pedido explícito (2026-08-26): el botón se muestra SIEMPRE, incluso con saldo S/0, para poder registrar pagos adelantados. No se tocó guardarPagoProveedorModalidad ni ninguna validación de guardado. -->
+      <button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
@@ -5035,7 +5041,8 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
       </div>
-      ${pendiente>0.005?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>`:''}
+      <!-- A pedido explícito (2026-08-26): el botón se muestra SIEMPRE, incluso con saldo S/0. No se tocó guardarPagoCreditoReparto ni ninguna validación de guardado. -->
+      <button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
       <div class="drawer-seccion">
