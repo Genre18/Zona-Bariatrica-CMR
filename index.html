@@ -486,6 +486,11 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .modal-overlay:has(.modal.panel-derecha){justify-content:flex-end;align-items:stretch;padding:0;}
 .modal.panel-derecha{max-width:460px;width:100%;min-height:100vh;border-radius:0;box-shadow:var(--shadow-lg);}
 @media(max-width:640px){.modal.panel-derecha{max-width:100%;}}
+/* MICRO-SPRINT UX (2026-08-26): .modal-overlay ancla los modales arriba (align-items:flex-start)
+   para que formularios largos no queden cortados arriba. Para un formulario chico y puntual
+   como "Registrar pago" (pocos campos), se centra solo ESE modal con align-self, sin tocar el
+   overlay global ni ningún otro modal existente. */
+.modal.modal-centrado{align-self:center;}
 
 /* Sección 11: Tareas como tablero visual por estado (reemplaza la tabla plana). */
 /* ART DIRECTION (2026-08-22) — sección 13: cada columna es una superficie real (no solo un
@@ -2417,10 +2422,7 @@ function abrirFormCliente(leadId){
         </select>
         <select id="pi-producto"><option value="">Elige marca primero</option></select>
       </div>
-      <div class="fila-2" style="align-items:end;">
-        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
-        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar producto</button>
-      </div>
+      <button type="button" class="btn" style="width:100%;" onclick="pedidoAgregarItem()">+ Agregar producto</button>
       <div id="pedidoItemsList" style="margin-top:10px;"></div>
 
       <div class="fila-2">
@@ -2803,10 +2805,7 @@ function abrirFormPedido(clienteIdPre){
         </select>
         <select id="pi-producto"><option value="">Elige marca primero</option></select>
       </div>
-      <div class="fila-2" style="align-items:end;">
-        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
-        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
-      </div>
+      <button type="button" class="btn" style="width:100%;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
       <div id="pedidoItemsList" style="margin-top:10px;"></div>
 
       <div class="fila-2">
@@ -2861,9 +2860,12 @@ function pedidoActualizarEnvio(){
 }
 function pedidoAgregarItem(){
   const stockId=document.getElementById('pi-producto').value;
-  const cantidadAgregar=parseFloat(document.getElementById('pi-cantidad').value)||0;
+  // MICRO-SPRINT UX (2026-08-26): se quitó el control de cantidad superior (duplicaba el de la
+  // fila ya agregada) — todo producto nuevo entra con 1 unidad; la cantidad se ajusta después
+  // desde el único control que queda, en la fila del pedido (pedidoCambiarCantidadItem).
+  const cantidadAgregar=1;
   const stockItem=porId(db.stock,stockId);
-  if(!stockItem||cantidadAgregar<=0){alert('Elige un producto y una cantidad válida.');return;}
+  if(!stockItem){alert('Elige un producto.');return;}
   const modalidad=(db.config.modalidadMarca||{})[stockItem.marca];
   if(!modalidad){alert(`La marca "${stockItem.marca}" todavía no tiene un modelo comercial configurado. Configúralo en Config → Marcas antes de venderla.`);return;}
   // Sin proveedor/socio asignado no hay a quién imputarle la obligación económica de la
@@ -3224,10 +3226,7 @@ function abrirEditarPedido(id){
         </select>
         <select id="pi-producto"><option value="">Elige marca primero</option></select>
       </div>
-      <div class="fila-2" style="align-items:end;">
-        <div><label>Cantidad</label><input type="number" id="pi-cantidad" value="1" min="1"></div>
-        <button type="button" class="btn" style="margin-top:10px;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
-      </div>
+      <button type="button" class="btn" style="width:100%;" onclick="pedidoAgregarItem()">+ Agregar al pedido</button>
       <div id="pedidoItemsList" style="margin-top:10px;"></div>
 
       <div class="fila-2">
@@ -4402,7 +4401,7 @@ function abrirFormPagoProveedorModalidad(proveedor,modalidad){
           <button class="btn-icono" onclick="eliminarPagoProveedor('${pg.id}')" title="Eliminar">✕</button>
         </span>
       </li>`).join('')}</ul>
-    </details>`:''}`);
+    </details>`:''}`,'modal-centrado');
 }
 function guardarPagoProveedorModalidad(ev,proveedor,modalidad){
   ev.preventDefault();
@@ -4587,7 +4586,7 @@ function abrirFormPagoCreditoReparto(proveedor,marca){
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Confirmar pago</button>
       </div>
-    </form>`);
+    </form>`,'modal-centrado');
 }
 function guardarPagoCreditoReparto(ev,proveedor,marca){
   ev.preventDefault();
@@ -4935,6 +4934,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(generado-pendiente)}</div>
         </div>
       </div>
+      ${entregas.some(e=>saldoEntrega(e)>0.005)?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedor('${entregas.find(e=>saldoEntrega(e)>0.005).id}')">Registrar pago</button>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
         ${entregas.length===0?'<div class="vacio">Sin entregas registradas.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
@@ -4952,7 +4952,6 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-        ${entregas.some(e=>saldoEntrega(e)>0.005)?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedor('${entregas.find(e=>saldoEntrega(e)>0.005).id}')">Registrar pago</button>`:''}
       </div>`,'panel-derecha');
     return;
   }
@@ -4985,6 +4984,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
       </div>
+      ${saldo>0.005&&esUnica?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
@@ -4996,7 +4996,6 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-        ${saldo>0.005&&esUnica?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>`:''}
       </div>`,'panel-derecha');
     return;
   }
@@ -5036,6 +5035,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
       </div>
+      ${pendiente>0.005?`<button type="button" class="btn" style="width:100%;margin-bottom:18px;" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>`:''}
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
       <div class="drawer-seccion">
@@ -5048,7 +5048,6 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-        ${pendiente>0.005?`<button type="button" class="btn" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>`:''}
       </div>`,'panel-derecha');
   }
 }
@@ -5283,7 +5282,7 @@ function abrirFormPagoProveedor(entregaId){
           <button class="btn-icono" onclick="eliminarPagoProveedor('${pg.id}')" title="Eliminar">✕</button>
         </span>
       </li>`).join('')}</ul>
-    </details>`:''}`);
+    </details>`:''}`,'modal-centrado');
 }
 function guardarPagoProveedor(ev,entregaId){
   ev.preventDefault();
