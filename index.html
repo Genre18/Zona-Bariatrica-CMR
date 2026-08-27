@@ -1939,6 +1939,14 @@ function pintarLeads(){
     <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
 }
 function actualizarCampoLead(id,campo,valor){
+  // MICRO-HOTFIX FECHA/HORA LEADS (2026-08-27): la fecha y la hora de un lead son datos
+  // históricos — se fijan al CREARLO (formulario "Nuevo lead", donde el usuario SÍ puede
+  // ajustarlas antes de guardar para registrar un contacto anterior) y a partir de ahí no
+  // deben cambiar por ninguna acción posterior (cambio de estatus/responsable, notas,
+  // conversión a cliente, edición de ficha) ni por una llamada genérica accidental. Defensa
+  // central y simple: acá se ignora cualquier intento de tocar 'fecha' u 'hora' de un lead
+  // ya existente. El resto de campos sigue funcionando igual.
+  if(campo==='fecha'||campo==='hora')return;
   const lead=porId(db.leads,id);
   lead[campo]=valor;
   guardar();
@@ -2095,6 +2103,13 @@ function guardarLead(ev){
     estado:'sin contactar',
     atendidoPor:(elAtendido&&elAtendido.value)||sesion.nombre,
     metodoPagoPreferido:'',
+    // MICRO-HOTFIX FECHA/HORA LEADS (2026-08-27): huella interna de creación real — CUÁNDO y
+    // QUIÉN registró el lead en el CRM. NO reemplaza fecha/hora (esas son la fecha/hora del
+    // CONTACTO, que el usuario puede fijar a un momento anterior). Solo sirve para auditoría
+    // futura si vuelve a aparecer una fecha rara; no se muestra en la tabla. Los leads
+    // históricos que no tengan estos campos siguen funcionando igual, sin migración.
+    creadoEn:new Date().toISOString(),
+    creadoPor:sesion?sesion.nombre:'',
     notas:nota?[{id:nuevoId(),texto:nota,autor:sesion.nombre,fecha:hoyStr()}]:[],
     clienteId:null
   };
