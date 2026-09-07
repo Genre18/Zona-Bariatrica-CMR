@@ -385,6 +385,14 @@ table.eq-tabla tbody tr:hover{background:var(--bg-soft);}
 .modal .cerrar-x:hover{background:var(--bg-soft);color:var(--text);}
 .fila-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .acciones-modal{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:14px;border-top:1px solid var(--border-light);flex-wrap:wrap;}
+/* BLOQUE 6 SIMPLIFICADO (2026-09-07) — checkbox "Pagado" por obligación */
+.modal.venta-detalle-modal{max-width:600px;}
+.pago-oblig{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;white-space:nowrap;}
+.pago-oblig-check{font-size:12px;border-radius:var(--r-xs);padding:3px 9px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:600;}
+.pago-oblig-no:hover{border-color:var(--primary);color:var(--primary);}
+.pago-oblig-si{color:var(--success);border-color:var(--success-br);background:var(--success-suave);cursor:default;}
+.pago-oblig-fila{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;}
+.pago-oblig-fila:last-child{border-bottom:none;}
 
 .item-linea{display:flex;justify-content:space-between;align-items:center;background:var(--bg-soft);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:6px;font-size:13.5px;}
 .item-linea .q{color:var(--muted);font-size:12px;}
@@ -1664,6 +1672,8 @@ function cerrarModal(){
   pedidoItemsTmp=[];
   stockPreciosVolumenTmp=[];
   notaEditando=null;
+  detalleProveedorAbierto=null;
+  detalleVentaAbierta=null;
 }
 
 /* ================= LOGIN NUBE (Supabase Auth) ================= */
@@ -4528,7 +4538,7 @@ function pintarCuentasConsignacionBajoPedido(){
         <td><span class="chip chip-gris">${MODALIDAD_LABEL_CORTO[c.modalidad]||c.modalidad}</span></td>
         <td>${money(obligacion)}</td>
         <td>${money(pagado)}</td>
-        <td>${saldo>0.005?`<button type="button" class="link-lead" style="padding:0;font-size:12.5px;" onclick="abrirFormPagoProveedorModalidad('${escJs(c.proveedor)}','${c.modalidad}')" title="Registrar pago">${money(saldo)}</button>`:(aFavor>0.005?`<span class="chip chip-azul" title="Zona Bariátrica pagó de más en esta cuenta (ej. una venta pagada que después se canceló)">Saldo a favor: ${money(aFavor)}</span>`:`<span class="chip chip-verde">Al día</span>`)}</td>
+        <td>${saldo>0.005?`<span style="font-size:12.5px;color:var(--danger);">${money(saldo)}</span>`:(aFavor>0.005?`<span class="chip chip-azul" title="Zona Bariátrica pagó de más en esta cuenta (ej. una venta pagada que después se canceló)">Saldo a favor: ${money(aFavor)}</span>`:`<span class="chip chip-verde">Al día</span>`)}</td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
   return html;
@@ -4678,6 +4688,122 @@ function textoAsignacionesPago(pg){
     ${asigs.map(a=>`${correlativoVenta(a.pedidoId)}: ${money(a.monto)} <button type="button" class="link-historial" style="font-size:11px;" onclick="abrirDetalleVentaHistorial('${a.pedidoId}')">Ver venta</button>`).join('<br>')}
     ${sinAsignar>0.005?`<br>Sin asignar: ${money(sinAsignar)}`:''}
   </div>`;
+}
+/* ===== BLOQUE 6 SIMPLIFICADO (2026-09-07) — checkbox "Pagado" por obligación =====
+   Para el uso diario, en vez de abrir "Registrar pago" y elegir ventas/montos, cada obligación
+   (ítem de una venta) muestra un checkbox "Pagado". El estado se DERIVA de los pagos reales
+   (no hay boolean guardado): Pagado = el pendiente de esa obligación es 0. Al marcar, el CRM
+   crea automáticamente el pago por el monto pendiente, en el libro correcto (pagosProveedor para
+   consignación/bajo pedido, liquidacionesSocio para reparto), con asignación {pedidoId,stockId}.
+   El motor de pagos (obligaciones/saldo/asignaciones/históricos) NO se toca — solo se simplifica
+   la UX. Nunca se borra un pago al "desmarcar" (un pago ya hecho se muestra marcado y fijo). */
+function obligacionesDeVentaProveedor(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoPago==='cancelado')return [];
+  const asigCons=asignadoDeLineaMapa(db.pagosProveedor);
+  const asigRep=asignadoDeLineaMapa(db.liquidacionesSocio);
+  const acc={};
+  (p.items||[]).forEach(it=>{
+    const modc=it.modalidadComercial;
+    let libro,proveedor,obligacion,cuentaSaldo;
+    if(modc==='consignacion'||modc==='bajo_pedido'){
+      if(typeof it.costoProveedorVenta!=='number')return;
+      libro='pagosProveedor'; proveedor=it.proveedorVenta;
+      obligacion=(it.cantidad||0)*it.costoProveedorVenta;
+      cuentaSaldo=proveedor?saldoProveedorModalidad(proveedor,modc):0;
+    }else if(modc==='reparto_ingresos'){
+      const td=totalDoctorItem(it);
+      if(!td)return;
+      libro='liquidacionesSocio'; proveedor=it.socioReparto;
+      obligacion=td.total;
+      cuentaSaldo=proveedor?saldoCreditoRepartoProveedorMarca(proveedor,it.marca):0;
+    }else return; // compra_directa u otros: la deuda no nace de la venta
+    if(!proveedor)return;
+    const k=libro+'|'+it.stockId;
+    if(!acc[k])acc[k]={pedidoId,stockId:it.stockId,producto:it.producto,marca:it.marca,modalidad:modc,libro,proveedor,obligacion:0,cuentaSaldo:round2(cuentaSaldo)};
+    acc[k].obligacion=round2(acc[k].obligacion+obligacion);
+  });
+  return Object.values(acc).map(o=>{
+    const asignado=round2(((o.libro==='pagosProveedor'?asigCons:asigRep)[o.pedidoId+'|'+o.stockId])||0);
+    const pendiente=Math.max(0,round2(o.obligacion-asignado));
+    // Pagado: esta línea ya cubierta por sus asignaciones, O la cuenta entera ya saldada por los
+    // pagos existentes (incluye pagos históricos sin asignación — no se reconstruyen, pero si la
+    // cuenta debe 0, la obligación está cubierta).
+    const pagado=pendiente<=0.005||o.cuentaSaldo<=0.005;
+    // Al marcar: el pendiente de la línea, pero nunca más de lo que la cuenta todavía debe.
+    const montoAlMarcar=round2(Math.min(pendiente,o.cuentaSaldo));
+    return Object.assign(o,{asignado,pendiente,pagado,montoAlMarcar});
+  });
+}
+function obligacionesDeCuentaProveedor(proveedor,modelo,marca){
+  const out=[];
+  (db.pedidos||[]).forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    const tiene=(p.items||[]).some(it=>modelo==='reparto_ingresos'
+      ?(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor&&it.marca===marca)
+      :(it.modalidadComercial===modelo&&it.proveedorVenta===proveedor&&it.marca===marca));
+    if(!tiene)return;
+    obligacionesDeVentaProveedor(p.id).forEach(o=>{
+      if(modelo==='reparto_ingresos'){
+        if(o.libro==='liquidacionesSocio'&&o.proveedor===proveedor&&o.marca===marca)out.push(o);
+      }else if(o.libro==='pagosProveedor'&&o.proveedor===proveedor&&o.modalidad===modelo&&o.marca===marca)out.push(o);
+    });
+  });
+  return out.sort((a,b)=>{
+    if(a.pagado!==b.pagado)return a.pagado?1:-1;
+    const pa=porId(db.pedidos,a.pedidoId),pb=porId(db.pedidos,b.pedidoId);
+    return ((pb&&pb.fecha)||'').localeCompare((pa&&pa.fecha)||'');
+  });
+}
+function checkboxPagoObligacion(o){
+  const etiqueta=(o.asignado>0.005&&o.pendiente>0.005)
+    ?('Pendiente: '+money(o.pendiente))
+    :('Total a pagar: '+money(o.obligacion));
+  if(o.pagado){
+    return `<span class="pago-oblig">${etiqueta} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span></span>`;
+  }
+  return `<span class="pago-oblig">${etiqueta} <button type="button" class="pago-oblig-check pago-oblig-no" onclick="marcarObligacionPagada('${o.pedidoId}','${o.stockId}','${o.libro}')">☐ Pagado</button></span>`;
+}
+let detalleProveedorAbierto=null; // {proveedor,modelo,marca} del drawer de proveedor abierto
+let detalleVentaAbierta=null;     // pedidoId del detalle de venta (Historial) abierto
+function refrescarDetalleAbierto(){
+  if(detalleVentaAbierta){abrirDetalleVentaHistorial(detalleVentaAbierta);}
+  else if(detalleProveedorAbierto){const d=detalleProveedorAbierto;abrirDetalleProveedor(d.proveedor,d.modelo,d.marca);}
+}
+function marcarObligacionPagada(pedidoId,stockId,libro){
+  const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
+  if(!o){alert('No se encontró la obligación de esta venta.');return;}
+  if(o.pagado){return;} // ya pagada: marcado y fijo, NO se revierte ningún pago (ver §13)
+  const monto=o.montoAlMarcar;
+  if(monto<=0.005){pintarProveedores();refrescarDetalleAbierto();return;}
+  if(!confirm('¿Marcar como pagado?\n\nSe registrará un pago de '+money(monto)+' correspondiente a esta venta ('+(o.marca||'—')+' · '+(o.producto||'—')+').'))return;
+  const base={id:nuevoId(),proveedor:o.proveedor,monto,fecha:hoyStr(),nota:'',usuario:sesion?sesion.nombre:'',asignaciones:[{pedidoId,stockId,monto}]};
+  if(o.libro==='pagosProveedor'){
+    db.pagosProveedor.push(Object.assign(base,{entregaId:null,modalidad:o.modalidad}));
+  }else{
+    db.liquidacionesSocio=db.liquidacionesSocio||[];
+    db.liquidacionesSocio.push(Object.assign(base,{marca:o.marca,modalidad:'reparto_ingresos',tipoPago:'credito_reparto'}));
+  }
+  guardar();
+  pintarProveedores();
+  refrescarDetalleAbierto();
+}
+function seccionObligacionesCuenta(proveedor,modelo,marca){
+  const obligs=obligacionesDeCuentaProveedor(proveedor,modelo,marca);
+  if(obligs.length===0)return '<div class="vacio">Sin ventas todavía.</div>';
+  const pend=obligs.filter(o=>!o.pagado);
+  const mostrar=(pend.length?pend:obligs).slice(0,8);
+  const filas=mostrar.map(o=>{
+    const p=porId(db.pedidos,o.pedidoId);
+    return `<div class="pago-oblig-fila">
+      <span>${fechaBonita((p&&p.fecha)||'')} · ${correlativoVenta(o.pedidoId)} · ${esc(o.producto||'—')}</span>
+      ${checkboxPagoObligacion(o)}
+    </div>`;
+  }).join('');
+  const resto=(pend.length?pend.length:obligs.length)-mostrar.length;
+  return filas
+    +(resto>0?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${resto} más — se pueden marcar también desde Historial → Ver detalle de cada venta.</p>`:'')
+    +(pend.length===0?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Todas las obligaciones de esta cuenta están pagadas.</p>`:'');
 }
 function abrirFormPagoProveedorModalidad(proveedor,modalidad){
   const saldo=saldoProveedorModalidad(proveedor,modalidad);
@@ -5238,6 +5364,8 @@ function filaVentaAgrupada(g,modelo){
     </tr>`;
 }
 function abrirDetalleProveedor(proveedor,modelo,marca){
+  detalleProveedorAbierto={proveedor,modelo,marca};
+  detalleVentaAbierta=null;
   const modeloLabel=MODELO_LABEL_PROVEEDORES[modelo]||modelo;
   if(modelo==='compra_directa'){
     // PRE-PAUTA: filtrado también por marca (antes traía TODAS las entregas del proveedor,
@@ -5269,7 +5397,6 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-seccion-titulo">Pagado</div>
           <div class="drawer-saldo-val">${money(generado-pendiente)}</div>
         </div>
-        ${entregaObjetivo?`<button type="button" class="btn" style="align-self:center;" onclick="cerrarModal();abrirFormPagoProveedor('${entregaObjetivo.id}')">Registrar pago</button>`:''}
       </div>
       <div class="drawer-seccion">
         <div class="drawer-seccion-titulo">Ventas pendientes</div>
@@ -5322,13 +5449,11 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-seccion-titulo">Pagado</div>
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
-        <!-- A pedido explícito (2026-08-26): el botón se muestra SIEMPRE, incluso con saldo S/0, para poder registrar pagos adelantados. No se tocó guardarPagoProveedorModalidad ni ninguna validación de guardado. -->
-        <button type="button" class="btn" style="align-self:center;" onclick="cerrarModal();abrirFormPagoProveedorModalidad('${escJs(proveedor)}','${modelo}')">Registrar pago</button>
       </div>
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
       <div class="drawer-seccion">
-        <div class="drawer-seccion-titulo">Ventas pendientes</div>
-        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.slice(0,4).map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>${gruposVenta.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gruposVenta.length-4} más — ver historial completo en Historial → Ventas.</p>`:''}`}
+        <div class="drawer-seccion-titulo">Obligaciones de esta cuenta</div>
+        ${seccionObligacionesCuenta(proveedor,modelo,marca)}
       </div>
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
@@ -5374,14 +5499,12 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
           <div class="drawer-seccion-titulo">Pagado</div>
           <div class="drawer-saldo-val">${money(pagado)}</div>
         </div>
-        <!-- A pedido explícito (2026-08-26): el botón se muestra SIEMPRE, incluso con saldo S/0. No se tocó guardarPagoCreditoReparto ni ninguna validación de guardado. -->
-        <button type="button" class="btn" style="align-self:center;" onclick="cerrarModal();abrirFormPagoCreditoReparto('${escJs(proveedor)}','${escJs(marca)}')">Registrar pago</button>
       </div>
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
       <div class="drawer-seccion">
-        <div class="drawer-seccion-titulo">Ventas pendientes</div>
-        ${gruposVenta.length===0?'<div class="vacio">Sin ventas todavía.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th></tr></thead><tbody>${gruposVenta.slice(0,4).map(g=>filaVentaAgrupada(g,'reparto_ingresos')).join('')}</tbody></table></div>${gruposVenta.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gruposVenta.length-4} más — ver historial completo en Historial → Ventas.</p>`:''}`}
+        <div class="drawer-seccion-titulo">Obligaciones de esta cuenta</div>
+        ${seccionObligacionesCuenta(proveedor,'reparto_ingresos',marca)}
       </div>
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
@@ -6189,8 +6312,11 @@ function pintarHistorial(){
 function abrirDetalleVentaHistorial(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(!p){alert('Venta no encontrada.');return;}
+  detalleVentaAbierta=pedidoId;
+  detalleProveedorAbierto=null;
   const c=porId(db.clientes,p.clienteId);
   const anulada=p.estadoPago==='cancelado';
+  const obligsProv=obligacionesDeVentaProveedor(p.id); // BLOQUE 6 SIMPLIFICADO: mismo estado/lógica que la pantalla de Proveedores
   const filasProductos=p.items.map(it=>{
     const presSabor=[it.presentacion,it.sabor].filter(Boolean).join(' · ');
     return `<tr>
@@ -6237,6 +6363,13 @@ function abrirDetalleVentaHistorial(pedidoId){
       <div>${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</div>
       ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
     </div>
+    ${obligsProv.length?`<div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Pago a proveedor</div>
+      ${obligsProv.map(o=>`<div class="pago-oblig-fila">
+        <span>${esc(o.marca||'—')} · ${esc(o.producto||'—')}</span>
+        ${checkboxPagoObligacion(o)}
+      </div>`).join('')}
+    </div>`:''}
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Otros</div>
       <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
@@ -6246,7 +6379,7 @@ function abrirDetalleVentaHistorial(pedidoId){
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
       <button type="button" class="btn" onclick="imprimirTicket('${p.id}')">Reimprimir comprobante</button>
-    </div>`,'panel-derecha');
+    </div>`,'modal-centrado venta-detalle-modal');
 }
 function exportarCSV(tipo){
   let filas=[],nombre='';
