@@ -763,7 +763,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         </div>
       </div>
       <div class="filtros toolbar-modulo">
-        <input id="clientesBuscar" placeholder="Buscar por nombre, apellido, teléfono/usuario, DNI, email o ciudad..." oninput="pintarClientes()">
+        <input id="clientesBuscar" placeholder="Buscar por nombre, apellido, teléfono o DNI..." oninput="pintarClientes()">
         <select id="clientesFiltroRecompra" onchange="pintarClientes()">
           <option value="">Estado recompra: Todos</option>
           <option value="recompra">Recompra</option>
@@ -790,20 +790,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         </div>
       </div>
       <div class="filtros toolbar-modulo">
-        <input id="stockBuscar" placeholder="Buscar por producto, marca, código o proveedor..." oninput="pintarStock()">
-        <select id="stockFiltroMarca" onchange="pintarStock()"><option value="">Marca: todas</option></select>
-        <select id="stockFiltroModalidad" onchange="pintarStock()">
-          <option value="">Modalidad: todas</option>
-          <option value="consignacion">Consignación</option>
-          <option value="bajo_pedido">Bajo pedido</option>
-          <option value="reparto_ingresos">Reparto de utilidad</option>
-          <option value="compra_directa">Compra directa</option>
-        </select>
-        <select id="stockFiltroEstado" onchange="pintarStock()">
-          <option value="">Stock: todos</option>
-          <option value="con">Con stock</option>
-          <option value="bajo">Bajo stock</option>
-        </select>
+        <input id="stockBuscar" placeholder="Buscar producto..." oninput="pintarStock()">
       </div>
       <div id="listaStock"></div>
       <div style="text-align:center;margin-top:18px;">
@@ -821,9 +808,6 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
           </div>
         </div>
       </div>
-      <div class="filtros toolbar-modulo">
-        <input id="provBuscar" placeholder="Buscar por proveedor o marca..." oninput="pintarProveedores()">
-      </div>
       <div id="resumenProveedores"></div>
       <div id="listaProveedores"></div>
       <div id="listaPagosSinClasificar"></div>
@@ -839,16 +823,6 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
           </div>
           <div class="page-actions"><button class="btn" onclick="abrirFormTarea()">+ Nueva tarea</button></div>
         </div>
-      </div>
-      <div class="filtros toolbar-modulo">
-        <input id="tareasBuscar" placeholder="Buscar por título, descripción o responsable..." oninput="pintarTareas()">
-        <select id="tareasFiltroResponsable" onchange="pintarTareas()"><option value="">Responsable: todos</option></select>
-        <select id="tareasFiltroEstado" onchange="pintarTareas()">
-          <option value="">Estado: todos</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en progreso">En progreso</option>
-          <option value="hecho">Hecho</option>
-        </select>
       </div>
       <div id="tableroTareas"></div>
     </section>
@@ -1701,7 +1675,6 @@ function cerrarModal(){
   detalleProveedorAbierto=null;
   detalleVentaAbierta=null;
   abonoModalPedido=null;
-  filtroEstadoVentasDrawer='todos';
 }
 
 /* ================= LOGIN NUBE (Supabase Auth) ================= */
@@ -1900,12 +1873,54 @@ function pintarFiltroEstadoLeads(){
 function leadEstaConvertido(l){
   return !!(l&&l.clienteId&&porId(db.clientes,l.clienteId));
 }
-// Sección 2/3: orden visual "agrupar por Estatus" — SOLO de presentación, variable en memoria,
-// nunca toca db.leads/guardar()/Supabase. Reutiliza ESTADOS_LEAD (ya está en el orden operativo
-// pedido: sin contactar, seguimiento, cliente potencial, renovación, cliente, no contactar).
-let leadsOrdenPorEstado=false;
+/* ============ ORDENAMIENTO DE TABLAS POR ENCABEZADO (2026-09-07) ============
+   Mismo patrón visual que la flecha de "Estatus" en Leads (.th-orden-btn / .th-orden-icono).
+   SOLO interfaz, en memoria — nunca toca db/guardar()/Supabase. 1er clic = ascendente (↑),
+   2º = descendente (↓), sin orden activo = neutro (↕). Los vacíos van siempre al final.
+   Los valores numéricos se ordenan numéricamente; las fechas ISO ordenan cronológicamente. */
+const _ordenTablas={};
+function ordenarTablaPor(tabla,col){
+  const cur=_ordenTablas[tabla];
+  if(cur&&cur.col===col)cur.dir=cur.dir==='asc'?'desc':'asc';
+  else _ordenTablas[tabla]={col:col,dir:'asc'};
+}
+function iconoOrdenTabla(tabla,col){
+  const cur=_ordenTablas[tabla];
+  if(!cur||cur.col!==col)return '↕';
+  return cur.dir==='asc'?'↑':'↓';
+}
+// <th> ordenable: etiqueta + flecha, hereda la tipografía del <th> contenedor. `repintar` es el
+// código JS que vuelve a dibujar esa tabla (ej. "pintarClientes()").
+function thOrden(tabla,col,label,repintar){
+  return `<th><button type="button" class="th-orden-btn" title="Ordenar por ${esc(label.toLowerCase())}" onclick="ordenarTablaPor('${tabla}','${col}');${repintar}">${esc(label)} <span class="th-orden-icono">${iconoOrdenTabla(tabla,col)}</span></button></th>`;
+}
+// Ordena una COPIA de `arr` según el estado de `tabla`. `accesores` = { col: item => valor }.
+// Si no hay orden activo para esa tabla (o la columna no tiene accesor), devuelve `arr` sin tocar.
+function ordenarFilas(tabla,arr,accesores){
+  const cur=_ordenTablas[tabla];
+  if(!cur||!accesores||typeof accesores[cur.col]!=='function')return arr;
+  const get=accesores[cur.col],m=cur.dir==='desc'?-1:1;
+  return arr.slice().sort((a,b)=>{
+    let va=get(a),vb=get(b);
+    const ea=(va===undefined||va===null||va===''),eb=(vb===undefined||vb===null||vb==='');
+    if(ea&&eb)return 0;
+    if(ea)return 1;   // vacíos al final en cualquier dirección
+    if(eb)return -1;
+    const na=(typeof va==='number')?va:((typeof va==='string'&&va.trim()!==''&&isFinite(va))?Number(va):NaN);
+    const nb=(typeof vb==='number')?vb:((typeof vb==='string'&&vb.trim()!==''&&isFinite(vb))?Number(vb):NaN);
+    if(!isNaN(na)&&!isNaN(nb))return (na-nb)*m;
+    va=String(va).toLowerCase();vb=String(vb).toLowerCase();
+    return va<vb?-1*m:(va>vb?1*m:0);
+  });
+}
+// Número del correlativo de una venta ("Venta 0037" -> 37) para ordenar por la columna VENTA.
+function correlativoNum(pedidoId){
+  const mm=String(correlativoVenta(pedidoId)).match(/(\d+)/);
+  return mm?parseInt(mm[1],10):0;
+}
+// Compat: el botón del encabezado "Estatus" de Leads ahora usa el mecanismo genérico.
 function alternarOrdenLeadsPorEstado(){
-  leadsOrdenPorEstado=!leadsOrdenPorEstado;
+  ordenarTablaPor('leads','estatus');
   pintarLeads();
 }
 function pintarLeads(){
@@ -1934,15 +1949,18 @@ function pintarLeads(){
     if(filtroDesde)leads=leads.filter(l=>(l.fecha||'')>=filtroDesde);
     if(filtroHasta)leads=leads.filter(l=>(l.fecha||'')<=filtroHasta);
   }
-  // Orden visual por Estatus (modo 2) — se aplica SOLO acá, sobre una copia ya filtrada/buscada;
-  // dentro de cada estado se conserva el mismo criterio temporal de siempre (fecha desc).
-  if(leadsOrdenPorEstado){
-    leads=leads.slice().sort((a,b)=>{
-      const diff=ESTADOS_LEAD.indexOf(a.estado)-ESTADOS_LEAD.indexOf(b.estado);
-      if(diff!==0)return diff;
-      return (b.fecha||'').localeCompare(a.fecha||'');
-    });
-  }
+  // Orden visual por encabezado (Fecha/Nombre/Apellido/Edad/Ciudad/Estatus/Responsable) — SOLO
+  // presentación, sobre la copia ya filtrada. Sin orden activo, se mantiene el criterio de
+  // siempre (fecha desc). El resto de campos (Hora/DNI/Celular/Email) no se ordenan.
+  leads=ordenarFilas('leads',leads,{
+    fecha:l=>l.fecha,
+    nombre:l=>nombreLead(l),
+    apellido:l=>l.apellido,
+    edad:l=>l.edad,
+    ciudad:l=>l.distrito,
+    responsable:l=>l.atendidoPor,
+    estatus:l=>ESTADOS_LEAD.indexOf(l.estado)
+  });
   const cont=document.getElementById('listaLeads');
   if(avisoFecha){cont.innerHTML=avisoFecha;return;}
   if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
@@ -1967,9 +1985,9 @@ function pintarLeads(){
       <col style="width:40px;"><col style="width:78px;"><col style="width:110px;"><col style="width:130px;">
       <col style="width:95px;"><col style="width:145px;"><col style="width:90px;">
     </colgroup><thead><tr>
-      <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Apellido</th><th>Edad</th><th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th><th title="Ciudad / Provincia">Ciudad / Provincia</th>
-      <th><button type="button" class="th-orden-btn" title="Ordenar por estatus" onclick="alternarOrdenLeadsPorEstado()">Estatus <span class="th-orden-icono">${leadsOrdenPorEstado?'↑':'↕'}</span></button></th>
-      <th>Responsable</th>
+      ${thOrden('leads','fecha','Fecha','pintarLeads()')}<th>Hora</th>${thOrden('leads','nombre','Nombre','pintarLeads()')}${thOrden('leads','apellido','Apellido','pintarLeads()')}${thOrden('leads','edad','Edad','pintarLeads()')}<th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th>${thOrden('leads','ciudad','Ciudad / Provincia','pintarLeads()')}
+      ${thOrden('leads','estatus','Estatus','pintarLeads()')}
+      ${thOrden('leads','responsable','Responsable','pintarLeads()')}
     </tr></thead><tbody>${leads.map(l=>{
       const convertido=leadEstaConvertido(l);
       return `
@@ -2343,13 +2361,19 @@ function pintarClientes(){
   const filtroRecompra=elFiltroRecompra?elFiltroRecompra.value:'';
   let clientes=db.clientes.slice().sort((a,b)=>(b.creado||'').localeCompare(a.creado||''));
   clientes=clientes.filter(c=>c.activo!==false);
-  if(buscar)clientes=clientes.filter(c=>[c.nombre,c.apellido,c.telefono,c.dni,c.email,c.ciudad,c.distrito,c.provincia,c.departamento].filter(Boolean).join(' ').toLowerCase().includes(buscar));
+  if(buscar)clientes=clientes.filter(c=>[c.nombre,c.apellido,c.telefono,c.dni].join(' ').toLowerCase().includes(buscar));
   if(filtroRecompra)clientes=clientes.filter(c=>estadoRecompraCliente(c.id).estado===filtroRecompra);
+  clientes=ordenarFilas('clientes',clientes,{
+    cliente:c=>((c.nombre||'')+' '+(c.apellido||'')).trim(),
+    ubicacion:c=>c.ciudad||c.distrito||c.departamento,
+    ultima:c=>estadoRecompraCliente(c.id).ultimaCompra,
+    pedidos:c=>db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length
+  });
   const cont=document.getElementById('listaClientes');
   if(clientes.length===0){cont.innerHTML=`<div class="vacio">${buscar||filtroRecompra?'Ningún cliente coincide con la búsqueda/filtro.':'No hay clientes todavía.'}</div>`;return;}
   const pad='padding:7px 10px;';
   cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
-    <th>Cliente</th><th>Ubicación</th><th>Marcas</th><th>Última compra</th><th>Recompra</th><th>Pedidos</th>
+    ${thOrden('clientes','cliente','Cliente','pintarClientes()')}${thOrden('clientes','ubicacion','Ubicación','pintarClientes()')}<th>Marcas</th>${thOrden('clientes','ultima','Última compra','pintarClientes()')}<th>Recompra</th>${thOrden('clientes','pedidos','Pedidos','pintarClientes()')}
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
       const r=estadoRecompraCliente(c.id);
@@ -3743,16 +3767,6 @@ function abrirMenuContextualStock(ev,id){
 function pintarStock(){
   const verArchivados=document.getElementById('stockVerArchivados')&&document.getElementById('stockVerArchivados').checked;
   const buscar=(document.getElementById('stockBuscar')&&document.getElementById('stockBuscar').value||'').toLowerCase();
-  // Filtros compactos (interfaz, no tocan datos): Marca / Modalidad / Estado de stock.
-  const elFM=document.getElementById('stockFiltroMarca');
-  if(elFM&&elFM.options.length<=1){
-    const actual=elFM.value;
-    elFM.innerHTML='<option value="">Marca: todas</option>'+(db.config.marcas||[]).map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
-    elFM.value=actual;
-  }
-  const fMarca=elFM?elFM.value:'';
-  const fModalidad=(document.getElementById('stockFiltroModalidad')||{}).value||'';
-  const fEstado=(document.getElementById('stockFiltroEstado')||{}).value||'';
   let stockVisible=verArchivados?db.stock:db.stock.filter(s=>s.activo!==false);
   if(buscar)stockVisible=stockVisible.filter(s=>
     (s.producto||'').toLowerCase().includes(buscar)||
@@ -3762,14 +3776,18 @@ function pintarStock(){
     (s.sabor||'').toLowerCase().includes(buscar)||
     (s.proveedor||'').toLowerCase().includes(buscar)
   );
-  if(fMarca)stockVisible=stockVisible.filter(s=>s.marca===fMarca);
-  if(fModalidad)stockVisible=stockVisible.filter(s=>((db.config.modalidadMarca||{})[s.marca]||'')===fModalidad);
-  if(fEstado==='con')stockVisible=stockVisible.filter(s=>(s.cantidad||0)>0);
-  else if(fEstado==='bajo')stockVisible=stockVisible.filter(s=>{const e=estadoStockProducto(s).estado;return e==='stock_bajo'||e==='sin_stock';});
   const cont=document.getElementById('listaStock');
-  const hayFiltro=buscar||fMarca||fModalidad||fEstado;
-  if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${hayFiltro?'Ningún producto coincide con la búsqueda/filtros.':'No hay productos en stock todavía.'}</div>`;return;}
+  if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${buscar?'Ningún producto coincide con la búsqueda.':'No hay productos en stock todavía.'}</div>`;return;}
   stockVisible=stockVisible.slice().sort((a,b)=>a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
+  stockVisible=ordenarFilas('stock',stockVisible,{
+    marca:s=>s.marca,
+    producto:s=>s.producto,
+    cantidad:s=>Number(s.cantidad||0),
+    minimo:s=>Number(s.min||0),
+    costo:s=>Number(s.costoPromedio||0),
+    precio:s=>Number(s.precioVenta||0),
+    proveedor:s=>s.proveedor
+  });
   // ETAPA D: tabla de solo consulta/acción (sin inputs editables inline, a diferencia de
   // Leads) — los cambios siempre pasan por Editar/Ajustar/Corregir costo/Registrar entrega,
   // para proteger la trazabilidad P1/P2. BLOQUE UX (2026-08-21): usa tabla-excel (líneas finas,
@@ -3780,7 +3798,7 @@ function pintarStock(){
       <col style="width:110px;"><col style="width:92px;"><col style="width:200px;"><col style="width:100px;"><col style="width:90px;">
       <col style="width:65px;"><col style="width:58px;"><col style="width:92px;"><col style="width:92px;"><col style="width:118px;">
     </colgroup><thead><tr>
-      <th>Marca</th><th>Código</th><th>Producto</th><th>Presentación</th><th>Sabor</th><th>Cantidad</th><th>Mínimo</th><th>Precio de compra</th><th>Precio de venta</th><th>Proveedor</th>
+      ${thOrden('stock','marca','Marca','pintarStock()')}<th>Código</th>${thOrden('stock','producto','Producto','pintarStock()')}<th>Presentación</th><th>Sabor</th>${thOrden('stock','cantidad','Cantidad','pintarStock()')}${thOrden('stock','minimo','Mínimo','pintarStock()')}${thOrden('stock','costo','Precio de compra','pintarStock()')}${thOrden('stock','precio','Precio de venta','pintarStock()')}${thOrden('stock','proveedor','Proveedor','pintarStock()')}
     </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>
     <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar, ajustar stock, corregir costo o archivar. Desliza horizontalmente para ver todas las columnas.</p>`;
 }
@@ -4809,8 +4827,6 @@ function checkboxPagoObligacion(o){
 }
 let detalleProveedorAbierto=null; // {proveedor,modelo,marca} del drawer de proveedor abierto
 let detalleVentaAbierta=null;     // pedidoId del detalle de venta (Historial) abierto
-let filtroEstadoVentasDrawer='todos'; // Todas | pendientes | pagados — filtro de la tabla de ventas del drawer
-function setFiltroVentasDrawer(v){filtroEstadoVentasDrawer=v||'todos';refrescarDetalleAbierto();}
 function refrescarDetalleAbierto(){
   if(abonoModalPedido){abrirModalAbono(abonoModalPedido);}
   else if(detalleVentaAbierta){abrirDetalleVentaHistorial(detalleVentaAbierta);}
@@ -5251,9 +5267,8 @@ function estadoProveedorFila(f){
   return{estado:'al_dia',label:'Al día',chip:'chip-verde'};
 }
 function pintarProveedores(){
-  const buscarProv=((document.getElementById('provBuscar')||{}).value||'').toLowerCase();
   let filas=filasProveedoresTabla();
-  if(buscarProv)filas=filas.filter(f=>((f.proveedor||'')+' '+(f.marca||'')).toLowerCase().includes(buscarProv));
+  filas=ordenarFilas('proveedores',filas,{proveedor:f=>f.proveedor,marca:f=>f.marca,pagar:f=>f.pendiente,estado:f=>estadoProveedorFila(f).label});
   // MICRO-SPRINT (2026-08-21): 3 indicadores económicos — ver deudaTotalStockProveedores()/
   // porPagarSegunVentas()/totalPagadoProveedores() para la fórmula exacta y por qué cada
   // modalidad entra o no en cada uno. Reemplaza el resumen anterior de 2 indicadores (Por
@@ -5285,7 +5300,7 @@ function pintarProveedores(){
     html='<div class="vacio">No hay proveedores ni socios con movimiento todavía.</div>';
   }else{
     html=`<h3 class="tabla-titulo">Obligaciones por proveedor</h3><div class="tabla-excel proveedores-wrap"><table class="proveedores-tabla"><thead><tr>
-      <th>Proveedor / socio</th><th>Marca</th><th>Por pagar</th><th>Estado</th><th>Acción</th>
+      ${thOrden('proveedores','proveedor','Proveedor / socio','pintarProveedores()')}${thOrden('proveedores','marca','Marca','pintarProveedores()')}${thOrden('proveedores','pagar','Por pagar','pintarProveedores()')}${thOrden('proveedores','estado','Estado','pintarProveedores()')}<th>Acción</th>
       </tr></thead><tbody>${filas.map(f=>{
         const est=estadoProveedorFila(f);
         return `<tr>
@@ -5444,23 +5459,17 @@ function cerrarModalAbono(){
   else cerrarModal();
 }
 // Tabla compacta de ventas del detalle de proveedor: FECHA | VENTA | PRODUCTOS (contador) |
-// TOTAL A PAGAR | ABONO. Con filtro Todas/Pendientes/Pagadas basado en el estado real de pago.
+// TOTAL A PAGAR | ABONO. Ordenable por encabezado (Fecha/Venta/Productos/Total a pagar);
+// ABONO es una acción, no se ordena.
 function seccionVentasDrawer(gruposVenta,modelo){
   if(gruposVenta.length===0)return '<div class="vacio">Sin ventas todavía.</div>';
-  let gv=gruposVenta;
-  if(filtroEstadoVentasDrawer==='pendientes')gv=gruposVenta.filter(g=>!grupoVentaPagado(g,modelo));
-  else if(filtroEstadoVentasDrawer==='pagados')gv=gruposVenta.filter(g=>grupoVentaPagado(g,modelo));
-  const sel=`<div class="filtros toolbar-modulo" style="border-bottom:none;padding-bottom:8px;margin-bottom:8px;">
-    <select onchange="setFiltroVentasDrawer(this.value)">
-      <option value="todos"${filtroEstadoVentasDrawer==='todos'?' selected':''}>Todas</option>
-      <option value="pendientes"${filtroEstadoVentasDrawer==='pendientes'?' selected':''}>Pendientes</option>
-      <option value="pagados"${filtroEstadoVentasDrawer==='pagados'?' selected':''}>Pagadas</option>
-    </select>
-  </div>`;
-  const cuerpo=gv.length===0
-    ?`<div class="vacio">Ninguna venta ${filtroEstadoVentasDrawer==='pagados'?'pagada':'pendiente'} en esta cuenta.</div>`
-    :`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Venta</th><th>Productos</th><th>Total a pagar</th><th>Abono</th></tr></thead><tbody>${gv.slice(0,8).map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>${gv.length>8?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gv.length-8} más — ver el resto en Historial → Ventas.</p>`:''}`;
-  return sel+cuerpo;
+  const gv=ordenarFilas('provVentas',gruposVenta,{
+    fecha:g=>g.fecha,
+    venta:g=>correlativoNum(g.pedidoId),
+    productos:g=>(g.items||[]).length,
+    total:g=>g.total
+  });
+  return `<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>${thOrden('provVentas','fecha','Fecha','refrescarDetalleAbierto()')}${thOrden('provVentas','venta','Venta','refrescarDetalleAbierto()')}${thOrden('provVentas','productos','Productos','refrescarDetalleAbierto()')}${thOrden('provVentas','total','Total a pagar','refrescarDetalleAbierto()')}<th>Abono</th></tr></thead><tbody>${gv.slice(0,8).map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>${gv.length>8?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gv.length-8} más — ver el resto en Historial → Ventas.</p>`:''}`;
 }
 function abrirDetalleProveedor(proveedor,modelo,marca){
   detalleProveedorAbierto={proveedor,modelo,marca};
@@ -5942,23 +5951,8 @@ const ESTADOS_TAREA=[['pendiente','Pendiente'],['en progreso','En progreso'],['h
 // moverTarea() de siempre, solo cambia cómo se agrupa/presenta cada tarea.
 function pintarTareas(){
   const cont=document.getElementById('tableroTareas');
-  // Filtros compactos (interfaz, no tocan datos): búsqueda + responsable + estado.
-  const buscar=((document.getElementById('tareasBuscar')||{}).value||'').toLowerCase();
-  const elResp=document.getElementById('tareasFiltroResponsable');
-  if(elResp&&elResp.options.length<=1){
-    const actual=elResp.value;
-    const nombres=[...new Set([...usuariosAdmin().map(u=>u.nombre),...(db.tareas||[]).map(t=>t.asignadoA).filter(Boolean)])];
-    elResp.innerHTML='<option value="">Responsable: todos</option>'+nombres.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    elResp.value=actual;
-  }
-  const fResp=elResp?elResp.value:'';
-  const fEstado=((document.getElementById('tareasFiltroEstado')||{}).value)||'';
-  let tareas=db.tareas.slice().sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
-  if(buscar)tareas=tareas.filter(t=>[t.texto,t.descripcion,t.asignadoA].filter(Boolean).join(' ').toLowerCase().includes(buscar));
-  if(fResp)tareas=tareas.filter(t=>(t.asignadoA||'')===fResp);
-  if(fEstado)tareas=tareas.filter(t=>t.estado===fEstado);
-  if(db.tareas.length===0){cont.innerHTML='<div class="vacio">No hay tareas todavía.</div>';return;}
-  if(tareas.length===0){cont.innerHTML='<div class="vacio">Ninguna tarea coincide con la búsqueda/filtros.</div>';return;}
+  const tareas=db.tareas.slice().sort((a,b)=>(a.fechaLimite||'z').localeCompare(b.fechaLimite||'z'));
+  if(tareas.length===0){cont.innerHTML='<div class="vacio">No hay tareas todavía.</div>';return;}
   cont.innerHTML=`<div class="tareas-tablero">${ESTADOS_TAREA.map(([codigo,titulo])=>{
     const deEsteEstado=tareas.filter(t=>t.estado===codigo);
     return `<div class="tareas-columna">
@@ -6290,14 +6284,19 @@ function pintarHistorial(){
         p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar)||(it.marca||'').toLowerCase().includes(buscar));
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    // BLOQUE 4 (2026-09-07) — Historial como ÍNDICE compacto de ventas, no como sábana con todo
-    // el detalle abierto. La lista principal deja solo lo necesario para reconocer la venta
-    // (fecha, referencia, cliente, total, estado, responsable); productos, cantidades, precios,
-    // descuentos, delivery, embalaje, método de pago y recargo se ven en "Ver detalle" (modal
-    // abrirDetalleVentaHistorial, ya existente y completo). Al cerrarlo se vuelve exactamente al
-    // mismo punto de Historial. Filtros y rango de fechas SIN cambios.
+    // BLOQUE 4 (2026-09-07) — Historial como ÍNDICE compacto de ventas. Filtros y rango SIN
+    // cambios; además, ordenable por encabezado (Fecha/Venta/Cliente/Total/Estado/Responsable).
+    // "Ver detalle" (última columna) no se ordena.
+    filas=ordenarFilas('histVentas',filas,{
+      fecha:p=>p.fecha,
+      venta:p=>correlativoNum(p.id),
+      cliente:p=>{const cc=porId(db.clientes,p.clienteId);return cc?((cc.nombre||'')+' '+(cc.apellido||'')).trim():'';},
+      total:p=>p.total,
+      estado:p=>p.estadoPago,
+      responsable:p=>p.atendidoPor
+    });
     cont.innerHTML=filas.length===0?`<div class="vacio">Sin ${esAnuladas?'ventas anuladas':'ventas'} para este filtro.</div>`:`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Venta</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Responsable</th><th></th>
+      ${thOrden('histVentas','fecha','Fecha','pintarHistorial()')}${thOrden('histVentas','venta','Venta','pintarHistorial()')}${thOrden('histVentas','cliente','Cliente','pintarHistorial()')}${thOrden('histVentas','total','Total','pintarHistorial()')}${thOrden('histVentas','estado','Estado','pintarHistorial()')}${thOrden('histVentas','responsable','Responsable','pintarHistorial()')}<th></th>
       </tr></thead><tbody>${filas.map(p=>{
         const c=porId(db.clientes,p.clienteId);
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
