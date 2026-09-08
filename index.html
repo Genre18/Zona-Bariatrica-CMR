@@ -281,6 +281,27 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 table.historial-tabla{width:100%;}
 table.historial-tabla th{padding:6px 8px;font-size:9.5px;}
 table.historial-tabla td{padding:5px 8px;font-size:12px;}
+/* MICRO-SPRINT UX HISTORIAL (2026-09-08) — sección 1/2/6: scroll interno + encabezado sticky,
+   mismo patrón que .leads-tabla-wrap/.stock-tabla-wrap (66vh, scrollbar fina) para que las 6
+   vistas de Historial se sientan del mismo módulo. Clases propias — no toca .tabla-excel global
+   ni ninguna otra tabla (leads/stock/proveedores/cliente-historial siguen igual). */
+.historial-wrap{max-height:66vh;overflow:auto;}
+.historial-wrap:focus{outline:none;}
+.historial-wrap:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;}
+.historial-wrap::-webkit-scrollbar{height:8px;width:8px;}
+.historial-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.historial-wrap::-webkit-scrollbar-track{background:transparent;}
+table.historial-tabla thead th{position:sticky;top:0;z-index:2;background:var(--bg-soft);}
+@media(max-width:780px){.historial-wrap{max-height:52vh;}}
+/* Sección 3: fila seleccionada por teclado (↑/↓/Home/End) — solo UX temporal, ver
+   historialSeleccionarFila(); nunca se guarda en db ni en localStorage. Apoyo con
+   box-shadow además de color para no depender solo del color (sección 8). */
+table.historial-tabla tbody tr.historial-fila-sel{background:var(--primary-suave);box-shadow:inset 2px 0 0 var(--primary);}
+/* Sección 5: "Todos" — Fecha/Tipo/Referencia compactas y fijas, Detalle flexible (trunca con
+   ellipsis, texto completo en title), Responsable con ancho fijo que siempre cabe en desktop sin
+   forzar el scroll horizontal (ver colgroup en pintarHistorialTodos). */
+table.historial-tabla-todos{table-layout:fixed;}
+table.historial-tabla-todos td.hist-detalle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* UX CORRECTIVO (2026-08-21) — sección 3/4: ficha Cliente más compacta que .grid-cards/.stat
    global (esa clase la siguen usando Reportes/Proveedores/Dashboard tal cual). */
@@ -6369,7 +6390,65 @@ function marcaDePago(pg){
 // Filtros buscar/desde/hasta son INDEPENDIENTES de Resumen (ids distintos, no comparten estado
 // con repDesde/repHasta/pintarReportes). Ningún tipo inventa una colección nueva: todo sale de
 // db.pedidos/db.movimientosStock/db.pagosProveedor/db.liquidacionesSocio ya existentes.
+// MICRO-SPRINT UX HISTORIAL (2026-09-08) — sección 3/8: navegación ↑/↓/Home/End entre filas de
+// la tabla de Historial activa. Selección puramente visual (clase .historial-fila-sel en <tr>):
+// nunca se guarda en db ni en localStorage, y se limpia en cada pintarHistorial() (ver ahí)
+// porque cambiar tipo/búsqueda/fecha/orden reconstruye las filas y el índice dejaría de tener
+// sentido. Solo actúa cuando el foco está DENTRO de la tabla (.historial-wrap con tabindex="0",
+// enfocada al hacer click adentro — ver el listener de click más abajo): así nunca compite con
+// Buscar/Desde/Hasta ni con ningún <input>/<select>/<textarea> de la página, estén o no dentro
+// de Historial.
+let histFilaSeleccionada=-1;
+function historialFilas(){
+  const cont=document.getElementById('histContenido');
+  return cont?Array.from(cont.querySelectorAll('table.historial-tabla tbody tr')):[];
+}
+function historialLimpiarSeleccion(){
+  histFilaSeleccionada=-1;
+}
+function historialSeleccionarFila(idx){
+  const filas=historialFilas();
+  if(filas.length===0){histFilaSeleccionada=-1;return;}
+  if(idx<0)idx=0;
+  if(idx>filas.length-1)idx=filas.length-1;
+  filas.forEach(tr=>tr.classList.remove('historial-fila-sel'));
+  histFilaSeleccionada=idx;
+  const fila=filas[idx];
+  fila.classList.add('historial-fila-sel');
+  // block:'nearest' hace scroll dentro del contenedor con overflow:auto más cercano
+  // (.historial-wrap) sin mover el resto de la página si la fila ya es visible.
+  fila.scrollIntoView({block:'nearest'});
+}
+document.addEventListener('click',e=>{
+  const wrap=e.target.closest&&e.target.closest('.historial-wrap');
+  if(!wrap||typeof wrap.focus!=='function')return;
+  // No le quites el foco a un control que ya ejecutó su propia acción al hacer click (un botón
+  // "Ver detalle", o una fila de "Todos" con onclick que abre el modal de la venta) — si no, el
+  // foco vuelve a saltar a la tabla justo después de abrirse el modal.
+  if(e.target.closest('button,a,select,input,textarea'))return;
+  if(e.target.closest('tr[onclick]'))return;
+  wrap.focus({preventScroll:true});
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Home'&&e.key!=='End')return;
+  const t=e.target;
+  const esControlDeFormulario=t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA'||t.isContentEditable);
+  if(esControlDeFormulario)return;
+  const activo=document.activeElement;
+  if(!activo||!activo.closest||!activo.closest('.historial-wrap'))return;
+  const filas=historialFilas();
+  if(filas.length===0)return;
+  e.preventDefault();
+  if(e.key==='ArrowDown')historialSeleccionarFila(histFilaSeleccionada+1);
+  else if(e.key==='ArrowUp')historialSeleccionarFila(histFilaSeleccionada<0?0:histFilaSeleccionada-1);
+  else if(e.key==='Home')historialSeleccionarFila(0);
+  else if(e.key==='End')historialSeleccionarFila(filas.length-1);
+});
 function pintarHistorial(){
+  // MICRO-SPRINT UX (2026-09-08) — cualquier repintado (cambio de tipo/búsqueda/fecha/orden)
+  // invalida la fila que el usuario tenía seleccionada con el teclado: se limpia acá, antes de
+  // reconstruir la tabla, para no dejar un índice apuntando a una fila que ya no es la misma.
+  historialLimpiarSeleccion();
   const tipo=document.getElementById('histTipo').value;
   const buscar=(document.getElementById('histBuscar').value||'').toLowerCase();
   const desde=document.getElementById('histDesde').value;
@@ -6404,7 +6483,7 @@ function pintarHistorial(){
       estado:p=>p.estadoPago,
       responsable:p=>p.atendidoPor
     });
-    cont.innerHTML=filas.length===0?`<div class="vacio">Sin ${esAnuladas?'ventas anuladas':'ventas'} para este filtro.</div>`:`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
+    cont.innerHTML=filas.length===0?`<div class="vacio">Sin ${esAnuladas?'ventas anuladas':'ventas'} para este filtro.</div>`:`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla"><thead><tr>
       ${thOrden('histVentas','fecha','Fecha','pintarHistorial()')}${thOrden('histVentas','venta','Venta','pintarHistorial()')}${thOrden('histVentas','cliente','Cliente','pintarHistorial()')}${thOrden('histVentas','total','Total','pintarHistorial()')}${thOrden('histVentas','estado','Estado','pintarHistorial()')}${thOrden('histVentas','responsable','Responsable','pintarHistorial()')}<th></th>
       </tr></thead><tbody>${filas.map(p=>{
         const c=porId(db.clientes,p.clienteId);
@@ -6434,8 +6513,17 @@ function pintarHistorial(){
       return (s&&(s.producto||'').toLowerCase().includes(buscar))||(s&&(s.marca||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar)||(m.usuario||'').toLowerCase().includes(buscar);
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Proveedor</th>
+    // Mismo lenguaje de orden que Ventas (thOrden/ordenarFilas): tabla propia 'histEntradas',
+    // no pisa el orden de ninguna otra vista.
+    filas=ordenarFilas('histEntradas',filas,{
+      fecha:m=>m.fecha,
+      producto:m=>{const s=porId(db.stock,m.stockId);return s?s.producto:'';},
+      marca:m=>{const s=porId(db.stock,m.stockId);return s?s.marca:'';},
+      cantidad:m=>m.cantidad,
+      proveedor:m=>m.proveedor||''
+    });
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla"><thead><tr>
+      ${thOrden('histEntradas','fecha','Fecha','pintarHistorial()')}${thOrden('histEntradas','producto','Producto','pintarHistorial()')}${thOrden('histEntradas','marca','Marca','pintarHistorial()')}${thOrden('histEntradas','cantidad','Cantidad','pintarHistorial()')}${thOrden('histEntradas','proveedor','Proveedor','pintarHistorial()')}
       </tr></thead><tbody>${filas.map(m=>{
         const s=porId(db.stock,m.stockId);
         return `<tr>
@@ -6459,8 +6547,15 @@ function pintarHistorial(){
       (r.referencia||'').toLowerCase().includes(buscar)||
       (r.usuario||'').toLowerCase().includes(buscar));
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Proveedor / Socio</th><th>Marca</th><th>Monto</th><th>Referencia</th>
+    filas=ordenarFilas('histPagos',filas,{
+      fecha:r=>r.fecha,
+      proveedor:r=>r.proveedor||'',
+      marca:r=>r.marca||'',
+      monto:r=>r.monto,
+      referencia:r=>r.referencia||''
+    });
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla"><thead><tr>
+      ${thOrden('histPagos','fecha','Fecha','pintarHistorial()')}${thOrden('histPagos','proveedor','Proveedor / Socio','pintarHistorial()')}${thOrden('histPagos','marca','Marca','pintarHistorial()')}${thOrden('histPagos','monto','Monto','pintarHistorial()')}${thOrden('histPagos','referencia','Referencia','pintarHistorial()')}
       </tr></thead><tbody>${filas.map(r=>`<tr>
         <td>${fechaCelda(r.fecha)}</td>
         <td style="text-align:left;">${esc(r.proveedor||'—')}</td>
@@ -6482,15 +6577,22 @@ function pintarHistorial(){
         (m.proveedor||'').toLowerCase().includes(buscar);
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Producto</th><th>Movimiento</th><th>Cantidad</th><th>Referencia</th>
+    filas=ordenarFilas('histMovimientos',filas,{
+      fecha:m=>m.fecha,
+      producto:m=>{const s=porId(db.stock,m.stockId);return s?s.producto:'';},
+      movimiento:m=>TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo,
+      cantidad:m=>m.cantidad,
+      referencia:m=>m.motivo||m.nota||''
+    });
+    cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla"><thead><tr>
+      ${thOrden('histMovimientos','fecha','Fecha','pintarHistorial()')}${thOrden('histMovimientos','producto','Producto','pintarHistorial()')}${thOrden('histMovimientos','movimiento','Movimiento','pintarHistorial()')}${thOrden('histMovimientos','cantidad','Cantidad','pintarHistorial()')}${thOrden('histMovimientos','referencia','Referencia','pintarHistorial()')}
       </tr></thead><tbody>${filas.map(m=>{
         const s=porId(db.stock,m.stockId);
         return `<tr>
           <td>${fechaCelda(m.fecha)}</td>
           <td style="text-align:left;">${s?esc(s.producto):'—'}</td>
           <td style="text-align:left;">${esc(TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo)}</td>
-          <td style="text-align:right;">${m.cantidad}</td>
+          <td style="text-align:right;">${m.cantidad!=null?m.cantidad:'—'}</td>
           <td style="text-align:left;">${esc(m.motivo||m.nota||'—')}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
@@ -6532,12 +6634,13 @@ function pintarHistorialTodos(cont,buscar,enRango){
     const nombreCliente=c?(c.nombre+' '+(c.apellido||'')).trim():'—';
     const itemsTxt=(p.items||[]).map(it=>it.cantidad+'× '+it.producto).join(', ');
     const marcasTxt=[...new Set((p.items||[]).map(it=>it.marca).filter(Boolean))].join(', ');
+    const detalleTexto=nombreCliente+' · '+itemsTxt;
     eventos.push({
       fecha:p.fecha,createdAt:p.createdAt||null,
       tipoLabel:anulada?'Venta anulada':'Venta',
       chip:anulada?'chip-rojo':'chip-verde',
       referencia:correlativoVenta(p.id),
-      detalle:esc(nombreCliente)+' · '+esc(itemsTxt),
+      detalle:esc(nombreCliente)+' · '+esc(itemsTxt),detalleTexto,
       responsable:p.atendidoPor||'—',
       onclick:`abrirDetalleVentaHistorial('${p.id}')`,
       buscar:[nombreCliente,itemsTxt,marcasTxt,correlativoVenta(p.id),p.atendidoPor,anulada?p.motivoCancelacion:'',anulada?p.canceladoPor:'',anulada?p.autorizadoPor:''].join(' ').toLowerCase()
@@ -6546,22 +6649,24 @@ function pintarHistorialTodos(cont,buscar,enRango){
   db.movimientosStock.filter(m=>m.tipo==='entrada'||m.tipo==='entrada_inicial').forEach(m=>{
     const s=porId(db.stock,m.stockId);
     const nombre=s?(s.marca+' '+s.producto):'—';
+    const detalleTexto=nombre+' · +'+m.cantidad+' und.'+(m.tipo==='entrada_inicial'?' (stock inicial)':'');
     eventos.push({
       fecha:m.fecha,createdAt:m.createdAt||null,
       tipoLabel:'Entrada de producto',chip:'chip-azul',
       referencia:'—',
-      detalle:esc(nombre)+' · +'+m.cantidad+' und.'+(m.tipo==='entrada_inicial'?' (stock inicial)':''),
+      detalle:esc(detalleTexto),detalleTexto,
       responsable:m.usuario||'—',
       onclick:null,
       buscar:[s?s.producto:'',s?s.marca:'',m.proveedor].join(' ').toLowerCase()
     });
   });
   registrosPagosSocios().forEach(r=>{
+    const detalleTexto=(r.marca?r.marca+' · ':'')+money(r.monto)+(r.referencia?' · '+r.referencia:'');
     eventos.push({
       fecha:r.fecha,createdAt:r.createdAt||null,
       tipoLabel:r.libro==='liquidacionesSocio'?'Pago a socio':'Pago a proveedor',chip:'chip-naranja',
       referencia:esc(r.proveedor||'—'),
-      detalle:(r.marca?esc(r.marca)+' · ':'')+money(r.monto)+(r.referencia?' · '+esc(r.referencia):''),
+      detalle:(r.marca?esc(r.marca)+' · ':'')+money(r.monto)+(r.referencia?' · '+esc(r.referencia):''),detalleTexto,
       responsable:r.usuario||'—',
       onclick:null,
       buscar:[r.proveedor,r.marca,r.referencia,r.usuario].join(' ').toLowerCase()
@@ -6570,11 +6675,12 @@ function pintarHistorialTodos(cont,buscar,enRango){
   db.movimientosStock.filter(m=>TIPOS_MOVIMIENTO_TODOS.includes(m.tipo)).forEach(m=>{
     const s=porId(db.stock,m.stockId);
     const signo=m.cantidad>=0?'+':'';
+    const detalleTexto=(s?s.producto:'—')+' · '+signo+m.cantidad+' und.'+(m.motivo?' · '+m.motivo:'');
     eventos.push({
       fecha:m.fecha,createdAt:m.createdAt||null,
       tipoLabel:'Movimiento de stock',chip:'chip-gris',
       referencia:esc(TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo),
-      detalle:(s?esc(s.producto):'—')+' · '+signo+m.cantidad+' und.'+(m.motivo?' · '+esc(m.motivo):''),
+      detalle:esc(detalleTexto),detalleTexto,
       responsable:m.usuario||'—',
       onclick:null,
       buscar:[s?s.producto:'',s?s.marca:'',m.motivo,m.nota].join(' ').toLowerCase()
@@ -6583,13 +6689,23 @@ function pintarHistorialTodos(cont,buscar,enRango){
   let filas=eventos.filter(e=>enRango(e.fecha));
   if(buscar)filas=filas.filter(e=>e.buscar.includes(buscar)||e.tipoLabel.toLowerCase().includes(buscar)||(e.responsable||'').toLowerCase().includes(buscar));
   filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
-  cont.innerHTML=filas.length===0?'<div class="vacio">Sin eventos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-    <th>Fecha</th><th>Tipo</th><th>Referencia</th><th>Detalle</th><th>Responsable</th>
+  // Mismo lenguaje de orden que el resto de Historial — tabla propia 'histTodos'.
+  filas=ordenarFilas('histTodos',filas,{
+    fecha:e=>e.fecha,
+    tipo:e=>e.tipoLabel,
+    referencia:e=>e.referencia,
+    detalle:e=>e.detalleTexto,
+    responsable:e=>e.responsable
+  });
+  cont.innerHTML=filas.length===0?'<div class="vacio">Sin eventos para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla historial-tabla-todos"><colgroup>
+    <col style="width:90px;"><col style="width:132px;"><col style="width:112px;"><col><col style="width:100px;">
+    </colgroup><thead><tr>
+    ${thOrden('histTodos','fecha','Fecha','pintarHistorial()')}${thOrden('histTodos','tipo','Tipo','pintarHistorial()')}${thOrden('histTodos','referencia','Referencia','pintarHistorial()')}${thOrden('histTodos','detalle','Detalle','pintarHistorial()')}${thOrden('histTodos','responsable','Responsable','pintarHistorial()')}
     </tr></thead><tbody>${filas.map(e=>`<tr${e.onclick?` style="cursor:pointer;" onclick="${e.onclick}"`:''}>
       <td>${fechaCelda(e.fecha)}</td>
       <td style="text-align:left;"><span class="chip ${e.chip}">${esc(e.tipoLabel)}</span></td>
       <td style="text-align:left;">${e.referencia}</td>
-      <td style="text-align:left;">${e.detalle}</td>
+      <td class="hist-detalle" style="text-align:left;" title="${escAttr(e.detalleTexto)}">${e.detalle}</td>
       <td style="text-align:left;">${esc(e.responsable||'—')}</td>
     </tr>`).join('')}</tbody></table></div>`;
 }
