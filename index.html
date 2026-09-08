@@ -1256,6 +1256,23 @@ function normalizarDbCargada(){
   migrarModalidadEntradasStock();
   migrarModalidadPagosProveedor();
   migrarCongelamientoEconomicoItems();
+  migrarLuzmericaLeadVinculado();
+}
+// FIX PUNTUAL (2026-09-07) — NO es reparación masiva. Un lead real (Luzmerica Navarrete Soncco,
+// DNI 44839714) quedó con clienteId:null / estado:'sin contactar' tras eliminar su lead viejo y
+// recrearlo con la fecha correcta (03/09/2026), aunque su cliente sí sigue existiendo. Vincula
+// ESE lead concreto al cliente existente (mismo DNI). Idempotente: si ya está vinculado, o el
+// dato no existe, no hace nada. NO toca la venta pagada, importes, stock, ventas canceladas, ni
+// el cliente.leadId histórico del cliente.
+function migrarLuzmericaLeadVinculado(){
+  const cli=(db.clientes||[]).find(c=>c.dni==='44839714');
+  if(!cli)return;
+  (db.leads||[]).forEach(l=>{
+    if(l.dni==='44839714'&&!l.clienteId&&l.fecha==='2026-09-03'&&l.estado!=='cliente'){
+      l.clienteId=cli.id;
+      l.estado='cliente';
+    }
+  });
 }
 function migrarMarcas(){
   // Nombres viejos usados antes de alinear con la marca oficial del sitio.
@@ -2624,15 +2641,37 @@ function guardarCliente(ev,leadId){
   ev.preventDefault();
   if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto para generar el pedido.');return false;}
   const dni=document.getElementById('cl-dni').value.trim();
-  if(dni){
-    const existente=db.clientes.find(c=>c.dni&&c.dni===dni);
-    if(existente){
-      if(confirm(`Ya existe un cliente con DNI ${dni}: ${existente.nombre} ${existente.apellido}.\n¿Abrir su ficha para registrarle este pedido en vez de crear un cliente duplicado?`)){
-        cerrarModal();
-        abrirFichaCliente(existente.id);
+  const telForm=document.getElementById('cl-telefono').value.trim();
+  // Coincidencia con un cliente que YA existe: primero por DNI (más fuerte); si no hay, por
+  // contacto (celular / usuario) usando el mismo criterio de duplicados de leads.
+  let existente=dni?db.clientes.find(c=>c.dni&&c.dni===dni):null;
+  let porContacto=false;
+  if(!existente&&telForm){
+    existente=db.clientes.find(c=>c.activo!==false&&mismoContactoLead(c.telefono,telForm));
+    porContacto=!!existente;
+  }
+  if(existente){
+    const detalle=porContacto
+      ?`Ya existe un cliente con ese celular/usuario: ${existente.nombre} ${existente.apellido}.`
+      :`Ya existe un cliente con DNI ${dni}: ${existente.nombre} ${existente.apellido}.`;
+    if(confirm(`${detalle}\n¿Abrir su ficha para registrarle este pedido en vez de crear un cliente duplicado?`)){
+      // FIX FLUJO LEAD → CLIENTE EXISTENTE (2026-09-07): si esto es una conversión de lead, el
+      // lead actual se VINCULA al cliente existente en vez de quedar abierto como "sin contactar".
+      // Solo se tocan lead.clienteId y lead.estado — fecha/hora/notas/canal/interés/responsable
+      // y todo lo demás del lead se conservan íntegros. NUNCA se pisa el cliente.leadId histórico
+      // del cliente (varios contactos/leads pueden apuntar a un mismo cliente).
+      if(leadId){
+        const lead=porId(db.leads,leadId);
+        if(lead){
+          lead.clienteId=existente.id;
+          lead.estado='cliente';
+          guardar();
+        }
       }
-      return false;
+      cerrarModal();
+      abrirFichaCliente(existente.id);
     }
+    return false;
   }
   const problema=stockInsuficienteEnPedidoTmp();
   if(problema){alert(`No hay stock suficiente de "${problema.producto}". Disponible: ${problema.disponible}, solicitado: ${problema.solicitado}.`);return false;}
