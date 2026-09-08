@@ -4805,43 +4805,105 @@ function textoAsignacionesPago(pg){
    consignación/bajo pedido, liquidacionesSocio para reparto), con asignación {pedidoId,stockId}.
    El motor de pagos (obligaciones/saldo/asignaciones/históricos) NO se toca — solo se simplifica
    la UX. Nunca se borra un pago al "desmarcar" (un pago ya hecho se muestra marcado y fijo). */
+/* ===== FUENTE CONTABLE ÚNICA DE UNA CUENTA DE PROVEEDOR (2026-09-07) =====
+   estadoCuentaProveedor(proveedor, modelo, marca) es la ÚNICA fuente para: encabezado del
+   drawer (saldo/pagado), tabla "Pendiente de pago", tabla "Pagadas", modal Abono y la sección
+   "Pago al proveedor" de Historial. Garantiza que Σ(pendiente por venta) == saldo del encabezado.
+
+   Fórmulas (NO cambian las de deudaTotal/porPagar/totalPagado de la pestaña Proveedores):
+   - obligacionTotal = Σ (cantidad × costoProveedorVenta) de los ítems de ESTA cuenta en pedidos
+     NO cancelados  [consignación/bajo pedido] ; Σ totalDoctorItem(it).total  [reparto].
+     Nunca se usa pedido.estadoPago (eso es el pago del CLIENTE, no del proveedor).
+   - pagadoTotal = Σ pagos de ESTA cuenta (pagosProveedor por proveedor+modalidad si el proveedor
+     tiene una única marca en esa modalidad — mismo criterio del encabezado anterior; en reparto,
+     liquidacionesSocio por proveedor+marca, más las legacy sin marca si es marca única).
+   - saldo = max(0, obligacionTotal − pagadoTotal).
+   Distribución del pagadoTotal sobre las líneas de obligación (para que "qué ventas deben"
+   cuadre con el saldo): 1) cada línea la cubre primero su asignación directa (tope = obligación
+   de la línea); 2) el resto de dinero (pagos sin asignación + exceso de asignaciones) cubre las
+   líneas que aún tengan saldo, la MÁS ANTIGUA primero (fecha asc, id como desempate). Así una
+   venta con abono parcial muestra solo su saldo, y Σ pendientes = saldo exacto. */
+function estadoCuentaProveedor(proveedor,modelo,marca){
+  const esReparto=modelo==='reparto_ingresos';
+  const acc={};
+  (db.pedidos||[]).forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      let obl;
+      if(esReparto){
+        if(!(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor&&it.marca===marca))return;
+        const td=totalDoctorItem(it); if(!td)return; obl=td.total;
+      }else{
+        if(!(it.modalidadComercial===modelo&&it.proveedorVenta===proveedor&&it.marca===marca))return;
+        if(typeof it.costoProveedorVenta!=='number')return;
+        obl=(it.cantidad||0)*it.costoProveedorVenta;
+      }
+      const k=p.id+'|'+it.stockId;
+      if(!acc[k])acc[k]={pedidoId:p.id,stockId:it.stockId,producto:it.producto,marca:it.marca,fecha:p.fecha,obligacion:0};
+      acc[k].obligacion=round2(acc[k].obligacion+obl);
+    });
+  });
+  const lineas=Object.values(acc);
+  const obligacionTotal=round2(lineas.reduce((s,l)=>s+l.obligacion,0));
+  const esUnica=marcasDeProveedorEnModalidad(proveedor,esReparto?'reparto_ingresos':modelo).size===1;
+  let pagosCuenta;
+  if(esReparto){
+    pagosCuenta=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&(l.marca===marca||(esUnica&&!l.marca)));
+  }else if(esUnica){
+    pagosCuenta=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor&&pg.modalidad===modelo);
+  }else{
+    pagosCuenta=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor&&pg.modalidad===modelo&&(pg.asignaciones||[]).some(a=>acc[a.pedidoId+'|'+a.stockId]));
+  }
+  const pagadoTotal=round2(pagosCuenta.reduce((s,pg)=>s+(pg.monto||0),0));
+  const asignadoPorLinea={};
+  pagosCuenta.forEach(pg=>(pg.asignaciones||[]).forEach(a=>{
+    const k=a.pedidoId+'|'+a.stockId;
+    if(acc[k])asignadoPorLinea[k]=round2((asignadoPorLinea[k]||0)+(a.monto||0));
+  }));
+  const saldo=Math.max(0,round2(obligacionTotal-pagadoTotal));
+  lineas.forEach(l=>{ l.asignado=round2(asignadoPorLinea[l.pedidoId+'|'+l.stockId]||0); l.cubierto=Math.min(l.obligacion,l.asignado); });
+  let pool=Math.max(0,round2(pagadoTotal-lineas.reduce((s,l)=>s+l.cubierto,0)));
+  lineas.filter(l=>l.obligacion-l.cubierto>0.005)
+    .sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.pedidoId).localeCompare(String(b.pedidoId)))
+    .forEach(l=>{ if(pool<=0.005)return; const ap=Math.min(round2(l.obligacion-l.cubierto),pool); l.cubierto=round2(l.cubierto+ap); pool=round2(pool-ap); });
+  lineas.forEach(l=>{ l.pendiente=Math.max(0,round2(l.obligacion-l.cubierto)); l.pagada=l.pendiente<=0.005; });
+  const porVenta={};
+  lineas.forEach(l=>{
+    if(!porVenta[l.pedidoId])porVenta[l.pedidoId]={pedidoId:l.pedidoId,fecha:l.fecha,lineas:[],obligacion:0,pendiente:0};
+    const v=porVenta[l.pedidoId];
+    v.lineas.push(l); v.obligacion=round2(v.obligacion+l.obligacion); v.pendiente=round2(v.pendiente+l.pendiente);
+  });
+  const ventas=Object.values(porVenta).map(v=>Object.assign(v,{pagada:v.pendiente<=0.005}));
+  return {proveedor,modelo,marca,obligacionTotal,pagadoTotal,saldo,lineas,ventas};
+}
+// Obligaciones de UNA venta hacia sus proveedores — DERIVADO de estadoCuentaProveedor (misma
+// distribución FIFO) para que Abono / Historial usen exactamente el mismo pendiente que el drawer.
 function obligacionesDeVentaProveedor(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(!p||p.estadoPago==='cancelado')return [];
-  const asigCons=asignadoDeLineaMapa(db.pagosProveedor);
-  const asigRep=asignadoDeLineaMapa(db.liquidacionesSocio);
-  const acc={};
+  const cuentas={};
   (p.items||[]).forEach(it=>{
     const modc=it.modalidadComercial;
-    let libro,proveedor,obligacion,cuentaSaldo;
     if(modc==='consignacion'||modc==='bajo_pedido'){
-      if(typeof it.costoProveedorVenta!=='number')return;
-      libro='pagosProveedor'; proveedor=it.proveedorVenta;
-      obligacion=(it.cantidad||0)*it.costoProveedorVenta;
-      cuentaSaldo=proveedor?saldoProveedorModalidad(proveedor,modc):0;
+      if(typeof it.costoProveedorVenta!=='number'||!it.proveedorVenta)return;
+      cuentas['pagosProveedor|'+it.proveedorVenta+'|'+modc+'|'+it.marca]={libro:'pagosProveedor',proveedor:it.proveedorVenta,modelo:modc,modalidad:modc,marca:it.marca};
     }else if(modc==='reparto_ingresos'){
-      const td=totalDoctorItem(it);
-      if(!td)return;
-      libro='liquidacionesSocio'; proveedor=it.socioReparto;
-      obligacion=td.total;
-      cuentaSaldo=proveedor?saldoCreditoRepartoProveedorMarca(proveedor,it.marca):0;
-    }else return; // compra_directa u otros: la deuda no nace de la venta
-    if(!proveedor)return;
-    const k=libro+'|'+it.stockId;
-    if(!acc[k])acc[k]={pedidoId,stockId:it.stockId,producto:it.producto,marca:it.marca,modalidad:modc,libro,proveedor,obligacion:0,cuentaSaldo:round2(cuentaSaldo)};
-    acc[k].obligacion=round2(acc[k].obligacion+obligacion);
+      if(!it.socioReparto)return;
+      const td=totalDoctorItem(it); if(!td)return;
+      cuentas['liquidacionesSocio|'+it.socioReparto+'|reparto_ingresos|'+it.marca]={libro:'liquidacionesSocio',proveedor:it.socioReparto,modelo:'reparto_ingresos',modalidad:'reparto_ingresos',marca:it.marca};
+    }
   });
-  return Object.values(acc).map(o=>{
-    const asignado=round2(((o.libro==='pagosProveedor'?asigCons:asigRep)[o.pedidoId+'|'+o.stockId])||0);
-    const pendiente=Math.max(0,round2(o.obligacion-asignado));
-    // Pagado: esta línea ya cubierta por sus asignaciones, O la cuenta entera ya saldada por los
-    // pagos existentes (incluye pagos históricos sin asignación — no se reconstruyen, pero si la
-    // cuenta debe 0, la obligación está cubierta).
-    const pagado=pendiente<=0.005||o.cuentaSaldo<=0.005;
-    // Al marcar: el pendiente de la línea, pero nunca más de lo que la cuenta todavía debe.
-    const montoAlMarcar=round2(Math.min(pendiente,o.cuentaSaldo));
-    return Object.assign(o,{asignado,pendiente,pagado,montoAlMarcar});
+  const out=[];
+  Object.keys(cuentas).forEach(k=>{
+    const c=cuentas[k];
+    const ec=estadoCuentaProveedor(c.proveedor,c.modelo,c.marca);
+    ec.lineas.filter(l=>l.pedidoId===pedidoId).forEach(l=>{
+      out.push({pedidoId,stockId:l.stockId,producto:l.producto,marca:c.marca,modalidad:c.modalidad,libro:c.libro,proveedor:c.proveedor,
+        obligacion:l.obligacion,asignado:l.asignado,pendiente:l.pendiente,pagado:l.pagada,
+        montoAlMarcar:round2(Math.min(l.pendiente,ec.saldo))});
+    });
   });
+  return out;
 }
 function obligacionesDeCuentaProveedor(proveedor,modelo,marca){
   const out=[];
@@ -5440,32 +5502,20 @@ function toggleDetalleVenta(id){
 // detalle. Estado derivado de los pagos reales; misma función marcarObligacionPagada.
 function lineaCheckboxProductoPago(o){
   if(!o)return '';
-  const parcial=o.asignado>0.005&&o.pendiente>0.005;
-  const imp=money(o.pagado?o.obligacion:o.pendiente);
   if(o.pagado){
-    return `<span class="pago-oblig">${imp} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span></span>`;
+    return `<span class="pago-oblig">${money(o.obligacion)} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span></span>`;
   }
-  return `<span class="pago-oblig">${parcial?`Pendiente: `:''}${imp}${parcial?` <span style="color:var(--muted);font-size:11px;">(de ${money(o.obligacion)})</span>`:''} <button type="button" class="pago-oblig-check pago-oblig-no" onclick="marcarObligacionPagada('${o.pedidoId}','${o.stockId}','${o.libro}')">☐ Pagado</button></span>`;
+  // Parcialmente cubierta (por asignación o por el reparto de pagos de la cuenta): se muestra el
+  // SALDO que falta, no la obligación original.
+  const parcial=o.pendiente>0.005&&o.pendiente<round2(o.obligacion)-0.005;
+  return `<span class="pago-oblig">${parcial?'Pendiente: ':''}${money(o.pendiente)}${parcial?` <span style="color:var(--muted);font-size:11px;">(de ${money(o.obligacion)})</span>`:''} <button type="button" class="pago-oblig-check pago-oblig-no" onclick="marcarObligacionPagada('${o.pedidoId}','${o.stockId}','${o.libro}')">☐ Pagado</button></span>`;
 }
-// ¿Todas las obligaciones de esta venta (en el libro de este modelo) están pagadas? — para el
-// filtro Todas/Pendientes/Pagados de la tabla de ventas del detalle de proveedor.
+// ¿Todas las obligaciones de esta venta con este proveedor/modelo están cubiertas? — deriva de
+// obligacionesDeVentaProveedor (que a su vez viene de estadoCuentaProveedor).
 function grupoVentaPagado(g,modelo){
   const libro=modelo==='reparto_ingresos'?'liquidacionesSocio':'pagosProveedor';
   const obl=obligacionesDeVentaProveedor(g.pedidoId).filter(o=>o.libro===libro);
   return obl.length>0&&obl.every(o=>o.pagado);
-}
-// AJUSTE UX (2026-09-07): la columna PRODUCTOS es solo un contador NO interactivo. En la tabla
-// de VENTAS PENDIENTES el único acceso a la gestión de pago es el botón "Abono" de cada fila;
-// en VENTAS PAGADAS no hay acción (la última columna es "Total pagado").
-function filaVentaAgrupada(g,modelo,pagada){
-  const n=g.items.length;
-  const prods=n===1?'1 producto':n+' productos';
-  const base=`<td>${fechaCelda(g.fecha)}</td>
-      <td title="${escAttr(g.pedidoId)}">${correlativoVenta(g.pedidoId)}</td>
-      <td>${prods}</td>
-      <td>${money(g.total)}${g.huboItemNoCalculable?' *':''}</td>`;
-  if(pagada)return `<tr>${base}</tr>`;
-  return `<tr>${base}<td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${g.pedidoId}')">Abono</button></td></tr>`;
 }
 let abonoModalPedido=null; // pedidoId del modal Abono abierto (para refrescarlo tras marcar)
 function abrirModalAbono(pedidoId){
@@ -5506,28 +5556,33 @@ function cerrarModalAbono(){
   if(detalleProveedorAbierto){const d=detalleProveedorAbierto;abrirDetalleProveedor(d.proveedor,d.modelo,d.marca);}
   else cerrarModal();
 }
-// Detalle de proveedor: VENTAS PENDIENTES (arriba) + VENTAS PAGADAS (abajo, con scroll interno).
-// Una venta solo pasa a PAGADAS cuando TODAS sus obligaciones con esa cuenta están cubiertas
-// (grupoVentaPagado) — pagar un solo producto no la mueve. Clasificación derivada de los pagos
-// reales. Ordenable por encabezado; ABONO / la ausencia de acción no se ordenan.
-function seccionVentasDrawer(gruposVenta,modelo){
-  if(gruposVenta.length===0)return '<div class="drawer-seccion"><div class="drawer-seccion-titulo">Ventas</div><div class="vacio">Sin ventas todavía.</div></div>';
-  const acc={fecha:g=>g.fecha,venta:g=>correlativoNum(g.pedidoId),productos:g=>(g.items||[]).length,total:g=>g.total};
-  const pend=ordenarFilas('provVentasPend',gruposVenta.filter(g=>!grupoVentaPagado(g,modelo)),acc);
-  const pag=ordenarFilas('provVentasPag',gruposVenta.filter(g=>grupoVentaPagado(g,modelo)),acc);
+// Drawer de proveedor: "Pendiente de pago" (arriba, con TOTAL PENDIENTE = saldo del encabezado)
+// + "Pagadas" (abajo, compacta, scroll interno). Todo deriva de estadoCuentaProveedor (ec):
+// Σ de la columna PENDIENTE == ec.saldo. Ordenable por encabezado; ABONO no se ordena.
+function seccionVentasDrawer(ec){
+  const conObl=ec.ventas.filter(v=>v.obligacion>0.005);
+  if(conObl.length===0)return `<div class="drawer-seccion drawer-seccion-final"><div class="drawer-seccion-titulo">Pendiente de pago</div><div class="vacio">Esta cuenta no tiene ventas con obligación.</div><div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div></div>`;
   const R="refrescarDetalleAbierto()";
+  const accP={venta:v=>correlativoNum(v.pedidoId),fecha:v=>v.fecha,productos:v=>v.lineas.length,pendiente:v=>v.pendiente};
+  const accG={venta:v=>correlativoNum(v.pedidoId),fecha:v=>v.fecha,pagado:v=>v.obligacion};
+  const pend=ordenarFilas('provVentasPend',conObl.filter(v=>!v.pagada),accP);
+  const pag=ordenarFilas('provVentasPag',conObl.filter(v=>v.pagada),accG);
+  const nprod=v=>v.lineas.length===1?'1 producto':v.lineas.length+' productos';
+  const filaP=v=>`<tr><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}</td><td>${fechaCelda(v.fecha)}</td><td>${nprod(v)}</td><td>${money(v.pendiente)}</td><td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${v.pedidoId}')">Abono</button></td></tr>`;
+  const filaG=v=>`<tr><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}</td><td>${fechaCelda(v.fecha)}</td><td>${money(v.obligacion)}</td></tr>`;
   const tablaPend=pend.length===0
-    ?'<div class="vacio">Sin ventas pendientes con este proveedor.</div>'
-    :`<div class="eq-tabla-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:19%"><col style="width:23%"><col style="width:20%"><col style="width:21%"><col style="width:17%"></colgroup><thead><tr>${thOrden('provVentasPend','fecha','Fecha',R)}${thOrden('provVentasPend','venta','Venta',R)}${thOrden('provVentasPend','productos','Productos',R)}${thOrden('provVentasPend','total','Total a pagar',R)}<th>Abono</th></tr></thead><tbody>${pend.map(g=>filaVentaAgrupada(g,modelo,false)).join('')}</tbody></table></div>`;
+    ?'<div class="vacio">Nada pendiente con este proveedor.</div>'
+    :`<div class="eq-tabla-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:22%"><col style="width:21%"><col style="width:21%"><col style="width:19%"><col style="width:17%"></colgroup><thead><tr>${thOrden('provVentasPend','venta','Venta',R)}${thOrden('provVentasPend','fecha','Fecha',R)}${thOrden('provVentasPend','productos','Productos',R)}${thOrden('provVentasPend','pendiente','Pendiente',R)}<th>Abono</th></tr></thead><tbody>${pend.map(filaP).join('')}</tbody></table></div>`;
   const tablaPag=pag.length===0
-    ?'<div class="vacio">Todavía ninguna venta totalmente pagada a este proveedor.</div>'
-    :`<div class="eq-tabla-wrap prov-ventas-pagadas-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:24%"><col style="width:28%"><col style="width:24%"><col style="width:24%"></colgroup><thead><tr>${thOrden('provVentasPag','fecha','Fecha',R)}${thOrden('provVentasPag','venta','Venta',R)}${thOrden('provVentasPag','productos','Productos',R)}${thOrden('provVentasPag','total','Total pagado',R)}</tr></thead><tbody>${pag.map(g=>filaVentaAgrupada(g,modelo,true)).join('')}</tbody></table></div>`;
+    ?'<div class="vacio">Todavía ninguna venta totalmente pagada.</div>'
+    :`<div class="eq-tabla-wrap prov-ventas-pagadas-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:34%"><col style="width:33%"><col style="width:33%"></colgroup><thead><tr>${thOrden('provVentasPag','venta','Venta',R)}${thOrden('provVentasPag','fecha','Fecha',R)}${thOrden('provVentasPag','pagado','Total pagado',R)}</tr></thead><tbody>${pag.map(filaG).join('')}</tbody></table></div>`;
   return `<div class="drawer-seccion">
-      <div class="drawer-seccion-titulo">Ventas pendientes</div>
+      <div class="drawer-seccion-titulo">Pendiente de pago</div>
       ${tablaPend}
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
     </div>
-    <div class="drawer-seccion">
-      <div class="drawer-seccion-titulo">Ventas pagadas</div>
+    <div class="drawer-seccion drawer-seccion-final">
+      <div class="drawer-seccion-titulo">Pagadas</div>
       ${tablaPag}
     </div>`;
 }
@@ -5596,12 +5651,9 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     // UX (2026-08-22): agrupado por venta/pedido (ventasAgrupadasPorPedidoCredito) en vez de
     // una fila por producto — el monto de cada fila sigue siendo la MISMA suma de siempre
     // (cantidad×costoProveedorVenta por item), solo cambia cómo se presenta.
-    const gruposVenta=ventasAgrupadasPorPedidoCredito(proveedor,marca,modelo);
     const esUnica=marcasDeProveedorEnModalidad(proveedor,modelo).size===1;
-    const pagos=esUnica?pagosProveedorModalidad(proveedor,modelo):[];
-    const generado=round2(gruposVenta.reduce((s,g)=>s+g.total,0));
-    const pagado=esUnica?pagos.reduce((s,pg)=>s+(pg.monto||0),0):0;
-    const saldo=Math.max(0,round2(generado-pagado));
+    const ec=estadoCuentaProveedor(proveedor,modelo,marca);
+    const saldo=ec.saldo, pagado=ec.pagadoTotal;
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
       <div class="drawer-identidad">
@@ -5619,11 +5671,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
         </div>
       </div>
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
-      ${seccionVentasDrawer(gruposVenta,modelo)}
-      <div class="drawer-seccion drawer-seccion-final">
-        <div class="drawer-seccion-titulo">Pagos realizados</div>
-        ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
-      </div>
+      ${seccionVentasDrawer(ec)}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
       </div>`,'modal-centrado prov-drawer');
@@ -5636,17 +5684,9 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
     // el portal propio del socio). El botón de pago ya registra el saldo completo — antes solo
     // dejaba registrar hasta la participación.
     const esUnica=marcasDeProveedorEnModalidad(proveedor,'reparto_ingresos').size===1;
-    const pagosDirectos=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&l.marca===marca);
-    const pagosLegacy=esUnica?(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor&&!l.marca):[];
-    const pagos=[...pagosDirectos,...pagosLegacy].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    // UX (2026-08-22): agrupado por venta/pedido (ventasAgrupadasPorPedidoCredito) en vez de
-    // una fila por producto — cada item sigue usando exactamente totalDoctorItem() (sin tocar),
-    // solo cambia cómo se presenta el desglose.
-    const gruposVenta=ventasAgrupadasPorPedidoCredito(proveedor,marca,'reparto_ingresos');
-    const generado=generadoCreditoRepartoProveedorMarca(proveedor,marca);
-    const pagado=pagadoCreditoRepartoProveedorMarca(proveedor,marca);
-    const pendiente=Math.max(0,round2(generado-pagado));
-    const hayNoCalculable=gruposVenta.some(g=>g.huboItemNoCalculable);
+    const ec=estadoCuentaProveedor(proveedor,'reparto_ingresos',marca);
+    const pagado=ec.pagadoTotal, pendiente=ec.saldo;
+    const hayNoCalculable=ventasAgrupadasPorPedidoCredito(proveedor,marca,'reparto_ingresos').some(g=>g.huboItemNoCalculable);
     const hayLegacySinMarca=(db.liquidacionesSocio||[]).some(l=>l.proveedor===proveedor&&!l.marca);
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
@@ -5667,11 +5707,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
-      ${seccionVentasDrawer(gruposVenta,'reparto_ingresos')}
-      <div class="drawer-seccion drawer-seccion-final">
-        <div class="drawer-seccion-titulo">Pagos realizados</div>
-        ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`}
-      </div>
+      ${seccionVentasDrawer(ec)}
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
       </div>`,'modal-centrado prov-drawer');
@@ -6477,11 +6513,11 @@ function pintarHistorial(){
 // y liquidacionesSocio): si la venta tiene obligaciones de proveedores/modalidades distintas, cada
 // una muestra su propio estado.
 function estadoGrupoPagoProveedor(items){
+  const obl=round2((items||[]).reduce((s,o)=>s+(o.obligacion||0),0));
   const pend=round2((items||[]).reduce((s,o)=>s+(o.pendiente||0),0));
-  const asig=round2((items||[]).reduce((s,o)=>s+(o.asignado||0),0));
   const todasPagadas=items.length>0&&items.every(o=>o.pagado);
   if(todasPagadas)return{txt:'Pagado al proveedor',chip:'chip-verde'};
-  if(asig>0.005)return{txt:'Pago parcial · Pendiente '+money(pend),chip:'chip-naranja'};
+  if(pend>0.005&&pend<obl-0.005)return{txt:'Pago parcial · Pendiente '+money(pend),chip:'chip-naranja'};
   return{txt:'Pendiente al proveedor',chip:'chip-rojo'};
 }
 function seccionPagoProveedorVenta(pedidoId){
