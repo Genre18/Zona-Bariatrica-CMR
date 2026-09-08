@@ -363,6 +363,14 @@ table.eq-tabla th,table.eq-tabla td{border:none;border-bottom:1px solid var(--bo
 table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;border-bottom:1px solid var(--border);}
 table.eq-tabla tr:last-child td{border-bottom:none;}
 table.eq-tabla tbody tr:hover{background:var(--bg-soft);}
+/* AJUSTE (2026-09-07) — tabla de ventas del detalle de proveedor: 5 columnas que caben
+   completas dentro del drawer, sin scroll horizontal. */
+.modal.prov-drawer{max-width:640px;}
+table.prov-ventas-tabla{table-layout:fixed;width:100%;}
+table.prov-ventas-tabla th,table.prov-ventas-tabla td{padding:7px 5px;font-size:11.5px;white-space:normal;word-break:break-word;}
+table.prov-ventas-tabla th{font-size:9px;letter-spacing:.02em;}
+table.prov-ventas-tabla td .btn-chico{padding:3px 8px;font-size:11px;}
+.prov-ventas-pagadas-wrap{max-height:190px;overflow-y:auto;}
 .fecha-corta{display:none;}
 
 @media(max-width:640px){
@@ -2484,7 +2492,7 @@ function abrirFichaCliente(clienteId){
             <td>${fechaBonita(p.fecha)}</td>
             <td style="text-align:left;">${productosTxt}</td>
             <td style="text-align:right;">${money(p.total)}</td>
-            <td><span class="chip ${chipEstado}">${esc(p.estadoPago||'—')}</span></td>
+            <td><span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'))}</span></td>
             <td>${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`}
@@ -5446,17 +5454,18 @@ function grupoVentaPagado(g,modelo){
   const obl=obligacionesDeVentaProveedor(g.pedidoId).filter(o=>o.libro===libro);
   return obl.length>0&&obl.every(o=>o.pagado);
 }
-// AJUSTE UX (2026-09-07): la columna PRODUCTOS es solo un contador NO interactivo. El único
-// acceso a la gestión de pago desde esta tabla es el botón "Abono" de cada fila.
-function filaVentaAgrupada(g,modelo){
+// AJUSTE UX (2026-09-07): la columna PRODUCTOS es solo un contador NO interactivo. En la tabla
+// de VENTAS PENDIENTES el único acceso a la gestión de pago es el botón "Abono" de cada fila;
+// en VENTAS PAGADAS no hay acción (la última columna es "Total pagado").
+function filaVentaAgrupada(g,modelo,pagada){
   const n=g.items.length;
-  return `<tr>
-      <td>${fechaCelda(g.fecha)}</td>
+  const prods=n===1?'1 producto':n+' productos';
+  const base=`<td>${fechaCelda(g.fecha)}</td>
       <td title="${escAttr(g.pedidoId)}">${correlativoVenta(g.pedidoId)}</td>
-      <td style="text-align:left;">${n===1?'1 producto':n+' productos'}</td>
-      <td>${money(g.total)}${g.huboItemNoCalculable?' *':''}</td>
-      <td style="text-align:left;"><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${g.pedidoId}')">Abono</button></td>
-    </tr>`;
+      <td>${prods}</td>
+      <td>${money(g.total)}${g.huboItemNoCalculable?' *':''}</td>`;
+  if(pagada)return `<tr>${base}</tr>`;
+  return `<tr>${base}<td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${g.pedidoId}')">Abono</button></td></tr>`;
 }
 let abonoModalPedido=null; // pedidoId del modal Abono abierto (para refrescarlo tras marcar)
 function abrirModalAbono(pedidoId){
@@ -5497,18 +5506,30 @@ function cerrarModalAbono(){
   if(detalleProveedorAbierto){const d=detalleProveedorAbierto;abrirDetalleProveedor(d.proveedor,d.modelo,d.marca);}
   else cerrarModal();
 }
-// Tabla compacta de ventas del detalle de proveedor: FECHA | VENTA | PRODUCTOS (contador) |
-// TOTAL A PAGAR | ABONO. Ordenable por encabezado (Fecha/Venta/Productos/Total a pagar);
-// ABONO es una acción, no se ordena.
+// Detalle de proveedor: VENTAS PENDIENTES (arriba) + VENTAS PAGADAS (abajo, con scroll interno).
+// Una venta solo pasa a PAGADAS cuando TODAS sus obligaciones con esa cuenta están cubiertas
+// (grupoVentaPagado) — pagar un solo producto no la mueve. Clasificación derivada de los pagos
+// reales. Ordenable por encabezado; ABONO / la ausencia de acción no se ordenan.
 function seccionVentasDrawer(gruposVenta,modelo){
-  if(gruposVenta.length===0)return '<div class="vacio">Sin ventas todavía.</div>';
-  const gv=ordenarFilas('provVentas',gruposVenta,{
-    fecha:g=>g.fecha,
-    venta:g=>correlativoNum(g.pedidoId),
-    productos:g=>(g.items||[]).length,
-    total:g=>g.total
-  });
-  return `<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>${thOrden('provVentas','fecha','Fecha','refrescarDetalleAbierto()')}${thOrden('provVentas','venta','Venta','refrescarDetalleAbierto()')}${thOrden('provVentas','productos','Productos','refrescarDetalleAbierto()')}${thOrden('provVentas','total','Total a pagar','refrescarDetalleAbierto()')}<th>Abono</th></tr></thead><tbody>${gv.slice(0,8).map(g=>filaVentaAgrupada(g,modelo)).join('')}</tbody></table></div>${gv.length>8?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${gv.length-8} más — ver el resto en Historial → Ventas.</p>`:''}`;
+  if(gruposVenta.length===0)return '<div class="drawer-seccion"><div class="drawer-seccion-titulo">Ventas</div><div class="vacio">Sin ventas todavía.</div></div>';
+  const acc={fecha:g=>g.fecha,venta:g=>correlativoNum(g.pedidoId),productos:g=>(g.items||[]).length,total:g=>g.total};
+  const pend=ordenarFilas('provVentasPend',gruposVenta.filter(g=>!grupoVentaPagado(g,modelo)),acc);
+  const pag=ordenarFilas('provVentasPag',gruposVenta.filter(g=>grupoVentaPagado(g,modelo)),acc);
+  const R="refrescarDetalleAbierto()";
+  const tablaPend=pend.length===0
+    ?'<div class="vacio">Sin ventas pendientes con este proveedor.</div>'
+    :`<div class="eq-tabla-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:19%"><col style="width:23%"><col style="width:20%"><col style="width:21%"><col style="width:17%"></colgroup><thead><tr>${thOrden('provVentasPend','fecha','Fecha',R)}${thOrden('provVentasPend','venta','Venta',R)}${thOrden('provVentasPend','productos','Productos',R)}${thOrden('provVentasPend','total','Total a pagar',R)}<th>Abono</th></tr></thead><tbody>${pend.map(g=>filaVentaAgrupada(g,modelo,false)).join('')}</tbody></table></div>`;
+  const tablaPag=pag.length===0
+    ?'<div class="vacio">Todavía ninguna venta totalmente pagada a este proveedor.</div>'
+    :`<div class="eq-tabla-wrap prov-ventas-pagadas-wrap"><table class="eq-tabla prov-ventas-tabla"><colgroup><col style="width:24%"><col style="width:28%"><col style="width:24%"><col style="width:24%"></colgroup><thead><tr>${thOrden('provVentasPag','fecha','Fecha',R)}${thOrden('provVentasPag','venta','Venta',R)}${thOrden('provVentasPag','productos','Productos',R)}${thOrden('provVentasPag','total','Total pagado',R)}</tr></thead><tbody>${pag.map(g=>filaVentaAgrupada(g,modelo,true)).join('')}</tbody></table></div>`;
+  return `<div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Ventas pendientes</div>
+      ${tablaPend}
+    </div>
+    <div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Ventas pagadas</div>
+      ${tablaPag}
+    </div>`;
 }
 function abrirDetalleProveedor(proveedor,modelo,marca){
   detalleProveedorAbierto={proveedor,modelo,marca};
@@ -5565,7 +5586,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-      </div>`,'modal-centrado');
+      </div>`,'modal-centrado prov-drawer');
     return;
   }
   if(modelo==='consignacion'||modelo==='bajo_pedido'){
@@ -5598,17 +5619,14 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
         </div>
       </div>
       ${!esUnica?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en ${esc(modeloLabel)} — los pagos históricos no guardan a cuál corresponden, así que no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores).</p>`:''}
-      <div class="drawer-seccion">
-        <div class="drawer-seccion-titulo">Ventas</div>
-        ${seccionVentasDrawer(gruposVenta,modelo)}
-      </div>
+      ${seccionVentasDrawer(gruposVenta,modelo)}
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
         ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(pg=>`<tr><td>${fechaCelda(pg.fecha)}</td><td>${money(pg.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-      </div>`,'modal-centrado');
+      </div>`,'modal-centrado prov-drawer');
     return;
   }
   if(modelo==='reparto_ingresos'){
@@ -5649,17 +5667,14 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
       </div>
       ${hayNoCalculable?'<p class="vacio" style="text-align:left;padding:0 0 8px;">* Hay ventas históricas sin costo o porcentaje de reparto congelado; el total mostrado no las incluye (no se asume un valor).</p>':''}
       ${(hayLegacySinMarca&&!esUnica)?`<p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(proveedor)} tiene más de una marca en reparto de utilidad y hay pagos históricos que no guardan a cuál corresponden — no se le adjudican a ${esc(marca)} en particular (ver "Pagos sin marca identificada" en Proveedores). Los pagos nuevos sí quedan atados a esta marca.</p>`:''}
-      <div class="drawer-seccion">
-        <div class="drawer-seccion-titulo">Ventas</div>
-        ${seccionVentasDrawer(gruposVenta,'reparto_ingresos')}
-      </div>
+      ${seccionVentasDrawer(gruposVenta,'reparto_ingresos')}
       <div class="drawer-seccion drawer-seccion-final">
         <div class="drawer-seccion-titulo">Pagos realizados</div>
         ${pagos.length===0?'<div class="vacio">Sin pagos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody>${pagos.map(l=>`<tr><td>${fechaCelda(l.fecha)}</td><td>${money(l.monto)}</td></tr>`).join('')}</tbody></table></div>`}
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
-      </div>`,'modal-centrado');
+      </div>`,'modal-centrado prov-drawer');
   }
 }
 function pagosHistoricosSinClasificar(){
@@ -6345,7 +6360,7 @@ function pintarHistorial(){
           <td>${correlativoVenta(p.id)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td><span class="chip ${chipEstado}">${esAnuladas?'Anulada':'Pagado'}</span></td>
+          <td><span class="chip ${chipEstado}">${esAnuladas?'Anulada':'Pagado por cliente'}</span></td>
           <td style="text-align:left;">${esc(p.atendidoPor||'—')}</td>
           <td><button type="button" class="link-historial" onclick="abrirDetalleVentaHistorial('${p.id}')">Ver detalle</button></td>
         </tr>`;
@@ -6457,6 +6472,46 @@ function pintarHistorial(){
       }).join('')}</tbody></table></div>`;
   }
 }
+// AJUSTE (2026-09-07) — "Pago al proveedor" dentro de Historial → Ver detalle. Estado DERIVADO
+// de los pagos reales (nunca un boolean). Se agrupa por libro+marca (no se mezclan pagosProveedor
+// y liquidacionesSocio): si la venta tiene obligaciones de proveedores/modalidades distintas, cada
+// una muestra su propio estado.
+function estadoGrupoPagoProveedor(items){
+  const pend=round2((items||[]).reduce((s,o)=>s+(o.pendiente||0),0));
+  const asig=round2((items||[]).reduce((s,o)=>s+(o.asignado||0),0));
+  const todasPagadas=items.length>0&&items.every(o=>o.pagado);
+  if(todasPagadas)return{txt:'Pagado al proveedor',chip:'chip-verde'};
+  if(asig>0.005)return{txt:'Pago parcial · Pendiente '+money(pend),chip:'chip-naranja'};
+  return{txt:'Pendiente al proveedor',chip:'chip-rojo'};
+}
+function seccionPagoProveedorVenta(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  const obls=obligacionesDeVentaProveedor(pedidoId);
+  if(!p||obls.length===0)return '';
+  const cantPorStock={};
+  (p.items||[]).forEach(it=>{cantPorStock[it.stockId]=(cantPorStock[it.stockId]||0)+(it.cantidad||0);});
+  const grupos={};
+  obls.forEach(o=>{const k=o.libro+'|'+(o.marca||'—');(grupos[k]=grupos[k]||[]).push(o);});
+  const bloques=Object.keys(grupos).map(k=>{
+    const items=grupos[k];
+    const est=estadoGrupoPagoProveedor(items);
+    const lineas=items.map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0;font-size:12px;">
+        <span>${esc(o.producto||'—')} ×${cantPorStock[o.stockId]||1}</span>
+        ${lineaCheckboxProductoPago(o)}
+      </div>`).join('');
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border-light);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <strong style="font-size:12.5px;">${esc(items[0].marca||'—')}</strong>
+        <span class="chip ${est.chip}">${est.txt}</span>
+      </div>
+      ${lineas}
+    </div>`;
+  }).join('');
+  return `<div class="drawer-seccion">
+    <div class="drawer-seccion-titulo">Pago al proveedor</div>
+    ${bloques}
+  </div>`;
+}
 // Ficha de una venta histórica, estrictamente SOLO LECTURA (sin inputs/selects/botones que
 // modifiquen nada): usa únicamente los snapshots ya congelados en pedido.items[]/pedido (nunca
 // el precio/costo ACTUAL del producto), para que abrir esto nunca pueda alterar una venta ya
@@ -6468,15 +6523,9 @@ function abrirDetalleVentaHistorial(pedidoId){
   detalleProveedorAbierto=null;
   const c=porId(db.clientes,p.clienteId);
   const anulada=p.estadoPago==='cancelado';
-  // BLOQUE 6 SIMPLIFICADO: mismo estado real de pago que la pantalla de Proveedores, integrado
-  // en la tabla de Productos que ya existe (sin sección aparte).
-  const obligsProv=obligacionesDeVentaProveedor(p.id);
-  const oblPorStock={};
-  obligsProv.forEach(o=>{oblPorStock[o.stockId]=o;});
-  const hayPagoProv=obligsProv.length>0;
+  const estadoClienteTxt=p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'));
   const filasProductos=p.items.map(it=>{
     const presSabor=[it.presentacion,it.sabor].filter(Boolean).join(' · ');
-    const o=oblPorStock[it.stockId];
     return `<tr>
       <td style="text-align:left;">${esc(it.producto)}</td>
       <td style="text-align:left;">${esc(it.marca||'—')}</td>
@@ -6484,7 +6533,6 @@ function abrirDetalleVentaHistorial(pedidoId){
       <td style="text-align:center;">${it.cantidad}</td>
       <td style="text-align:right;">${money(it.precioUnit)}</td>
       <td style="text-align:right;">${money(it.cantidad*it.precioUnit)}</td>
-      ${hayPagoProv?`<td style="text-align:right;white-space:nowrap;">${o?lineaCheckboxProductoPago(o):'<span style="color:var(--muted);">—</span>'}</td>`:''}
     </tr>`;
   }).join('');
   const envioTxt=p.metodoEnvio==='shalom'?'Shalom (provincia)':(p.metodoEnvio==='indrive'?'InDrive (local)':(p.metodoEnvio||'—'));
@@ -6492,7 +6540,7 @@ function abrirDetalleVentaHistorial(pedidoId){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <div class="drawer-identidad">
       <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}</h3>
-      <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${esc(p.estadoPago)}</div>
+      <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${estadoClienteTxt}</div>
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Cliente</div>
@@ -6501,7 +6549,7 @@ function abrirDetalleVentaHistorial(pedidoId){
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Productos</div>
       <div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Producto</th><th>Marca</th><th>Present./Sabor</th><th>Cant.</th><th>P. unit.</th><th>Total</th>${hayPagoProv?'<th>Pago a proveedor</th>':''}
+        <th>Producto</th><th>Marca</th><th>Present./Sabor</th><th>Cant.</th><th>P. unit.</th><th>Total</th>
         </tr></thead><tbody>${filasProductos}</tbody></table></div>
     </div>
     <div class="drawer-seccion">
@@ -6522,6 +6570,7 @@ function abrirDetalleVentaHistorial(pedidoId){
       <div>${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</div>
       ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
     </div>
+    ${seccionPagoProveedorVenta(p.id)}
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Otros</div>
       <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
