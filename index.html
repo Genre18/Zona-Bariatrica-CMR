@@ -750,7 +750,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         </div>
       </div>
       <div class="filtros toolbar-modulo">
-        <input id="leadsBuscar" placeholder="Buscar por nombre, apellido o teléfono..." oninput="pintarLeads()">
+        <input id="leadsBuscar" placeholder="Buscar en la tabla (nombre, DNI, ciudad, estatus, responsable...)" oninput="pintarLeads()">
         <select id="leadsFiltroEstado" onchange="pintarLeads()">
           <option value="">Todos los estados</option>
         </select>
@@ -1964,7 +1964,24 @@ function pintarLeads(){
     elHasta.setCustomValidity('');
   }
   let leads=db.leads.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  if(buscar)leads=leads.filter(l=>(l.nombre||'').toLowerCase().includes(buscar)||(l.apellido||'').toLowerCase().includes(buscar)||(l.telefono||'').toLowerCase().includes(buscar)||(l.dni||'').toLowerCase().includes(buscar));
+  // Buscador de leads (2026-09-08): coincide SOLO con lo que se ve en las 11 columnas de la
+  // tabla — Fecha / Hora / Nombre / Apellido / Edad / DNI-CE / Celular-Usuario / Email /
+  // Ciudad-Provincia / Estatus / Responsable — y nada más (no mira diagnóstico, interés,
+  // canal ni notas de la ficha). Fecha coincide tanto en ISO (2026-09-08) como en el
+  // formato visible (08/09/26); Estatus coincide con "cliente" si el lead ya fue convertido.
+  if(buscar)leads=leads.filter(l=>[
+    l.fecha||'', l.fecha?fechaCorta(l.fecha):'',
+    l.hora||'',
+    nombreLead(l),
+    l.apellido||'',
+    l.edad||'',
+    l.dni||'',
+    l.telefono||'',
+    l.email||'',
+    l.distrito||'',
+    leadEstaConvertido(l)?'cliente':(l.estado||''),
+    l.atendidoPor||''
+  ].join('\n').toLowerCase().includes(buscar));
   if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
   // Filtro por fecha (usa l.fecha REAL del lead; nunca se inventa una fecha para leads sin
   // ella) — solo Desde: desde inclusive; solo Hasta: hasta inclusive; ambos: intervalo inclusivo.
