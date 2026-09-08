@@ -861,13 +861,12 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
       <div id="repVistaHistorial" class="oculto">
         <div class="filtros toolbar-historial">
           <select id="histTipo" onchange="pintarHistorial()">
+            <option value="todos">Todos</option>
             <option value="ventas">Ventas</option>
             <option value="ventas_anuladas">Ventas anuladas</option>
             <option value="entradas">Entradas de productos</option>
-            <option value="pagos">Pagos a proveedores</option>
-            <option value="liquidaciones">Liquidaciones</option>
+            <option value="pagos">Pagos a proveedores / socios</option>
             <option value="movimientos">Movimientos de stock</option>
-            <option value="eliminaciones">Compras eliminadas</option>
           </select>
           <input id="histBuscar" placeholder="Buscar en historial..." oninput="pintarHistorial()">
           <label style="margin:0;">Desde<input type="date" id="histDesde" onchange="pintarHistorial()"></label>
@@ -6388,6 +6387,9 @@ function pintarHistorial(){
       const c=porId(db.clientes,p.clienteId);
       const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
       return nombreCliente.toLowerCase().includes(buscar)||
+        correlativoVenta(p.id).toLowerCase().includes(buscar)||
+        (p.atendidoPor||'').toLowerCase().includes(buscar)||
+        (esAnuladas&&((p.motivoCancelacion||'').toLowerCase().includes(buscar)||(p.canceladoPor||'').toLowerCase().includes(buscar)||(p.autorizadoPor||'').toLowerCase().includes(buscar)))||
         p.items.some(it=>(it.producto||'').toLowerCase().includes(buscar)||(it.marca||'').toLowerCase().includes(buscar));
     });
     filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
@@ -6420,53 +6422,25 @@ function pintarHistorial(){
       }).join('')}</tbody></table></div>`;
     return;
   }
-  // COMPRAS ELIMINADAS (2026-08-24): vista propia en vez de meter el detalle de la cancelación
-  // dentro de cada fila de "Ventas" (eso empujaba la tabla y era difícil de leer). Mismos datos
-  // (motivoCancelacion/autorizadoPor/canceladoPor/canceladoFecha), solo que en su propia tabla
-  // con una columna para cada dato. Filtra por fecha de ELIMINACIÓN (no la fecha de la compra
-  // original), porque el punto de esta vista es auditar cuándo se eliminó algo.
-  if(tipo==='eliminaciones'){
-    let filas=db.pedidos.filter(p=>p.estadoPago==='cancelado'&&enRango(p.canceladoFecha||p.fecha));
-    if(buscar)filas=filas.filter(p=>{
-      const c=porId(db.clientes,p.clienteId);
-      const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
-      return nombreCliente.toLowerCase().includes(buscar)||
-        (p.canceladoPor||'').toLowerCase().includes(buscar)||
-        (p.autorizadoPor||'').toLowerCase().includes(buscar)||
-        (p.motivoCancelacion||'').toLowerCase().includes(buscar);
-    });
-    filas.sort((a,b)=>(b.canceladoFecha||b.fecha||'').localeCompare(a.canceladoFecha||a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin compras eliminadas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha compra</th><th>Cliente</th><th>Total</th><th>Eliminó</th><th>Autorizó</th><th>Fecha eliminación</th><th>Motivo</th>
-      </tr></thead><tbody>${filas.map(p=>{
-        const c=porId(db.clientes,p.clienteId);
-        const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
-        return `<tr>
-          <td>${fechaCelda(p.fecha)}</td>
-          <td style="text-align:left;">${nombreCliente}</td>
-          <td style="text-align:right;">${money(p.total)}</td>
-          <td style="text-align:left;">${esc(p.canceladoPor||'—')}</td>
-          <td style="text-align:left;">${esc(p.autorizadoPor||'—')}</td>
-          <td>${p.canceladoFecha?fechaCelda(p.canceladoFecha):'—'}</td>
-          <td style="text-align:left;white-space:normal;max-width:260px;">${esc(p.motivoCancelacion||'—')}</td>
-        </tr>`;
-      }).join('')}</tbody></table></div>`;
-    return;
-  }
+  // ENTRADAS DE PRODUCTOS (reorganización 2026-09-08): agrupa 'entrada' y 'entrada_inicial' en
+  // una sola vista — ambas son entradas físicas de inventario. La distinción técnica entre
+  // ambos tipos se conserva intacta en db.movimientosStock (no se convierte una en otra, ver
+  // guardarNuevoProducto/guardarCompraProducto); acá solo se marca "Stock inicial" de forma
+  // discreta junto al producto, sin crear otra tabla.
   if(tipo==='entradas'){
-    let filas=db.movimientosStock.filter(m=>m.tipo==='entrada'&&enRango(m.fecha));
+    let filas=db.movimientosStock.filter(m=>(m.tipo==='entrada'||m.tipo==='entrada_inicial')&&enRango(m.fecha));
     if(buscar)filas=filas.filter(m=>{
       const s=porId(db.stock,m.stockId);
-      return (s&&(s.producto||'').toLowerCase().includes(buscar))||(s&&(s.marca||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar);
+      return (s&&(s.producto||'').toLowerCase().includes(buscar))||(s&&(s.marca||'').toLowerCase().includes(buscar))||(m.proveedor||'').toLowerCase().includes(buscar)||(m.usuario||'').toLowerCase().includes(buscar);
     });
-    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     cont.innerHTML=filas.length===0?'<div class="vacio">Sin entradas para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Producto</th><th>Marca</th><th>Cantidad</th><th>Proveedor</th>
       </tr></thead><tbody>${filas.map(m=>{
         const s=porId(db.stock,m.stockId);
         return `<tr>
           <td>${fechaCelda(m.fecha)}</td>
-          <td style="text-align:left;">${s?esc(s.producto):'—'}</td>
+          <td style="text-align:left;">${s?esc(s.producto):'—'}${m.tipo==='entrada_inicial'?' <span class="chip chip-gris" style="font-size:10px;">Stock inicial</span>':''}</td>
           <td style="text-align:left;">${s?esc(s.marca):'—'}</td>
           <td style="text-align:right;">${m.cantidad}</td>
           <td style="text-align:left;">${esc(m.proveedor||'—')}</td>
@@ -6474,31 +6448,25 @@ function pintarHistorial(){
       }).join('')}</tbody></table></div>`;
     return;
   }
+  // PAGOS A PROVEEDORES / SOCIOS (reorganización 2026-09-08): lectura conjunta de db.pagosProveedor
+  // y db.liquidacionesSocio — dos libros distintos que NO se fusionan (ver registrosPagosSocios()).
+  // Solo se combinan para pintar una tabla; cada registro sigue viviendo en su array original.
   if(tipo==='pagos'){
-    let filas=(db.pagosProveedor||[]).filter(pg=>enRango(pg.fecha));
-    if(buscar)filas=filas.filter(pg=>(pg.proveedor||'').toLowerCase().includes(buscar)||marcaDePago(pg).toLowerCase().includes(buscar));
-    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    let filas=registrosPagosSocios().filter(r=>enRango(r.fecha));
+    if(buscar)filas=filas.filter(r=>
+      (r.proveedor||'').toLowerCase().includes(buscar)||
+      (r.marca||'').toLowerCase().includes(buscar)||
+      (r.referencia||'').toLowerCase().includes(buscar)||
+      (r.usuario||'').toLowerCase().includes(buscar));
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     cont.innerHTML=filas.length===0?'<div class="vacio">Sin pagos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Proveedor</th><th>Marca</th><th>Monto</th>
-      </tr></thead><tbody>${filas.map(pg=>`<tr>
-        <td>${fechaCelda(pg.fecha)}</td>
-        <td style="text-align:left;">${esc(pg.proveedor||'—')}</td>
-        <td style="text-align:left;">${esc(marcaDePago(pg))}</td>
-        <td style="text-align:right;">${money(pg.monto)}</td>
-      </tr>`).join('')}</tbody></table></div>`;
-    return;
-  }
-  if(tipo==='liquidaciones'){
-    let filas=(db.liquidacionesSocio||[]).filter(l=>enRango(l.fecha));
-    if(buscar)filas=filas.filter(l=>(l.proveedor||'').toLowerCase().includes(buscar)||marcasRepartoDeSocio(l.proveedor).join(' ').toLowerCase().includes(buscar));
-    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-    cont.innerHTML=filas.length===0?'<div class="vacio">Sin liquidaciones para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
-      <th>Fecha</th><th>Socio</th><th>Marca</th><th>Monto</th>
-      </tr></thead><tbody>${filas.map(l=>`<tr>
-        <td>${fechaCelda(l.fecha)}</td>
-        <td style="text-align:left;">${esc(l.proveedor||'—')}</td>
-        <td style="text-align:left;">${esc(marcasRepartoDeSocio(l.proveedor).join(', ')||'—')}</td>
-        <td style="text-align:right;">${money(l.monto)}</td>
+      <th>Fecha</th><th>Proveedor / Socio</th><th>Marca</th><th>Monto</th><th>Referencia</th>
+      </tr></thead><tbody>${filas.map(r=>`<tr>
+        <td>${fechaCelda(r.fecha)}</td>
+        <td style="text-align:left;">${esc(r.proveedor||'—')}</td>
+        <td style="text-align:left;">${esc(r.marca||'—')}</td>
+        <td style="text-align:right;">${money(r.monto)}</td>
+        <td style="text-align:left;">${esc(r.referencia||'—')}</td>
       </tr>`).join('')}</tbody></table></div>`;
     return;
   }
@@ -6507,10 +6475,13 @@ function pintarHistorial(){
     if(buscar)filas=filas.filter(m=>{
       const s=porId(db.stock,m.stockId);
       return (s&&(s.producto||'').toLowerCase().includes(buscar))||
+        (s&&(s.marca||'').toLowerCase().includes(buscar))||
         (TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo||'').toLowerCase().includes(buscar)||
-        (m.motivo||m.nota||'').toLowerCase().includes(buscar);
+        (m.motivo||m.nota||'').toLowerCase().includes(buscar)||
+        (m.usuario||'').toLowerCase().includes(buscar)||
+        (m.proveedor||'').toLowerCase().includes(buscar);
     });
-    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+    filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
     cont.innerHTML=filas.length===0?'<div class="vacio">Sin movimientos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
       <th>Fecha</th><th>Producto</th><th>Movimiento</th><th>Cantidad</th><th>Referencia</th>
       </tr></thead><tbody>${filas.map(m=>{
@@ -6523,7 +6494,104 @@ function pintarHistorial(){
           <td style="text-align:left;">${esc(m.motivo||m.nota||'—')}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
+    return;
   }
+  if(tipo==='todos'){
+    pintarHistorialTodos(cont,buscar,enRango);
+  }
+}
+// Lectura conjunta de "Pagos a proveedores / socios" — combina db.pagosProveedor y
+// db.liquidacionesSocio SOLO para pintar; los arrays reales nunca se tocan ni se migran (ver
+// marcarObligacionPagada/guardarPagoProveedorModalidad/guardarPagoCreditoReparto/guardarLiquidacion).
+function registrosPagosSocios(){
+  const pagos=(db.pagosProveedor||[]).map(pg=>({
+    libro:'pagosProveedor',fecha:pg.fecha,createdAt:pg.createdAt,
+    proveedor:pg.proveedor,marca:marcaDePago(pg),monto:pg.monto,
+    referencia:pg.nota||'',usuario:pg.usuario,raw:pg
+  }));
+  const liq=(db.liquidacionesSocio||[]).map(l=>({
+    libro:'liquidacionesSocio',fecha:l.fecha,createdAt:l.createdAt,
+    proveedor:l.proveedor,marca:l.marca||marcasRepartoDeSocio(l.proveedor).join(', '),monto:l.monto,
+    referencia:l.nota||'',usuario:l.usuario,raw:l
+  }));
+  return pagos.concat(liq);
+}
+// TODOS (reorganización 2026-09-08): cronología derivada de solo lectura — NO es un array
+// persistente, se recalcula cada vez que se pinta a partir de db.pedidos/movimientosStock/
+// pagosProveedor/liquidacionesSocio ya existentes. Evita duplicar semánticamente una venta: los
+// movimientos de stock con pedidoId ('salida','devolucion_cancelacion','correccion_pedido') ya
+// están representados por la venta/venta-anulada dueña de ese pedidoId, así que NO se listan
+// aparte acá (sí siguen completos en "Movimientos de stock", que es el kardex físico íntegro).
+const TIPOS_MOVIMIENTO_TODOS=['ajuste','salida_no_comercial'];
+function pintarHistorialTodos(cont,buscar,enRango){
+  const eventos=[];
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago!=='pagado'&&p.estadoPago!=='cancelado')return;
+    const anulada=p.estadoPago==='cancelado';
+    const c=porId(db.clientes,p.clienteId);
+    const nombreCliente=c?(c.nombre+' '+(c.apellido||'')).trim():'—';
+    const itemsTxt=(p.items||[]).map(it=>it.cantidad+'× '+it.producto).join(', ');
+    const marcasTxt=[...new Set((p.items||[]).map(it=>it.marca).filter(Boolean))].join(', ');
+    eventos.push({
+      fecha:p.fecha,createdAt:p.createdAt||null,
+      tipoLabel:anulada?'Venta anulada':'Venta',
+      chip:anulada?'chip-rojo':'chip-verde',
+      referencia:correlativoVenta(p.id),
+      detalle:esc(nombreCliente)+' · '+esc(itemsTxt),
+      responsable:p.atendidoPor||'—',
+      onclick:`abrirDetalleVentaHistorial('${p.id}')`,
+      buscar:[nombreCliente,itemsTxt,marcasTxt,correlativoVenta(p.id),p.atendidoPor,anulada?p.motivoCancelacion:'',anulada?p.canceladoPor:'',anulada?p.autorizadoPor:''].join(' ').toLowerCase()
+    });
+  });
+  db.movimientosStock.filter(m=>m.tipo==='entrada'||m.tipo==='entrada_inicial').forEach(m=>{
+    const s=porId(db.stock,m.stockId);
+    const nombre=s?(s.marca+' '+s.producto):'—';
+    eventos.push({
+      fecha:m.fecha,createdAt:m.createdAt||null,
+      tipoLabel:'Entrada de producto',chip:'chip-azul',
+      referencia:'—',
+      detalle:esc(nombre)+' · +'+m.cantidad+' und.'+(m.tipo==='entrada_inicial'?' (stock inicial)':''),
+      responsable:m.usuario||'—',
+      onclick:null,
+      buscar:[s?s.producto:'',s?s.marca:'',m.proveedor].join(' ').toLowerCase()
+    });
+  });
+  registrosPagosSocios().forEach(r=>{
+    eventos.push({
+      fecha:r.fecha,createdAt:r.createdAt||null,
+      tipoLabel:r.libro==='liquidacionesSocio'?'Pago a socio':'Pago a proveedor',chip:'chip-naranja',
+      referencia:esc(r.proveedor||'—'),
+      detalle:(r.marca?esc(r.marca)+' · ':'')+money(r.monto)+(r.referencia?' · '+esc(r.referencia):''),
+      responsable:r.usuario||'—',
+      onclick:null,
+      buscar:[r.proveedor,r.marca,r.referencia,r.usuario].join(' ').toLowerCase()
+    });
+  });
+  db.movimientosStock.filter(m=>TIPOS_MOVIMIENTO_TODOS.includes(m.tipo)).forEach(m=>{
+    const s=porId(db.stock,m.stockId);
+    const signo=m.cantidad>=0?'+':'';
+    eventos.push({
+      fecha:m.fecha,createdAt:m.createdAt||null,
+      tipoLabel:'Movimiento de stock',chip:'chip-gris',
+      referencia:esc(TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo),
+      detalle:(s?esc(s.producto):'—')+' · '+signo+m.cantidad+' und.'+(m.motivo?' · '+esc(m.motivo):''),
+      responsable:m.usuario||'—',
+      onclick:null,
+      buscar:[s?s.producto:'',s?s.marca:'',m.motivo,m.nota].join(' ').toLowerCase()
+    });
+  });
+  let filas=eventos.filter(e=>enRango(e.fecha));
+  if(buscar)filas=filas.filter(e=>e.buscar.includes(buscar)||e.tipoLabel.toLowerCase().includes(buscar)||(e.responsable||'').toLowerCase().includes(buscar));
+  filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
+  cont.innerHTML=filas.length===0?'<div class="vacio">Sin eventos para este filtro.</div>':`<div class="tabla-excel historial-wrap"><table class="historial-tabla"><thead><tr>
+    <th>Fecha</th><th>Tipo</th><th>Referencia</th><th>Detalle</th><th>Responsable</th>
+    </tr></thead><tbody>${filas.map(e=>`<tr${e.onclick?` style="cursor:pointer;" onclick="${e.onclick}"`:''}>
+      <td>${fechaCelda(e.fecha)}</td>
+      <td style="text-align:left;"><span class="chip ${e.chip}">${esc(e.tipoLabel)}</span></td>
+      <td style="text-align:left;">${e.referencia}</td>
+      <td style="text-align:left;">${e.detalle}</td>
+      <td style="text-align:left;">${esc(e.responsable||'—')}</td>
+    </tr>`).join('')}</tbody></table></div>`;
 }
 // AJUSTE (2026-09-07) — "Pago al proveedor" dentro de Historial → Ver detalle. Estado DERIVADO
 // de los pagos reales (nunca un boolean). Se agrupa por libro+marca (no se mezclan pagosProveedor
@@ -6623,12 +6691,19 @@ function abrirDetalleVentaHistorial(pedidoId){
       <div>${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</div>
       ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
     </div>
+    ${anulada?`<div class="drawer-seccion">
+      <div class="drawer-seccion-titulo">Auditoría de anulación</div>
+      <div class="item-linea"><span>Fecha de venta original</span><span>${fechaBonita(p.fecha)}</span></div>
+      <div class="item-linea"><span>Fecha de anulación</span><span>${p.canceladoFecha?fechaBonita(p.canceladoFecha):'—'}</span></div>
+      <div class="item-linea"><span>Anuló</span><span>${esc(p.canceladoPor||'—')}</span></div>
+      <div class="item-linea"><span>Autorizó</span><span>${esc(p.autorizadoPor||'—')}</span></div>
+      ${p.motivoCancelacion?`<div style="font-size:12.5px;color:var(--danger);margin-top:6px;">Motivo: ${esc(p.motivoCancelacion)}</div>`:''}
+    </div>`:''}
     ${seccionPagoProveedorVenta(p.id)}
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Otros</div>
       <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
       ${p.notas?`<div style="font-size:12.5px;color:var(--muted);font-style:italic;">"${esc(p.notas)}"</div>`:''}
-      ${anulada&&p.motivoCancelacion?`<div style="font-size:12.5px;color:var(--danger);margin-top:4px;">Motivo de anulación: ${esc(p.motivoCancelacion)}</div>`:''}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
