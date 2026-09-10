@@ -392,6 +392,10 @@ table.prov-ventas-tabla th,table.prov-ventas-tabla td{padding:7px 5px;font-size:
 table.prov-ventas-tabla th{font-size:9px;letter-spacing:.02em;}
 table.prov-ventas-tabla td .btn-chico{padding:3px 8px;font-size:11px;}
 .prov-ventas-pagadas-wrap{max-height:190px;overflow-y:auto;}
+/* PENDIENTE DE PAGO (2026-09-10): una venta cuyo cliente aún no paga genera obligación con el
+   proveedor pero NO es exigible todavía — su fila del drawer se atenúa, igual que ya se atenúan
+   las ventas canceladas (opacity), sin color/elemento visual nuevo. */
+tr.prov-fila-espera td{opacity:.6;}
 .fecha-corta{display:none;}
 
 @media(max-width:640px){
@@ -2438,6 +2442,7 @@ function pintarClientes(){
     ${thOrden('clientes','cliente','Cliente','pintarClientes()')}${thOrden('clientes','ubicacion','Ubicación','pintarClientes()')}<th>Marcas</th>${thOrden('clientes','ultima','Última compra','pintarClientes()')}<th>Recompra</th>${thOrden('clientes','pedidos','Pedidos','pintarClientes()')}
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
+      const tienePendientePago=db.pedidos.some(p=>p.clienteId===c.id&&p.estadoPago==='pendiente pago');
       const r=estadoRecompraCliente(c.id);
       const lugar=[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — ')||'—';
       return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
@@ -2448,7 +2453,7 @@ function pintarClientes(){
         <td style="${pad}">${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}</td>
         <td style="${pad}">${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')||'—'}</td>
         <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
-        <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span></td>
+        <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>${tienePendientePago?' <span class="chip chip-naranja">Pendiente de pago</span>':''}</td>
         <td style="${pad}">${nPedidos}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
@@ -2466,7 +2471,10 @@ function abrirFichaCliente(clienteId){
   // Principio mantenido de la ficha original: pedidos = todos (incluye cancelados, para el
   // historial); pedidosValidos = sin cancelados (para total comprado / conteo / recompra).
   const pedidosValidos=pedidos.filter(p=>p.estadoPago!=='cancelado');
-  const totalComprado=pedidosValidos.reduce((s,p)=>s+p.total,0);
+  // "Total comprado" = solo lo COBRADO. Las compras pendientes de pago (paga contra entrega)
+  // se cuentan aparte en "por cobrar" y no suman a la plata del cliente hasta marcarse pagadas.
+  const totalComprado=pedidosValidos.filter(p=>p.estadoPago==='pagado').reduce((s,p)=>s+p.total,0);
+  const totalPorCobrar=pedidosValidos.filter(p=>p.estadoPago==='pendiente pago').reduce((s,p)=>s+p.total,0);
   const r=estadoRecompraCliente(c.id);
   const marcas=marcasDeCliente(c);
   const waUrl=telefonoWhatsApp(c.telefono);
@@ -2504,6 +2512,7 @@ function abrirFichaCliente(clienteId){
       <div class="cliente-resumen">
         <div class="cliente-resumen-item"><div class="num">${pedidosValidos.length}</div><div class="lbl">Compras</div></div>
         <div class="cliente-resumen-item"><div class="num">${money(totalComprado)}</div><div class="lbl">Total comprado</div></div>
+        ${totalPorCobrar>0?`<div class="cliente-resumen-item"><div class="num" style="color:var(--warning);">${money(totalPorCobrar)}</div><div class="lbl">Por cobrar</div></div>`:''}
       </div>
     </div>
 
@@ -2529,14 +2538,54 @@ function abrirFichaCliente(clienteId){
             <td>${fechaBonita(p.fecha)}</td>
             <td style="text-align:left;">${productosTxt}</td>
             <td style="text-align:right;">${money(p.total)}</td>
-            <td><span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'))}</span></td>
-            <td>${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
+            <td><span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':(p.estadoPago==='pendiente pago'?'Pendiente de pago':esc(p.estadoPago||'—')))}</span></td>
+            <td style="white-space:nowrap;">${p.estadoPago==='pendiente pago'?`<button type="button" class="btn-secundario btn-chico" onclick="marcarPedidoPagado('${p.id}')">Marcar como pagado</button> `:''}${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
     </div>`);
+}
+// PENDIENTE DE PAGO → PAGADO (2026-09-10): única acción para saldar una compra "paga contra
+// entrega". NO toca pedido.fecha (Reportes cuenta la venta en su fecha comercial, no en la de
+// cobro) ni el stock (ya se descontó al despachar). Guarda fechaCobro/metodoPago/pagoConfirmadoPor
+// como huella. Al confirmar, todo lo dependiente (Clientes, ficha, Reportes, cuenta del proveedor:
+// el tramo "en espera" pasa a exigible) se recalcula solo en el próximo render.
+function marcarPedidoPagado(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoPago!=='pendiente pago'){alert('Esta compra ya no está pendiente de pago.');return;}
+  const cli=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Marcar como pagado</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc(cli.nombre+' '+cli.apellido):'Cliente'} · ${fechaBonita(p.fecha)} · ${money(p.total)}</p>
+    <form onsubmit="return confirmarPedidoPagado(event,'${p.id}')">
+      <label style="margin-top:0;">¿Con qué método te pagó?</label>
+      <select id="mp-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
+      <label>Fecha en que te pagó</label>
+      <input type="date" id="mp-fecha" value="${hoyStr()}">
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">En Reportes la venta se cuenta con su fecha original (${fechaBonita(p.fecha)}), no con la de cobro.</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Confirmar pago</button>
+      </div>
+    </form>`);
+}
+function confirmarPedidoPagado(ev,pedidoId){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoPago!=='pendiente pago')return false;
+  p.estadoPago='pagado';
+  p.metodoPago=document.getElementById('mp-metodo').value;
+  p.fechaCobro=document.getElementById('mp-fecha').value||hoyStr();
+  p.pagoConfirmadoPor=sesion?sesion.nombre:'';
+  guardar();
+  cerrarModal();
+  pintarClientes();
+  if(typeof pintarProveedores==='function')pintarProveedores();
+  abrirFichaCliente(p.clienteId);
+  return false;
 }
 function abrirEditarCliente(id){
   const c=porId(db.clientes,id);
@@ -2671,6 +2720,11 @@ function abrirFormCliente(leadId){
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
+      <label>¿Ya pagó el cliente?</label>
+      <select id="pd-yapago">
+        <option value="1">Sí, ya pagó</option>
+        <option value="0">No — paga contra entrega (queda pendiente de cobro)</option>
+      </select>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
@@ -2726,6 +2780,7 @@ function guardarCliente(ev,leadId){
   const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
+  const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
   const fechaPedido=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fechaPedido);
   // FIX B: se valida ANTES de crear el cliente/pedido — si esto fallara después del push,
@@ -2772,8 +2827,12 @@ function guardarCliente(ev,leadId){
     codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
     metodoPago,
     pagoReferencia:document.getElementById('pd-referencia').value.trim(),
-    pagoConfirmadoPor:sesion.nombre,
-    estadoPago:'pagado', // solo se registra la venta cuando ya llegó el comprobante de pago: nace pagado
+    pagoConfirmadoPor:yaPagoCliente?sesion.nombre:'',
+    // PENDIENTE DE PAGO (2026-09-10): por defecto nace "pagado" (comprobante ya recibido, flujo
+    // de siempre). Si en el form se eligió "No — paga contra entrega", nace "pendiente pago":
+    // el stock se descuenta igual (el producto viaja), pero NO cuenta como ingreso/ganancia
+    // hasta que se marque cobrado (ver marcarPedidoPagado). La fecha comercial no cambia.
+    estadoPago:yaPagoCliente?'pagado':'pendiente pago',
     estadoEnvio:'pendiente preparación',
     fecha:fechaPedido,
     atendidoPor:sesion.nombre,
@@ -2802,6 +2861,7 @@ function mostrarTicket(pedido,cliente){
         <strong>Zona Bariátrica</strong><br>
         <span style="font-size:12px;color:var(--muted);">Ticket de venta · ${fechaBonita(pedido.fecha)}</span>
       </div>
+      ${pedido.estadoPago==='pendiente pago'?`<div style="text-align:center;color:var(--warning);font-weight:700;font-size:12px;margin-bottom:8px;">PENDIENTE DE PAGO · paga contra entrega</div>`:''}
       <div style="font-size:13px;margin-bottom:8px;">
         <strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>
         ${esc(cliente.dni||'sin DNI')} · ${esc(cliente.telefono||'—')}<br>
@@ -2833,6 +2893,7 @@ function imprimirTicket(pedidoId){
     </head><body>
     <h3>Zona Bariátrica</h3>
     ${pedido.estadoPago==='cancelado'?'<div class="c" style="color:#c0392b;font-weight:700;">*** VENTA ANULADA ***</div>':''}
+    ${pedido.estadoPago==='pendiente pago'?'<div class="c" style="color:#b9770e;font-weight:700;">*** PENDIENTE DE PAGO — PAGA CONTRA ENTREGA ***</div>':''}
     <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
     <div>${cliente?`<strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}`:'<strong>Cliente eliminado</strong>'}</div>
     <table style="margin-top:8px;">${filas}
@@ -3131,6 +3192,11 @@ function abrirFormPedido(clienteIdPre){
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
+      <label>¿Ya pagó el cliente?</label>
+      <select id="pd-yapago">
+        <option value="1">Sí, ya pagó</option>
+        <option value="0">No — paga contra entrega (queda pendiente de cobro)</option>
+      </select>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
@@ -3346,6 +3412,7 @@ function guardarPedido(ev){
   const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
+  const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
   const fecha=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
   const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
@@ -3367,8 +3434,10 @@ function guardarPedido(ev){
     codigoEnvio:document.getElementById('pd-codigoenvio').value.trim(),
     metodoPago,
     pagoReferencia:document.getElementById('pd-referencia').value.trim(),
-    pagoConfirmadoPor:sesion.nombre,
-    estadoPago:'pagado', // solo se registra el pedido cuando ya llegó el comprobante de pago
+    pagoConfirmadoPor:yaPagoCliente?sesion.nombre:'',
+    // PENDIENTE DE PAGO (2026-09-10): ver nota en guardarCliente(). "No — paga contra entrega"
+    // => 'pendiente pago'; stock se descuenta igual, no cuenta como ingreso hasta marcarlo cobrado.
+    estadoPago:yaPagoCliente?'pagado':'pendiente pago',
     estadoEnvio:'pendiente preparación',
     fecha,
     atendidoPor:sesion.nombre,
@@ -4904,14 +4973,23 @@ function estadoCuentaProveedor(proveedor,modelo,marca){
     .sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.pedidoId).localeCompare(String(b.pedidoId)))
     .forEach(l=>{ if(pool<=0.005)return; const ap=Math.min(round2(l.obligacion-l.cubierto),pool); l.cubierto=round2(l.cubierto+ap); pool=round2(pool-ap); });
   lineas.forEach(l=>{ l.pendiente=Math.max(0,round2(l.obligacion-l.cubierto)); l.pagada=l.pendiente<=0.005; });
+  // PENDIENTE DE PAGO (2026-09-10): la obligación con el proveedor existe apenas se despacha
+  // (no se usa pedido.estadoPago para el TOTAL — ver nota arriba), pero si el CLIENTE todavía
+  // no pagó esa venta, ese tramo del saldo NO es exigible aún. Se marca la línea/venta y se
+  // separa enEsperaCobro (informativo); saldo/obligacionTotal/pagadoTotal NO cambian.
+  const estadoPagoPedido={};
+  (db.pedidos||[]).forEach(p=>{estadoPagoPedido[p.id]=p.estadoPago;});
+  lineas.forEach(l=>{ l.pendienteCobroCliente=estadoPagoPedido[l.pedidoId]==='pendiente pago'; });
   const porVenta={};
   lineas.forEach(l=>{
-    if(!porVenta[l.pedidoId])porVenta[l.pedidoId]={pedidoId:l.pedidoId,fecha:l.fecha,lineas:[],obligacion:0,pendiente:0};
+    if(!porVenta[l.pedidoId])porVenta[l.pedidoId]={pedidoId:l.pedidoId,fecha:l.fecha,lineas:[],obligacion:0,pendiente:0,pendienteCobroCliente:l.pendienteCobroCliente};
     const v=porVenta[l.pedidoId];
     v.lineas.push(l); v.obligacion=round2(v.obligacion+l.obligacion); v.pendiente=round2(v.pendiente+l.pendiente);
   });
   const ventas=Object.values(porVenta).map(v=>Object.assign(v,{pagada:v.pendiente<=0.005}));
-  return {proveedor,modelo,marca,obligacionTotal,pagadoTotal,saldo,lineas,ventas};
+  const enEsperaCobro=round2(lineas.filter(l=>l.pendienteCobroCliente).reduce((s,l)=>s+l.pendiente,0));
+  const exigible=Math.max(0,round2(saldo-enEsperaCobro));
+  return {proveedor,modelo,marca,obligacionTotal,pagadoTotal,saldo,enEsperaCobro,exigible,lineas,ventas};
 }
 // Obligaciones de UNA venta hacia sus proveedores — DERIVADO de estadoCuentaProveedor (misma
 // distribución FIFO) para que Abono / Historial usen exactamente el mismo pendiente que el drawer.
@@ -5605,7 +5683,7 @@ function seccionVentasDrawer(ec){
   const pend=ordenarFilas('provVentasPend',conObl.filter(v=>!v.pagada),accP);
   const pag=ordenarFilas('provVentasPag',conObl.filter(v=>v.pagada),accG);
   const nprod=v=>v.lineas.length===1?'1 producto':v.lineas.length+' productos';
-  const filaP=v=>`<tr><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}</td><td>${fechaCelda(v.fecha)}</td><td>${nprod(v)}</td><td>${money(v.pendiente)}</td><td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${v.pedidoId}')">Abono</button></td></tr>`;
+  const filaP=v=>`<tr${v.pendienteCobroCliente?' class="prov-fila-espera"':''}><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}${v.pendienteCobroCliente?' <span title="El cliente aún no paga esta venta">⏳</span>':''}</td><td>${fechaCelda(v.fecha)}</td><td>${nprod(v)}</td><td>${money(v.pendiente)}</td><td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${v.pedidoId}')">Abono</button></td></tr>`;
   const filaG=v=>`<tr><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}</td><td>${fechaCelda(v.fecha)}</td><td>${money(v.obligacion)}</td></tr>`;
   const tablaPend=pend.length===0
     ?'<div class="vacio">Nada pendiente con este proveedor.</div>'
@@ -5617,6 +5695,7 @@ function seccionVentasDrawer(ec){
       <div class="drawer-seccion-titulo">Pendiente de pago</div>
       ${tablaPend}
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
+      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:3px 4px 0;"><span>⏳ En espera de cobro al cliente</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
     </div>
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Pagadas</div>
