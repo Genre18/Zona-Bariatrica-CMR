@@ -6720,7 +6720,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
     const detalleTexto=nombreCliente+' · '+itemsTxt;
     eventos.push({
       fecha:p.fecha,createdAt:p.createdAt||null,
-      tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Venta · pendiente de pago':'Venta'),
+      tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Venta pendiente':'Venta'),
       chip:anulada?'chip-rojo':(pendienteCobro?'chip-naranja':'chip-verde'),
       referencia:correlativoVenta(p.id),
       detalle:esc(nombreCliente)+' · '+esc(itemsTxt),detalleTexto,
