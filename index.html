@@ -178,6 +178,7 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip-verde{background:var(--success-suave);color:var(--success);}
 .chip-naranja{background:var(--warning-suave);color:var(--warning);}
 .chip-rojo{background:var(--danger-suave);color:var(--danger);}
+.chip-violeta{background:var(--violeta-suave);color:var(--violeta);}
 
 /* BLOQUE UX (2026-08-21): tabla Stock más densa/compacta — clase propia (no toca .tabla-excel
    base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
@@ -2453,7 +2454,7 @@ function pintarClientes(){
         <td style="${pad}">${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}</td>
         <td style="${pad}">${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')||'—'}</td>
         <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
-        <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>${tienePendientePago?' <span class="chip chip-naranja">Pendiente de pago</span>':''}</td>
+        <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>${tienePendientePago?' <span class="chip chip-violeta">Pendiente de pago</span>':''}</td>
         <td style="${pad}">${nPedidos}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
@@ -2533,7 +2534,7 @@ function abrirFichaCliente(clienteId){
         <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
         </tr></thead><tbody>${pedidos.map(p=>{
           const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ');
-          const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-naranja');
+          const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-violeta');
           return `<tr${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
             <td>${fechaBonita(p.fecha)}</td>
             <td style="text-align:left;">${productosTxt}</td>
@@ -3053,7 +3054,7 @@ function validarImportesPedido(items,descuento,embalaje,delivery){
 }
 
 /* ================= PEDIDOS ================= */
-const ESTADO_PAGO_CHIP={'pendiente pago':'chip-naranja',pagado:'chip-azul',cancelado:'chip-rojo'};
+const ESTADO_PAGO_CHIP={'pendiente pago':'chip-violeta',pagado:'chip-azul',cancelado:'chip-rojo'};
 const ESTADO_ENVIO_CHIP={'pendiente preparación':'chip-gris',preparado:'chip-azul',enviado:'chip-naranja',entregado:'chip-verde'};
 const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
 const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','entregado'];
@@ -6570,7 +6571,7 @@ function pintarHistorial(){
         const c=porId(db.clientes,p.clienteId);
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
         const pendienteCobro=!esAnuladas&&p.estadoPago==='pendiente pago';
-        const chipEstado=esAnuladas?'chip-rojo':(pendienteCobro?'chip-naranja':'chip-verde');
+        const chipEstado=esAnuladas?'chip-rojo':(pendienteCobro?'chip-violeta':'chip-verde');
         return `<tr>
           <td>${fechaCelda(p.fecha)}</td>
           <td>${correlativoVenta(p.id)}</td>
@@ -6720,8 +6721,8 @@ function pintarHistorialTodos(cont,buscar,enRango){
     const detalleTexto=nombreCliente+' · '+itemsTxt;
     eventos.push({
       fecha:p.fecha,createdAt:p.createdAt||null,
-      tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Venta pendiente':'Venta'),
-      chip:anulada?'chip-rojo':(pendienteCobro?'chip-naranja':'chip-verde'),
+      tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Pendiente de pago':'Venta'),
+      chip:anulada?'chip-rojo':(pendienteCobro?'chip-violeta':'chip-verde'),
       referencia:correlativoVenta(p.id),
       detalle:esc(nombreCliente)+' · '+esc(itemsTxt),detalleTexto,
       responsable:p.atendidoPor||'—',
@@ -6860,7 +6861,7 @@ function abrirDetalleVentaHistorial(pedidoId){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <div class="drawer-identidad">
-      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-naranja">PENDIENTE DE PAGO</span>':''}</h3>
+      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-violeta">PENDIENTE DE PAGO</span>':''}</h3>
       <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${estadoClienteTxt}</div>
     </div>
     <div class="drawer-seccion">
