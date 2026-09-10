@@ -6535,12 +6535,14 @@ function pintarHistorial(){
   const cont=document.getElementById('histContenido');
   const enRango=fecha=>(!desde||(fecha||'')>=desde)&&(!hasta||(fecha||'')<=hasta);
   if(tipo==='ventas'||tipo==='ventas_anuladas'){
-    // Ventas = solo pagadas/válidas. Ventas anuladas = solo canceladas. Antes ambas convivían
-    // mezcladas en la misma tabla (con un chip de estado); ahora son dos vistas separadas para
-    // no confundir una venta anulada con una válida. 'pendiente pago' (estado que hoy no se usa
-    // en el flujo real, ver descripción del negocio) no cae en ninguna de las dos a propósito.
+    // Ventas = pagadas + pendientes de cobro (con chip distinto). Ventas anuladas = solo
+    // canceladas. Son dos vistas separadas para no confundir una anulada con una válida.
+    // PENDIENTE DE PAGO (2026-09-10): a pedido de Genesis, la venta "paga contra entrega"
+    // SÍ aparece en "Ventas" desde que se registra, con chip naranja "Pendiente de pago",
+    // para que Roberto la vea; al cobrarla el chip pasa a verde "Pagado por cliente". En
+    // Reportes (ingresos/ganancia) sigue sin contar hasta que se marque cobrada.
     const esAnuladas=tipo==='ventas_anuladas';
-    let filas=db.pedidos.filter(p=>p.estadoPago===(esAnuladas?'cancelado':'pagado')&&enRango(p.fecha));
+    let filas=db.pedidos.filter(p=>(esAnuladas?p.estadoPago==='cancelado':(p.estadoPago==='pagado'||p.estadoPago==='pendiente pago'))&&enRango(p.fecha));
     if(buscar)filas=filas.filter(p=>{
       const c=porId(db.clientes,p.clienteId);
       const nombreCliente=c?(c.nombre+' '+(c.apellido||'')):'';
@@ -6567,13 +6569,14 @@ function pintarHistorial(){
       </tr></thead><tbody>${filas.map(p=>{
         const c=porId(db.clientes,p.clienteId);
         const nombreCliente=c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—';
-        const chipEstado=esAnuladas?'chip-rojo':'chip-verde';
+        const pendienteCobro=!esAnuladas&&p.estadoPago==='pendiente pago';
+        const chipEstado=esAnuladas?'chip-rojo':(pendienteCobro?'chip-naranja':'chip-verde');
         return `<tr>
           <td>${fechaCelda(p.fecha)}</td>
           <td>${correlativoVenta(p.id)}</td>
           <td style="text-align:left;">${nombreCliente}</td>
           <td style="text-align:right;">${money(p.total)}</td>
-          <td><span class="chip ${chipEstado}">${esAnuladas?'Anulada':'Pagado por cliente'}</span></td>
+          <td><span class="chip ${chipEstado}">${esAnuladas?'Anulada':(pendienteCobro?'Pendiente de pago':'Pagado por cliente')}</span></td>
           <td style="text-align:left;">${esc(p.atendidoPor||'—')}</td>
           <td><button type="button" class="link-historial" onclick="abrirDetalleVentaHistorial('${p.id}')">Ver detalle</button></td>
         </tr>`;
@@ -6707,8 +6710,9 @@ const TIPOS_MOVIMIENTO_TODOS=['ajuste','salida_no_comercial'];
 function pintarHistorialTodos(cont,buscar,enRango){
   const eventos=[];
   db.pedidos.forEach(p=>{
-    if(p.estadoPago!=='pagado'&&p.estadoPago!=='cancelado')return;
+    if(p.estadoPago!=='pagado'&&p.estadoPago!=='cancelado'&&p.estadoPago!=='pendiente pago')return;
     const anulada=p.estadoPago==='cancelado';
+    const pendienteCobro=p.estadoPago==='pendiente pago';
     const c=porId(db.clientes,p.clienteId);
     const nombreCliente=c?(c.nombre+' '+(c.apellido||'')).trim():'—';
     const itemsTxt=(p.items||[]).map(it=>it.cantidad+'× '+it.producto).join(', ');
@@ -6716,8 +6720,8 @@ function pintarHistorialTodos(cont,buscar,enRango){
     const detalleTexto=nombreCliente+' · '+itemsTxt;
     eventos.push({
       fecha:p.fecha,createdAt:p.createdAt||null,
-      tipoLabel:anulada?'Venta anulada':'Venta',
-      chip:anulada?'chip-rojo':'chip-verde',
+      tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Venta · pendiente de pago':'Venta'),
+      chip:anulada?'chip-rojo':(pendienteCobro?'chip-naranja':'chip-verde'),
       referencia:correlativoVenta(p.id),
       detalle:esc(nombreCliente)+' · '+esc(itemsTxt),detalleTexto,
       responsable:p.atendidoPor||'—',
@@ -6839,7 +6843,8 @@ function abrirDetalleVentaHistorial(pedidoId){
   detalleProveedorAbierto=null;
   const c=porId(db.clientes,p.clienteId);
   const anulada=p.estadoPago==='cancelado';
-  const estadoClienteTxt=p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'));
+  const pendienteCobro=p.estadoPago==='pendiente pago';
+  const estadoClienteTxt=p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':(pendienteCobro?'Pendiente de pago':esc(p.estadoPago||'—')));
   const filasProductos=p.items.map(it=>{
     const presSabor=[it.presentacion,it.sabor].filter(Boolean).join(' · ');
     return `<tr>
@@ -6855,7 +6860,7 @@ function abrirDetalleVentaHistorial(pedidoId){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <div class="drawer-identidad">
-      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}</h3>
+      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-naranja">PENDIENTE DE PAGO</span>':''}</h3>
       <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${estadoClienteTxt}</div>
     </div>
     <div class="drawer-seccion">
