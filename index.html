@@ -315,8 +315,12 @@ table.historial-tabla-todos td.hist-detalle{overflow:hidden;text-overflow:ellips
 .cliente-acciones .btn,.cliente-acciones .btn-secundario{padding:6px 12px;font-size:12.5px;}
 /* CLIENTES 10/10 (2026-08-21): historial de compras compacto tipo Excel, mismo lenguaje que
    Stock/Historial. Solo esta tabla — .tabla-excel global no se toca. */
-table.cliente-historial-tabla{width:100%;}
+table.cliente-historial-tabla{width:100%;table-layout:fixed;}
 table.cliente-historial-tabla th{padding:6px 8px;font-size:9.5px;}
+/* Modal angosto (520px): esta tabla NO debe hacer scroll horizontal. Se anula el
+   white-space:nowrap global de .tabla-excel para que Productos y los chips ("Pendiente de
+   pago" no entra en una línea a este ancho) partan en varias líneas. */
+table.cliente-historial-tabla th,table.cliente-historial-tabla td{white-space:normal;word-break:break-word;}
 table.cliente-historial-tabla td{padding:5px 8px;font-size:12px;}
 
 /* UX CORRECTIVO — sección 6: anchos semánticos SOLO dentro de .stock-form (no toca .fila-2
@@ -2530,7 +2534,7 @@ function abrirFichaCliente(clienteId){
 
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Historial</div>
-      ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><thead><tr>
+      ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><colgroup><col style="width:62px;"><col><col style="width:66px;"><col style="width:88px;"><col style="width:78px;"></colgroup><thead><tr>
         <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
         </tr></thead><tbody>${pedidos.map(p=>{
           const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ');
@@ -2540,7 +2544,7 @@ function abrirFichaCliente(clienteId){
             <td style="text-align:left;">${productosTxt}</td>
             <td style="text-align:right;">${money(p.total)}</td>
             <td><span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':(p.estadoPago==='pendiente pago'?'Pendiente de pago':esc(p.estadoPago||'—')))}</span></td>
-            <td style="white-space:nowrap;">${p.estadoPago==='pendiente pago'?`<button type="button" class="btn-secundario btn-chico" onclick="marcarPedidoPagado('${p.id}')">Marcar como pagado</button> `:''}${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
+            <td style="text-align:right;">${p.estadoPago==='pendiente pago'?`<button type="button" class="btn-secundario btn-chico" style="padding:3px 8px;" onclick="marcarPedidoPagado('${p.id}')">Ya pagó</button> `:''}${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 6px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`}
     </div>
