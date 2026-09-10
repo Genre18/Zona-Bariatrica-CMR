@@ -5068,14 +5068,53 @@ function refrescarDetalleAbierto(){
   else if(detalleVentaAbierta){abrirDetalleVentaHistorial(detalleVentaAbierta);}
   else if(detalleProveedorAbierto){const d=detalleProveedorAbierto;abrirDetalleProveedor(d.proveedor,d.modelo,d.marca);}
 }
+// Marcar una obligación (pedidoId,stockId) como pagada al proveedor. Antes registraba el pago con
+// fecha = hoy; pero al proveedor se le paga el MISMO DÍA de la venta (regla del negocio de ZB), así
+// que si Roberto tildaba la casilla días después el pago quedaba mal fechado y las vistas por
+// período (Historial → Pagos / Todos, que filtran por fecha) no cuadraban. Ahora abre un mini-modal
+// con la fecha PRE-CARGADA con la fecha comercial de la venta (pedido.fecha), editable solo para el
+// caso raro (registro tardío de la venta, adelanto). El saldo de la cuenta (obligación − Σ pagos)
+// NO depende de la fecha, así que ningún número histórico se mueve. createdAt/confirmadoPor =
+// huella real de cuándo y quién lo registró; NO se muestra en tablas, solo para auditar.
 function marcarObligacionPagada(pedidoId,stockId,libro){
   const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
   if(!o){alert('No se encontró la obligación de esta venta.');return;}
   if(o.pagado){return;} // ya pagada: marcado y fijo, NO se revierte ningún pago (ver §13)
   const monto=o.montoAlMarcar;
   if(monto<=0.005){pintarProveedores();refrescarDetalleAbierto();return;}
-  if(!confirm('¿Marcar como pagado?\n\nSe registrará un pago de '+money(monto)+' correspondiente a esta venta ('+(o.marca||'—')+' · '+(o.producto||'—')+').'))return;
-  const base={id:nuevoId(),proveedor:o.proveedor,monto,fecha:hoyStr(),nota:'',usuario:sesion?sesion.nombre:'',asignaciones:[{pedidoId,stockId,monto}]};
+  const p=porId(db.pedidos,pedidoId);
+  const fechaVenta=(p&&p.fecha)||hoyStr();
+  abrirModal(`
+    <button class="cerrar-x" onclick="cancelarMarcarObligacion()">✕</button>
+    <h3>Marcar como pagado al proveedor</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${esc(o.marca||'—')} · ${esc(o.producto||'—')} · ${money(monto)}</p>
+    <form onsubmit="return confirmarMarcarObligacion(event,'${pedidoId}','${stockId}','${libro}')">
+      <label style="margin-top:0;">Fecha del pago al proveedor</label>
+      <input type="date" id="mo-fecha" value="${fechaVenta}">
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Viene con la fecha de la venta (${fechaBonita(fechaVenta)}) porque al proveedor se le paga el mismo día. Cambiala solo si este pago puntual fue otro día.</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cancelarMarcarObligacion()">Volver</button>
+        <button class="btn">Confirmar pago</button>
+      </div>
+    </form>`);
+}
+function cancelarMarcarObligacion(){
+  if(abonoModalPedido||detalleVentaAbierta||detalleProveedorAbierto)refrescarDetalleAbierto();
+  else cerrarModal();
+}
+function confirmarMarcarObligacion(ev,pedidoId,stockId,libro){
+  if(ev&&ev.preventDefault)ev.preventDefault();
+  const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
+  if(!o){alert('No se encontró la obligación de esta venta.');cerrarModal();return false;}
+  if(o.pagado){cancelarMarcarObligacion();return false;} // otra sesión la pagó con el modal abierto
+  const monto=o.montoAlMarcar;
+  if(monto<=0.005){cancelarMarcarObligacion();return false;}
+  const p=porId(db.pedidos,pedidoId);
+  const campoFecha=document.getElementById('mo-fecha');
+  const fecha=(campoFecha&&campoFecha.value)||(p&&p.fecha)||hoyStr();
+  const base={id:nuevoId(),proveedor:o.proveedor,monto,fecha,nota:'',usuario:sesion?sesion.nombre:'',
+    confirmadoPor:sesion?sesion.nombre:'',createdAt:new Date().toISOString(),
+    asignaciones:[{pedidoId,stockId,monto}]};
   if(o.libro==='pagosProveedor'){
     db.pagosProveedor.push(Object.assign(base,{entregaId:null,modalidad:o.modalidad}));
   }else{
@@ -5084,7 +5123,9 @@ function marcarObligacionPagada(pedidoId,stockId,libro){
   }
   guardar();
   pintarProveedores();
-  refrescarDetalleAbierto();
+  if(abonoModalPedido||detalleVentaAbierta||detalleProveedorAbierto)refrescarDetalleAbierto();
+  else cerrarModal();
+  return false;
 }
 function abrirFormPagoProveedorModalidad(proveedor,modalidad){
   const saldo=saldoProveedorModalidad(proveedor,modalidad);
