@@ -1676,6 +1676,20 @@ function reproducirSonidoAvisoTarea(){
     osc.stop(ctx.currentTime+0.35);
   }catch(e){}
 }
+// Aviso discreto genérico (2026-09-11) — reusa el mismo contenedor/estilo de las notificaciones
+// de tareas nuevas (#avisosTareaNueva/.aviso-tarea-toast) para no montar un segundo sistema de
+// toasts. Sin botones "Ver"/"Cerrar" (no hace falta acción, solo confirma algo que ya pasó) y se
+// autodestruye solo. Primer uso: confirmar que "Copiar cotización" sí copió al portapapeles, sin
+// interrumpir con un alert() bloqueante.
+function mostrarToast(mensaje){
+  const cont=document.getElementById('avisosTareaNueva');
+  if(!cont)return;
+  const div=document.createElement('div');
+  div.className='aviso-tarea-toast';
+  div.textContent=mensaje;
+  cont.appendChild(div);
+  setTimeout(()=>div.remove(),3000);
+}
 function suscribirCambiosNube(){
   sb.channel('crm_estado_cambios')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'crm_estado',filter:'id=eq.1'},payload=>{
@@ -2196,12 +2210,9 @@ function abrirFichaLead(leadId){
         <div class="meta">${esc(n.autor)} · ${fechaBonita(n.fecha)}</div>
       </div>`).join('')}
 
-    ${leadEstaConvertido(l)?'':`
-    <h4 style="font-size:13.5px;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center;">
-      Cotizaciones
-      <button type="button" class="btn btn-chico" onclick="abrirFormCotizacion('${l.id}')">+ Nueva cotización</button>
-    </h4>
-    ${cotizacionesDeLead.length===0?'<div class="vacio">Sin cotizaciones todavía.</div>':cotizacionesDeLead.map(c=>`
+    ${cotizacionesDeLead.length===0?'':`
+    <h4 style="font-size:13.5px;margin:14px 0 6px;">Cotizaciones</h4>
+    ${cotizacionesDeLead.map(c=>`
       <div class="nota-linea">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
           <span>${c.items.length} producto${c.items.length===1?'':'s'} · <strong>${money(c.total)}</strong></span>
@@ -2257,8 +2268,8 @@ function abrirFormLead(){
         <div><label>Fecha de contacto</label><input type="date" id="ld-fecha" value="${hoyStr()}"></div>
         <div><label>Hora</label><input type="time" id="ld-hora" value="${horaAhora()}"></div>
       </div>
-      <label>Motivo de consulta (nota comercial, no diagnóstico médico)</label><input id="ld-diagnostico">
-      <label>Nota inicial (lo que se conversó por chat)</label><textarea id="ld-nota" rows="2"></textarea>
+      <button type="button" class="btn" style="width:100%;margin-top:4px;" onclick="guardarLeadYCotizar()">+ Nueva cotización</button>
+      <label>Nota</label><textarea id="ld-nota" rows="2"></textarea>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar</button>
@@ -2316,25 +2327,36 @@ function avisarLeadDuplicado(dup){
       <button type="button" class="btn-secundario" onclick="cancelarAltaLeadDuplicado()">Cancelar</button>
     </div>`);
 }
-function abrirLeadDuplicadoExistente(id){leadPendienteAlta=null;cerrarModal();abrirFichaLead(id);}
-function cancelarAltaLeadDuplicado(){leadPendienteAlta=null;cerrarModal();}
+function abrirLeadDuplicadoExistente(id){
+  const cotizar=leadPendienteAltaCotizar;
+  leadPendienteAlta=null;leadPendienteAltaCotizar=false;
+  cerrarModal();
+  if(cotizar)abrirFormCotizacion(id);else abrirFichaLead(id);
+}
+function cancelarAltaLeadDuplicado(){leadPendienteAlta=null;leadPendienteAltaCotizar=false;cerrarModal();}
 function forzarAltaLeadDuplicado(){
   if(!leadPendienteAlta){cerrarModal();return;}
-  db.leads.push(leadPendienteAlta);
-  leadPendienteAlta=null;
-  guardar();cerrarModal();pintarLeads();
+  const nuevo=leadPendienteAlta;
+  const cotizar=leadPendienteAltaCotizar;
+  db.leads.push(nuevo);
+  leadPendienteAlta=null;leadPendienteAltaCotizar=false;
+  guardar();pintarLeads();
+  cerrarModal();
+  if(cotizar)abrirFormCotizacion(nuevo.id);
 }
-function guardarLead(ev){
-  ev.preventDefault();
-  // ETAPA B: el celular es el ÚNICO campo obligatorio — validación mínima (trim + no vacío),
-  // sin exigir cantidad de dígitos ni prefijo, porque pueden entrar números de provincia,
-  // extranjeros o formatos de WhatsApp. El atributo required del input ya lo bloquea a nivel
-  // de navegador; esta validación explícita asegura el mensaje exacto pedido.
+// Lee el form "Nuevo lead" y arma el objeto lead — factorizado (2026-09-11) porque ahora hay DOS
+// caminos para crearlo: guardarLead() (botón "Guardar" normal) y guardarLeadYCotizar() (botón
+// "+ Nueva cotización", pedido de Roberto: mientras chatea por WhatsApp va cargando el lead y de
+// una vez pasa a cotizar, sin el paso de "Motivo de consulta" que se quitó de este form — sigue
+// existiendo en la ficha del lead ya guardado, lf-diagnostico, para quien lo quiera llenar después).
+// Devuelve null si falta el celular (único campo obligatorio); NUNCA hace guardar()/push, eso
+// queda a cargo de cada camino.
+function construirLeadDesdeForm(){
   const telefono=document.getElementById('ld-telefono').value.trim();
-  if(!telefono){alert('El celular es obligatorio.');return false;}
+  if(!telefono)return null;
   const nota=document.getElementById('ld-nota').value.trim();
   const elAtendido=document.getElementById('ld-atendidopor');
-  const lead={
+  return{
     id:nuevoId(),
     nombre:document.getElementById('ld-nombre').value.trim(),
     apellido:document.getElementById('ld-apellido').value.trim(),
@@ -2344,7 +2366,7 @@ function guardarLead(ev){
     edad:document.getElementById('ld-edad').value,
     email:document.getElementById('ld-email').value.trim(),
     distrito:document.getElementById('ld-distrito').value.trim(),
-    diagnostico:document.getElementById('ld-diagnostico').value.trim(),
+    diagnostico:'',
     interes:document.getElementById('ld-interes').value.trim(),
     fecha:document.getElementById('ld-fecha').value||hoyStr(),
     hora:document.getElementById('ld-hora').value,
@@ -2361,15 +2383,39 @@ function guardarLead(ev){
     notas:nota?[{id:nuevoId(),texto:nota,autor:sesion.nombre,fecha:hoyStr()}]:[],
     clienteId:null
   };
-  // BLOQUE 3: si el contacto ya existe, no crear en silencio — mostrar el aviso y esperar decisión.
-  const dup=buscarLeadPorContacto(telefono);
+}
+// BLOQUE 3: si el contacto ya existe, no crear en silencio — mostrar el aviso y esperar decisión
+// (abrirLeadDuplicadoExistente/forzarAltaLeadDuplicado/cancelarAltaLeadDuplicado, más abajo).
+// leadPendienteAltaCotizar recuerda si el camino era "guardar y cotizar", para que la decisión
+// final (abrir el lead existente, o crear igual) también termine en la cotización cuando corresponda.
+let leadPendienteAltaCotizar=false;
+function guardarLead(ev){
+  ev.preventDefault();
+  const lead=construirLeadDesdeForm();
+  if(!lead){alert('El celular es obligatorio.');return false;}
+  const dup=buscarLeadPorContacto(lead.telefono);
   if(dup){
     leadPendienteAlta=lead;
+    leadPendienteAltaCotizar=false;
     avisarLeadDuplicado(dup);
     return false;
   }
   db.leads.push(lead);guardar();cerrarModal();pintarLeads();
   return false;
+}
+function guardarLeadYCotizar(){
+  const lead=construirLeadDesdeForm();
+  if(!lead){alert('El celular es obligatorio.');return;}
+  const dup=buscarLeadPorContacto(lead.telefono);
+  if(dup){
+    leadPendienteAlta=lead;
+    leadPendienteAltaCotizar=true;
+    avisarLeadDuplicado(dup);
+    return;
+  }
+  db.leads.push(lead);guardar();pintarLeads();
+  cerrarModal();
+  abrirFormCotizacion(lead.id);
 }
 function guardarNota(ev,leadId){
   ev.preventDefault();
@@ -2443,7 +2489,6 @@ function abrirFormCotizacion(leadId){
         <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
-      <p class="vacio" style="text-align:left;padding:8px 0 0;font-size:11.5px;">*Si paga con tarjeta se suma 4% adicional — no incluido acá, se define recién si confirma la compra.</p>
       <label>Notas (opcional, solo interno — no sale en el texto para WhatsApp)</label>
       <textarea id="cot-notas" rows="2"></textarea>
 
@@ -2469,8 +2514,7 @@ function guardarCotizacion(ev,leadId){
   const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery);
   if(errorImportes){alert(errorImportes);return false;}
   const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery,'');
-  db.cotizaciones=db.cotizaciones||[];
-  db.cotizaciones.push({
+  const cotizacion={
     id:nuevoId(),leadId,fecha,createdAt:new Date().toISOString(),
     items:pedidoItemsTmp.slice(),
     subtotal:t.subtotal,
@@ -2478,9 +2522,15 @@ function guardarCotizacion(ev,leadId){
     delivery,total:t.total,
     notas:document.getElementById('cot-notas').value.trim(),
     creadoPor:sesion?sesion.nombre:''
-  });
+  };
+  db.cotizaciones=db.cotizaciones||[];
+  db.cotizaciones.push(cotizacion);
   guardar();
   pedidoItemsTmp=[];
+  // Pedido de Roberto (2026-09-11): copiar automático al guardar, para no tener que ir a buscar
+  // el botón "📋" aparte en medio del chat de WhatsApp. Corre DENTRO del mismo clic en "Guardar
+  // cotización" (mismo gesto de usuario), así el navegador no bloquea el acceso al portapapeles.
+  copiarCotizacion(cotizacion.id);
   cerrarModal();
   abrirFichaLead(leadId);
   return false;
@@ -2498,11 +2548,11 @@ function textoCotizacionWhatsApp(id){
   if(!c)return '';
   const l=porId(db.leads,c.leadId);
   const lineas=c.items.map(it=>`• ${it.cantidad}x ${it.producto} — ${money(it.cantidad*it.precioUnit)}`).join('\n');
-  let txt=`Hola${l&&l.nombre?' '+l.nombre:''}! Aquí tu cotización de Zona Bariátrica:\n\n${lineas}\n\nSubtotal: ${money(c.subtotal)}`;
+  let txt=`¡Claro! Aquí te dejo tu cotización${l&&l.nombre?', '+l.nombre:''} 😊\n\n${lineas}\n\nSubtotal: ${money(c.subtotal)}`;
   if(c.descuento)txt+=`\nDescuento: −${money(c.descuento)}`;
   if(c.delivery)txt+=`\nDelivery: ${money(c.delivery)}`;
   txt+=`\nTotal: ${money(c.total)}`;
-  txt+=`\n\n*Si pagas con tarjeta se suma 4% adicional.\nCualquier duda me escribes 🙂`;
+  txt+=`\n\nCualquier duda me escribes 🙂`;
   return txt;
 }
 function copiarCotizacion(id){
@@ -2510,7 +2560,7 @@ function copiarCotizacion(id){
   if(!txt)return;
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt)
-      .then(()=>alert('Cotización copiada — pégala en el chat de WhatsApp.'))
+      .then(()=>mostrarToast('Cotización copiada — pégala en el chat de WhatsApp.'))
       .catch(()=>prompt('No se pudo copiar automáticamente. Copia el texto manualmente:',txt));
   }else{
     prompt('Copia el texto manualmente:',txt);
