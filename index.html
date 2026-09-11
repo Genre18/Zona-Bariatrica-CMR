@@ -309,8 +309,18 @@ table.historial-tabla-todos td.hist-detalle{overflow:hidden;text-overflow:ellips
 .hist-expandir-celda:hover .hist-expandir-flecha{color:var(--primary);}
 tr.hist-fila-expandida{background:var(--bg-soft);}
 tr.hist-fila-expandida td{white-space:normal;vertical-align:top;}
-.hist-detalle-inline{padding:12px 6px 4px;max-width:640px;}
-.hist-detalle-inline .drawer-seccion{margin-bottom:14px;}
+.hist-detalle-inline{padding:10px 6px 2px;max-width:560px;}
+.hist-detalle-inline .drawer-seccion{margin-bottom:8px;}
+.hist-detalle-inline .drawer-seccion-titulo{margin-bottom:4px;}
+/* Detalle compacto in-line (2026-09-11) — filas flex apretadas en vez de tabla, así nunca
+   necesitan scroll horizontal como sí le pasaba al .eq-tabla dentro de una fila angosta. */
+.hd-titulo{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:8px 0 3px;}
+.hd-titulo:first-child{margin-top:0;}
+.hd-linea{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:2px 0;font-size:12px;line-height:1.4;}
+.hd-linea>span:first-child{flex:1;}
+.hd-linea>span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums;}
+.hd-sub{color:var(--muted);font-size:11px;}
+.hd-total{font-weight:700;border-top:1px solid var(--border-light);margin-top:3px;padding-top:4px;}
 
 /* UX CORRECTIVO (2026-08-21) — sección 3/4: ficha Cliente más compacta que .grid-cards/.stat
    global (esa clase la siguen usando Reportes/Proveedores/Dashboard tal cual). */
@@ -5071,12 +5081,16 @@ function checkboxPagoObligacion(o){
 }
 let detalleProveedorAbierto=null; // {proveedor,modelo,marca} del drawer de proveedor abierto
 let detalleVentaAbierta=null;     // pedidoId del detalle de venta (Historial) abierto
-// Historial → Todos: pedidos cuya fila está expandida in-line (flechita), pedido por Roberto para
-// ver el detalle de una venta sin salir de esa tabla. Set de pedidoId, no persiste entre recargas.
-let filasVentaHistorialExpandidas=new Set();
-function toggleFilaVentaHistorial(pedidoId){
-  if(filasVentaHistorialExpandidas.has(pedidoId))filasVentaHistorialExpandidas.delete(pedidoId);
-  else filasVentaHistorialExpandidas.add(pedidoId);
+// Historial → Todos: filas expandidas in-line (flechita), pedido por Roberto para ver el detalle
+// de CUALQUIER fila (venta, pago a proveedor/socio, entrada, movimiento de stock) sin salir de esa
+// tabla ni abrir otra pantalla. Claves con prefijo por tipo ('venta:<id>','pago:<id>','entrada:<id>',
+// 'mov:<id>') porque los ids de pedidos/pagos/movimientos son espacios distintos — evita que dos
+// registros de distinta colección con el mismo id se pisen entre sí en el Set. No persiste entre
+// recargas (es solo estado de UI, igual que _ordenTablas).
+let filasHistorialExpandidas=new Set();
+function toggleFilaHistorial(key){
+  if(filasHistorialExpandidas.has(key))filasHistorialExpandidas.delete(key);
+  else filasHistorialExpandidas.add(key);
   pintarHistorial();
 }
 function refrescarDetalleAbierto(){
@@ -6803,6 +6817,70 @@ function registrosPagosSocios(){
 // están representados por la venta/venta-anulada dueña de ese pedidoId, así que NO se listan
 // aparte acá (sí siguen completos en "Movimientos de stock", que es el kardex físico íntegro).
 const TIPOS_MOVIMIENTO_TODOS=['ajuste','salida_no_comercial'];
+// Detalle compacto in-line (Historial → Todos), uno por tipo de fila — DISTINTO del modal
+// completo (contenidoDetalleVenta): Genesis pidió "más comprimido" tras ver que reusar el modal
+// (con .eq-tabla de columnas fijas nowrap) obligaba a scroll horizontal/vertical largo dentro de
+// la fila. Estos usan filas flex apretadas (.hd-linea/.hd-titulo/.hd-sub) en vez de tablas, sin
+// encabezado grande (la fila ya muestra fecha/tipo/referencia). Toda esta info es SOLO LECTURA —
+// mismos snapshots congelados que ya usa el modal, nunca el precio/costo actual.
+function detalleVentaCompacto(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return '<div class="vacio">Venta no encontrada.</div>';
+  const c=porId(db.clientes,p.clienteId);
+  const anulada=p.estadoPago==='cancelado';
+  const filasProductos=(p.items||[]).map(it=>{
+    const presSabor=[it.presentacion,it.sabor,it.marca].filter(Boolean).join(' · ');
+    return `<div class="hd-linea"><span>${it.cantidad}× ${esc(it.producto)}<br><span class="hd-sub">${esc(presSabor||'—')}</span></span><span>${money(it.cantidad*it.precioUnit)}</span></div>`;
+  }).join('');
+  const envioTxt=p.metodoEnvio==='shalom'?'Shalom (provincia)':(p.metodoEnvio==='indrive'?'InDrive (local)':(p.metodoEnvio||'—'));
+  return `
+    <div class="hd-titulo">Cliente</div>
+    <div class="hd-linea"><span>${c?esc(c.nombre+' '+(c.apellido||'')):'—'}</span><span class="hd-sub">${c?esc(c.telefono||'—')+(c.dni?' · '+esc(c.dni):''):'Cliente eliminado'}</span></div>
+    <div class="hd-titulo">Productos</div>
+    ${filasProductos}
+    <div class="hd-titulo">Resumen</div>
+    <div class="hd-linea"><span>Subtotal</span><span>${money(p.subtotal)}</span></div>
+    ${lineasDescuentoPedido(p).map(l=>`<div class="hd-linea"><span>${esc(l.label)}</span><span>−${money(l.monto)}</span></div>`).join('')}
+    ${p.embalaje?`<div class="hd-linea"><span>Embalaje</span><span>${money(p.embalaje)}</span></div>`:''}
+    ${p.delivery?`<div class="hd-linea"><span>Delivery</span><span>${money(p.delivery)}</span></div>`:''}
+    ${p.recargoTarjeta?`<div class="hd-linea"><span>Recargo tarjeta</span><span>${money(p.recargoTarjeta)}</span></div>`:''}
+    <div class="hd-linea hd-total"><span>TOTAL</span><span>${money(p.total)}</span></div>
+    <div class="hd-titulo">Pago / Envío</div>
+    <div class="hd-linea"><span>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · '+esc(p.pagoReferencia):''}</span><span class="hd-sub">${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</span></div>
+    ${anulada?`<div class="hd-titulo">Anulación</div><div class="hd-sub">${fechaBonita(p.canceladoFecha)||'—'} · Anuló ${esc(p.canceladoPor||'—')} · Autorizó ${esc(p.autorizadoPor||'—')}${p.motivoCancelacion?' · "'+esc(p.motivoCancelacion)+'"':''}</div>`:''}
+    ${seccionPagoProveedorVenta(p.id)}
+    <div class="hd-sub" style="margin-top:8px;">Atendió: ${esc(p.atendidoPor||'—')}${p.notas?' · "'+esc(p.notas)+'"':''}</div>`;
+}
+function detallePagoCompacto(pagoId,libro){
+  const arr=libro==='liquidacionesSocio'?(db.liquidacionesSocio||[]):(db.pagosProveedor||[]);
+  const pg=porId(arr,pagoId);
+  if(!pg)return '<div class="vacio">Pago no encontrado.</div>';
+  return `
+    <div class="hd-linea"><span>${esc(pg.proveedor||'—')}${pg.marca?' · '+esc(pg.marca):''}</span><span>${money(pg.monto)}</span></div>
+    <div class="hd-sub">${fechaBonita(pg.fecha)}${pg.nota?' · '+esc(pg.nota):''} · Registró ${esc(pg.usuario||'—')}</div>
+    ${textoAsignacionesPago(pg)}`;
+}
+function detalleMovimientoCompacto(movId){
+  const m=porId(db.movimientosStock,movId);
+  if(!m)return '<div class="vacio">Movimiento no encontrado.</div>';
+  const s=porId(db.stock,m.stockId);
+  return `
+    <div class="hd-linea"><span>${s?esc(s.marca+' '+s.producto):'—'}</span><span>${m.cantidad>=0?'+':''}${m.cantidad} und.</span></div>
+    <div class="hd-sub">${esc(TIPO_MOVIMIENTO_LABEL[m.tipo]||m.tipo)} · ${fechaBonita(m.fecha)}${m.costoUnit!=null?' · Costo unit. '+money(m.costoUnit):''}${m.proveedor?' · '+esc(m.proveedor):''}</div>
+    ${m.motivo?`<div class="hd-sub">Motivo: ${esc(m.motivo)}</div>`:''}
+    ${m.nota?`<div class="hd-sub" style="font-style:italic;">"${esc(m.nota)}"</div>`:''}
+    <div class="hd-sub">Registró: ${esc(m.usuario||'—')}</div>`;
+}
+// Dispatcher: la fila expandida en Historial → Todos guarda solo una clave 'tipo:id' (ver
+// filasHistorialExpandidas más arriba) — acá se resuelve al contenido compacto según el prefijo.
+function contenidoDetalleHistorialInline(key){
+  const i=key.indexOf(':');
+  const tipo=key.slice(0,i),id=key.slice(i+1);
+  if(tipo==='venta')return detalleVentaCompacto(id);
+  if(tipo==='pago')return detallePagoCompacto(id.slice(id.indexOf('|')+1),id.slice(0,id.indexOf('|')));
+  if(tipo==='entrada'||tipo==='mov')return detalleMovimientoCompacto(id);
+  return '';
+}
 function pintarHistorialTodos(cont,buscar,enRango){
   const eventos=[];
   db.pedidos.forEach(p=>{
@@ -6838,7 +6916,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
       ganancia:gananciaHtml,
       responsable:p.atendidoPor||'—',
       onclick:`abrirDetalleVentaHistorial('${p.id}')`,
-      expandiblePedidoId:anulada?null:p.id,
+      expandKey:anulada?null:'venta:'+p.id,
       buscar:[nombreCliente,itemsTxt,marcasTxt,correlativoVenta(p.id),p.atendidoPor,anulada?p.motivoCancelacion:'',anulada?p.canceladoPor:'',anulada?p.autorizadoPor:''].join(' ').toLowerCase()
     });
   });
@@ -6853,6 +6931,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
       detalle:esc(detalleTexto),detalleTexto,
       responsable:m.usuario||'—',
       onclick:null,
+      expandKey:'entrada:'+m.id,
       buscar:[s?s.producto:'',s?s.marca:'',m.proveedor].join(' ').toLowerCase()
     });
   });
@@ -6865,6 +6944,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
       detalle:(r.marca?esc(r.marca)+' · ':'')+money(r.monto)+(r.referencia?' · '+esc(r.referencia):''),detalleTexto,
       responsable:r.usuario||'—',
       onclick:null,
+      expandKey:r.raw&&r.raw.id?'pago:'+r.libro+'|'+r.raw.id:null,
       buscar:[r.proveedor,r.marca,r.referencia,r.usuario].join(' ').toLowerCase()
     });
   });
@@ -6879,6 +6959,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
       detalle:esc(detalleTexto),detalleTexto,
       responsable:m.usuario||'—',
       onclick:null,
+      expandKey:'mov:'+m.id,
       buscar:[s?s.producto:'',s?s.marca:'',m.motivo,m.nota].join(' ').toLowerCase()
     });
   });
@@ -6898,9 +6979,10 @@ function pintarHistorialTodos(cont,buscar,enRango){
     </colgroup><thead><tr>
     <th></th>${thOrden('histTodos','fecha','Fecha','pintarHistorial()')}${thOrden('histTodos','tipo','Tipo','pintarHistorial()')}${thOrden('histTodos','referencia','Referencia','pintarHistorial()')}${thOrden('histTodos','detalle','Detalle','pintarHistorial()')}<th>Ganancia ZB</th>${thOrden('histTodos','responsable','Responsable','pintarHistorial()')}
     </tr></thead><tbody>${filas.map(e=>{
-      const expandida=e.expandiblePedidoId&&filasVentaHistorialExpandidas.has(e.expandiblePedidoId);
+      const expandida=e.expandKey&&filasHistorialExpandidas.has(e.expandKey);
+      const keyJs=e.expandKey?escJs(e.expandKey):'';
       const filaPrincipal=`<tr${e.onclick?` style="cursor:pointer;" onclick="${e.onclick}"`:''}>
-      <td style="text-align:center;"${e.expandiblePedidoId?` onclick="event.stopPropagation();toggleFilaVentaHistorial('${e.expandiblePedidoId}')" title="Ver detalle sin abrir la venta" class="hist-expandir-celda"`:''}>${e.expandiblePedidoId?`<span class="hist-expandir-flecha">${expandida?'▾':'▸'}</span>`:''}</td>
+      <td style="text-align:center;"${e.expandKey?` onclick="event.stopPropagation();toggleFilaHistorial('${keyJs}')" title="Ver detalle sin abrir otra pantalla" class="hist-expandir-celda"`:''}>${e.expandKey?`<span class="hist-expandir-flecha">${expandida?'▾':'▸'}</span>`:''}</td>
       <td>${fechaCelda(e.fecha)}</td>
       <td style="text-align:left;"><span class="chip ${e.chip}">${esc(e.tipoLabel)}</span></td>
       <td style="text-align:left;">${e.referencia}</td>
@@ -6908,7 +6990,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
       <td style="text-align:right;">${e.ganancia||''}</td>
       <td style="text-align:left;">${esc(e.responsable||'—')}</td>
     </tr>`;
-      const filaExpandida=expandida?`<tr class="hist-fila-expandida"><td></td><td colspan="6"><div class="hist-detalle-inline">${contenidoDetalleVenta(e.expandiblePedidoId)}</div></td></tr>`:'';
+      const filaExpandida=expandida?`<tr class="hist-fila-expandida"><td></td><td colspan="6"><div class="hist-detalle-inline">${contenidoDetalleHistorialInline(e.expandKey)}</div></td></tr>`:'';
       return filaPrincipal+filaExpandida;
     }).join('')}</tbody></table></div>`;
 }
