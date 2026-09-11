@@ -1166,6 +1166,10 @@ function porId(arr,id){return arr.find(x=>x.id===id);}
 function dbVacia(){
   return{
     leads:[], clientes:[], pedidos:[], stock:[], movimientosStock:[], pagosProveedor:[], liquidacionesSocio:[], tareas:[],
+    // COTIZACIONES (pedido de Roberto 2026-09-11): propuesta de precio para un lead ANTES de que
+    // compre — nunca toca stock ni crea un pedido (ver abrirFormCotizacion/guardarCotizacion).
+    // normalizarDbCargada() la rellena sola en dispositivos con un respaldo viejo sin este campo.
+    cotizaciones:[],
     // UX CORRECTIVO (2026-08-21) — sección 13: gastos de pauta FECHADOS, para poder calcular
     // publicidad por período en Reportes. config.gastoPauta (global, sin fecha) se conserva tal
     // cual por compatibilidad histórica, pero deja de usarse en reportes por período.
@@ -2134,6 +2138,7 @@ function cambiarEstadoLeadGrid(id,valor){
 function abrirFichaLead(leadId){
   const l=porId(db.leads,leadId);
   const notas=(l.notas||[]).slice().reverse();
+  const cotizacionesDeLead=(db.cotizaciones||[]).filter(c=>c.leadId===leadId).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const adminNombres=usuariosAdmin().map(u=>u.nombre);
   // Un lead histórico puede tener atendidoPor con un nombre que ya no es admin (usuario
   // eliminado/renombrado): se agrega igual como opción para no perder el dato real, sin
@@ -2190,6 +2195,24 @@ function abrirFichaLead(leadId){
         </div>
         <div class="meta">${esc(n.autor)} · ${fechaBonita(n.fecha)}</div>
       </div>`).join('')}
+
+    ${leadEstaConvertido(l)?'':`
+    <h4 style="font-size:13.5px;margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center;">
+      Cotizaciones
+      <button type="button" class="btn btn-chico" onclick="abrirFormCotizacion('${l.id}')">+ Nueva cotización</button>
+    </h4>
+    ${cotizacionesDeLead.length===0?'<div class="vacio">Sin cotizaciones todavía.</div>':cotizacionesDeLead.map(c=>`
+      <div class="nota-linea">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <span>${c.items.length} producto${c.items.length===1?'':'s'} · <strong>${money(c.total)}</strong></span>
+          <span style="white-space:nowrap;flex-shrink:0;">
+            <button class="btn-icono" onclick="copiarCotizacion('${c.id}')" title="Copiar para WhatsApp">📋</button>
+            <button class="btn-icono" onclick="eliminarCotizacion('${c.id}','${l.id}')" title="Eliminar">✕</button>
+          </span>
+        </div>
+        <div class="meta">${fechaBonita(c.fecha)} · ${esc(c.creadoPor||'—')}${c.notas?' · "'+esc(c.notas)+'"':''}</div>
+      </div>`).join('')}
+    `}
 
     <div class="acciones-modal">
       <button type="button" class="btn-peligro" onclick="eliminarLead('${l.id}')">Eliminar</button>
@@ -2385,6 +2408,113 @@ function eliminarNota(leadId,notaId){
 function eliminarLead(id){
   if(!confirm('¿Eliminar este lead?'))return;
   db.leads=db.leads.filter(l=>l.id!==id);guardar();cerrarModal();pintarLeads();
+}
+
+/* ================= COTIZACIONES (para leads) ================= */
+// Herramienta de Roberto (pedido 2026-09-11): armar una propuesta de precio para un lead ANTES
+// de que compre. A propósito NO es un pedido — reusa el mismo selector de productos y el mismo
+// motor de precios que "Nuevo pedido" (pedidoItemsTmp/pedidoAgregarItem/pedidoRenderItems/
+// calcularTotalesPedido, ver PEDIDOS) para que el número cotizado sea EXACTAMENTE el que pagaría
+// si compra, pero: NO descuenta stock, NO crea pedido, NO calcula recargo de tarjeta (se avisa
+// como nota aparte porque el método de pago todavía no se decide a esta altura). Se guarda en
+// db.cotizaciones ligada al leadId para que quede como historial en la ficha del lead.
+function abrirFormCotizacion(leadId){
+  const l=porId(db.leads,leadId);
+  if(!l){alert('Lead no encontrado.');return;}
+  pedidoItemsTmp=[];
+  const marcas=marcasVendibles();
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Cotización para ${esc(nombreLead(l))}</h3>
+    <form onsubmit="return guardarCotizacion(event,'${leadId}')">
+      <label>Agregar producto</label>
+      <div class="fila-2">
+        <select id="pi-marca" onchange="pedidoLlenarProductos()">
+          <option value="">Marca...</option>
+          ${marcas.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+        </select>
+        <select id="pi-producto"><option value="">Elige marca primero</option></select>
+      </div>
+      <button type="button" class="btn" style="width:100%;" onclick="pedidoAgregarItem()">+ Agregar a la cotización</button>
+      <div id="pedidoItemsList" style="margin-top:10px;"></div>
+
+      <div class="fila-2">
+        <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+      </div>
+      <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
+      <p class="vacio" style="text-align:left;padding:8px 0 0;font-size:11.5px;">*Si paga con tarjeta se suma 4% adicional — no incluido acá, se define recién si confirma la compra.</p>
+      <label>Notas (opcional, solo interno — no sale en el texto para WhatsApp)</label>
+      <textarea id="cot-notas" rows="2"></textarea>
+
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar cotización</button>
+      </div>
+    </form>`);
+  pedidoLlenarProductos();
+  pedidoRenderItems();
+}
+function guardarCotizacion(ev,leadId){
+  ev.preventDefault();
+  if(pedidoItemsTmp.length===0){alert('Agrega al menos un producto para generar la cotización.');return false;}
+  const l=porId(db.leads,leadId);
+  if(!l){alert('Lead no encontrado.');return false;}
+  const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
+  const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
+  const fecha=hoyStr();
+  // Misma función que ya usa la vista previa en vivo (pedidoActualizarTotales) y guardarPedido —
+  // así el número guardado nunca puede divergir de lo que se vio en pantalla antes de guardar.
+  const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery);
+  if(errorImportes){alert(errorImportes);return false;}
+  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery,'');
+  db.cotizaciones=db.cotizaciones||[];
+  db.cotizaciones.push({
+    id:nuevoId(),leadId,fecha,createdAt:new Date().toISOString(),
+    items:pedidoItemsTmp.slice(),
+    subtotal:t.subtotal,
+    descuento:desc.descuentoTotal,descuentoPromocionalBN:desc.descuentoPromocionalBN,
+    delivery,total:t.total,
+    notas:document.getElementById('cot-notas').value.trim(),
+    creadoPor:sesion?sesion.nombre:''
+  });
+  guardar();
+  pedidoItemsTmp=[];
+  cerrarModal();
+  abrirFichaLead(leadId);
+  return false;
+}
+function eliminarCotizacion(id,leadId){
+  if(!confirm('¿Eliminar esta cotización? Esto no afecta ningún pedido ni stock, es solo el registro.'))return;
+  db.cotizaciones=(db.cotizaciones||[]).filter(c=>c.id!==id);
+  guardar();
+  abrirFichaLead(leadId);
+}
+// Texto listo para copiar y pegar directo en el chat de WhatsApp del lead — mismo lenguaje
+// llano que usa Roberto para cotizar a mano hoy, con los productos/precios ya calculados.
+function textoCotizacionWhatsApp(id){
+  const c=porId(db.cotizaciones,id);
+  if(!c)return '';
+  const l=porId(db.leads,c.leadId);
+  const lineas=c.items.map(it=>`• ${it.cantidad}x ${it.producto} — ${money(it.cantidad*it.precioUnit)}`).join('\n');
+  let txt=`Hola${l&&l.nombre?' '+l.nombre:''}! Aquí tu cotización de Zona Bariátrica:\n\n${lineas}\n\nSubtotal: ${money(c.subtotal)}`;
+  if(c.descuento)txt+=`\nDescuento: −${money(c.descuento)}`;
+  if(c.delivery)txt+=`\nDelivery: ${money(c.delivery)}`;
+  txt+=`\nTotal: ${money(c.total)}`;
+  txt+=`\n\n*Si pagas con tarjeta se suma 4% adicional.\nCualquier duda me escribes 🙂`;
+  return txt;
+}
+function copiarCotizacion(id){
+  const txt=textoCotizacionWhatsApp(id);
+  if(!txt)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt)
+      .then(()=>alert('Cotización copiada — pégala en el chat de WhatsApp.'))
+      .catch(()=>prompt('No se pudo copiar automáticamente. Copia el texto manualmente:',txt));
+  }else{
+    prompt('Copia el texto manualmente:',txt);
+  }
 }
 
 /* ================= CLIENTES ================= */
