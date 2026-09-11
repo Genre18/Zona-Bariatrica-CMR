@@ -303,6 +303,14 @@ table.historial-tabla tbody tr.historial-fila-sel{background:var(--primary-suave
    forzar el scroll horizontal (ver colgroup en pintarHistorialTodos). */
 table.historial-tabla-todos{table-layout:fixed;}
 table.historial-tabla-todos td.hist-detalle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* Flechita expandir (pedido de Roberto 2026-09-11) — ver toggleFilaVentaHistorial(). */
+.hist-expandir-celda{cursor:pointer;}
+.hist-expandir-flecha{display:inline-block;color:var(--text-light);font-size:11px;}
+.hist-expandir-celda:hover .hist-expandir-flecha{color:var(--primary);}
+tr.hist-fila-expandida{background:var(--bg-soft);}
+tr.hist-fila-expandida td{white-space:normal;vertical-align:top;}
+.hist-detalle-inline{padding:12px 6px 4px;max-width:640px;}
+.hist-detalle-inline .drawer-seccion{margin-bottom:14px;}
 
 /* UX CORRECTIVO (2026-08-21) — sección 3/4: ficha Cliente más compacta que .grid-cards/.stat
    global (esa clase la siguen usando Reportes/Proveedores/Dashboard tal cual). */
@@ -5063,6 +5071,14 @@ function checkboxPagoObligacion(o){
 }
 let detalleProveedorAbierto=null; // {proveedor,modelo,marca} del drawer de proveedor abierto
 let detalleVentaAbierta=null;     // pedidoId del detalle de venta (Historial) abierto
+// Historial → Todos: pedidos cuya fila está expandida in-line (flechita), pedido por Roberto para
+// ver el detalle de una venta sin salir de esa tabla. Set de pedidoId, no persiste entre recargas.
+let filasVentaHistorialExpandidas=new Set();
+function toggleFilaVentaHistorial(pedidoId){
+  if(filasVentaHistorialExpandidas.has(pedidoId))filasVentaHistorialExpandidas.delete(pedidoId);
+  else filasVentaHistorialExpandidas.add(pedidoId);
+  pintarHistorial();
+}
 function refrescarDetalleAbierto(){
   if(abonoModalPedido){abrirModalAbono(abonoModalPedido);}
   else if(detalleVentaAbierta){abrirDetalleVentaHistorial(detalleVentaAbierta);}
@@ -6335,6 +6351,33 @@ function gananciaZBItem(it){
   }
   return utilidadBruta;
 }
+// GANANCIA ZB POR VENTA (Historial → Todos, pedido de Roberto 2026-09-11): misma fórmula
+// por-pedido que ya corre DENTRO de rentabilidadPorMarca() (ese loop ya calcula esto por cada
+// pedido, solo que lo suma en un bucket por marca en vez de devolverlo por venta) — se extrae acá
+// para no duplicar la regla del descuento manual no atribuible (pedido multi-marca o de una marca
+// en reparto_ingresos: ver comentario de rentabilidadPorMarca, misma regla, sin inventar una nueva).
+function gananciaZBPedido(p){
+  let ganancia=0,huboCalculable=false,huboNoCalculable=false;
+  const marcasPedido=new Set();
+  (p.items||[]).forEach(it=>{
+    marcasPedido.add(it.marca);
+    const g=gananciaZBItem(it);
+    if(g===null){huboNoCalculable=true;return;}
+    huboCalculable=true;
+    ganancia+=g;
+  });
+  const promoBN=p.descuentoPromocionalBN||0;
+  if(promoBN&&marcasPedido.has('Bari&Nutrition'))ganancia-=promoBN;
+  const manual=Math.max(0,round2((p.descuento||0)-promoBN));
+  let noAtribuible=false;
+  if(manual){
+    const marcasArr=[...marcasPedido];
+    const esReparto=marcasArr.some(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos');
+    if(marcasArr.length===1&&!esReparto)ganancia-=manual;
+    else noAtribuible=true;
+  }
+  return{ganancia:round2(ganancia),huboCalculable,huboNoCalculable,noAtribuible};
+}
 // UX CORRECTIVO — sección 12B: antes, UN item no calculable descartaba TODA la ganancia
 // conocida de esa marca (podía mostrar 0 con ventas reales al lado). Ahora se suma lo que SÍ es
 // calculable; si hay algo no calculable mezclado, huboItemNoCalculable marca el "*" en vez de
@@ -6771,14 +6814,31 @@ function pintarHistorialTodos(cont,buscar,enRango){
     const itemsTxt=(p.items||[]).map(it=>it.cantidad+'× '+it.producto).join(', ');
     const marcasTxt=[...new Set((p.items||[]).map(it=>it.marca).filter(Boolean))].join(', ');
     const detalleTexto=nombreCliente+' · '+itemsTxt;
+    // Ganancia ZB — columna propia (pedido de Roberto 2026-09-11), solo en ventas reales (una
+    // venta anulada no dejó ganancia). Mismo criterio "*" que ya usa Reportes cuando falta costo
+    // histórico de algún ítem, y uno nuevo cuando el descuento manual no se pudo atribuir 100% a
+    // esta venta (pedido multi-marca o de una marca en reparto_ingresos, ver gananciaZBPedido) —
+    // nunca se inventa el número, se avisa con el mismo lenguaje visual que ya usa Resumen.
+    let gananciaHtml='';
+    if(!anulada){
+      const gz=gananciaZBPedido(p);
+      if(gz.huboCalculable){
+        const flag=gz.huboNoCalculable||gz.noAtribuible;
+        gananciaHtml=`<span style="color:var(--success);font-weight:600;"${flag?` title="${escAttr((gz.huboNoCalculable?'Hay ítems sin información de costo suficiente. ':'')+(gz.noAtribuible?'Incluye un descuento manual que no se pudo atribuir 100% a esta venta (multi-marca o reparto) — ver Reportes → Resumen.':''))}"`:''}>${money(gz.ganancia)}${flag?' *':''}</span>`;
+      }else{
+        gananciaHtml='<span style="color:var(--muted);">—</span>';
+      }
+    }
     eventos.push({
       fecha:p.fecha,createdAt:p.createdAt||null,
       tipoLabel:anulada?'Venta anulada':(pendienteCobro?'Pendiente de pago':'Venta'),
       chip:anulada?'chip-rojo':(pendienteCobro?'chip-violeta':'chip-verde'),
       referencia:correlativoVenta(p.id),
       detalle:esc(nombreCliente)+' · '+esc(itemsTxt),detalleTexto,
+      ganancia:gananciaHtml,
       responsable:p.atendidoPor||'—',
       onclick:`abrirDetalleVentaHistorial('${p.id}')`,
+      expandiblePedidoId:anulada?null:p.id,
       buscar:[nombreCliente,itemsTxt,marcasTxt,correlativoVenta(p.id),p.atendidoPor,anulada?p.motivoCancelacion:'',anulada?p.canceladoPor:'',anulada?p.autorizadoPor:''].join(' ').toLowerCase()
     });
   });
@@ -6834,16 +6894,23 @@ function pintarHistorialTodos(cont,buscar,enRango){
     responsable:e=>e.responsable
   });
   cont.innerHTML=filas.length===0?'<div class="vacio">Sin eventos para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla historial-tabla-todos"><colgroup>
-    <col style="width:90px;"><col style="width:132px;"><col style="width:112px;"><col><col style="width:100px;">
+    <col style="width:26px;"><col style="width:90px;"><col style="width:132px;"><col style="width:112px;"><col><col style="width:96px;"><col style="width:100px;">
     </colgroup><thead><tr>
-    ${thOrden('histTodos','fecha','Fecha','pintarHistorial()')}${thOrden('histTodos','tipo','Tipo','pintarHistorial()')}${thOrden('histTodos','referencia','Referencia','pintarHistorial()')}${thOrden('histTodos','detalle','Detalle','pintarHistorial()')}${thOrden('histTodos','responsable','Responsable','pintarHistorial()')}
-    </tr></thead><tbody>${filas.map(e=>`<tr${e.onclick?` style="cursor:pointer;" onclick="${e.onclick}"`:''}>
+    <th></th>${thOrden('histTodos','fecha','Fecha','pintarHistorial()')}${thOrden('histTodos','tipo','Tipo','pintarHistorial()')}${thOrden('histTodos','referencia','Referencia','pintarHistorial()')}${thOrden('histTodos','detalle','Detalle','pintarHistorial()')}<th>Ganancia ZB</th>${thOrden('histTodos','responsable','Responsable','pintarHistorial()')}
+    </tr></thead><tbody>${filas.map(e=>{
+      const expandida=e.expandiblePedidoId&&filasVentaHistorialExpandidas.has(e.expandiblePedidoId);
+      const filaPrincipal=`<tr${e.onclick?` style="cursor:pointer;" onclick="${e.onclick}"`:''}>
+      <td style="text-align:center;"${e.expandiblePedidoId?` onclick="event.stopPropagation();toggleFilaVentaHistorial('${e.expandiblePedidoId}')" title="Ver detalle sin abrir la venta" class="hist-expandir-celda"`:''}>${e.expandiblePedidoId?`<span class="hist-expandir-flecha">${expandida?'▾':'▸'}</span>`:''}</td>
       <td>${fechaCelda(e.fecha)}</td>
       <td style="text-align:left;"><span class="chip ${e.chip}">${esc(e.tipoLabel)}</span></td>
       <td style="text-align:left;">${e.referencia}</td>
       <td class="hist-detalle" style="text-align:left;" title="${escAttr(e.detalleTexto)}">${e.detalle}</td>
+      <td style="text-align:right;">${e.ganancia||''}</td>
       <td style="text-align:left;">${esc(e.responsable||'—')}</td>
-    </tr>`).join('')}</tbody></table></div>`;
+    </tr>`;
+      const filaExpandida=expandida?`<tr class="hist-fila-expandida"><td></td><td colspan="6"><div class="hist-detalle-inline">${contenidoDetalleVenta(e.expandiblePedidoId)}</div></td></tr>`:'';
+      return filaPrincipal+filaExpandida;
+    }).join('')}</tbody></table></div>`;
 }
 // AJUSTE (2026-09-07) — "Pago al proveedor" dentro de Historial → Ver detalle. Estado DERIVADO
 // de los pagos reales (nunca un boolean). Se agrupa por libro+marca (no se mezclan pagosProveedor
@@ -6889,11 +6956,12 @@ function seccionPagoProveedorVenta(pedidoId){
 // modifiquen nada): usa únicamente los snapshots ya congelados en pedido.items[]/pedido (nunca
 // el precio/costo ACTUAL del producto), para que abrir esto nunca pueda alterar una venta ya
 // confirmada. Sirve tanto para Ventas como para Ventas anuladas (ver pintarHistorial).
-function abrirDetalleVentaHistorial(pedidoId){
+// Cuerpo del detalle de una venta histórica — factorizado (2026-09-11) para que lo use tanto el
+// modal de siempre (abrirDetalleVentaHistorial) como la fila expandible in-line de Historial →
+// Todos (toggleFilaVentaHistorial), sin duplicar esta plantilla en dos lugares.
+function contenidoDetalleVenta(pedidoId){
   const p=porId(db.pedidos,pedidoId);
-  if(!p){alert('Venta no encontrada.');return;}
-  detalleVentaAbierta=pedidoId;
-  detalleProveedorAbierto=null;
+  if(!p)return '<div class="vacio">Venta no encontrada.</div>';
   const c=porId(db.clientes,p.clienteId);
   const anulada=p.estadoPago==='cancelado';
   const pendienteCobro=p.estadoPago==='pendiente pago';
@@ -6910,8 +6978,7 @@ function abrirDetalleVentaHistorial(pedidoId){
     </tr>`;
   }).join('');
   const envioTxt=p.metodoEnvio==='shalom'?'Shalom (provincia)':(p.metodoEnvio==='indrive'?'InDrive (local)':(p.metodoEnvio||'—'));
-  abrirModal(`
-    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+  return `
     <div class="drawer-identidad">
       <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-violeta">PENDIENTE DE PAGO</span>':''}</h3>
       <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${estadoClienteTxt}</div>
@@ -6957,7 +7024,16 @@ function abrirDetalleVentaHistorial(pedidoId){
       <div class="drawer-seccion-titulo">Otros</div>
       <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
       ${p.notas?`<div style="font-size:12.5px;color:var(--muted);font-style:italic;">"${esc(p.notas)}"</div>`:''}
-    </div>
+    </div>`;
+}
+function abrirDetalleVentaHistorial(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p){alert('Venta no encontrada.');return;}
+  detalleVentaAbierta=pedidoId;
+  detalleProveedorAbierto=null;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    ${contenidoDetalleVenta(pedidoId)}
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
       <button type="button" class="btn" onclick="imprimirTicket('${p.id}')">Reimprimir comprobante</button>
