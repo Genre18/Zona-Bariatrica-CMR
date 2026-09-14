@@ -4691,16 +4691,17 @@ function abrirKardexStock(stockId){
     <p class="vacio" style="text-align:left;padding:0 0 8px;">${esc(s.marca)} · Stock actual: <strong>${s.cantidad}</strong></p>
     ${Math.abs(diferenciaInicial)>0.005?`<div class="aviso">Saldo inicial/histórico no documentado: hay una diferencia de ${diferenciaInicial>0?'+':''}${diferenciaInicial} entre lo reconstruido por estos movimientos y el stock actual (probablemente el producto ya tenía existencias antes de que se registrara su primer movimiento). No se inventó un movimiento para cuadrarlo.</div>`:''}
     ${filas.length===0?'<div class="vacio">Sin movimientos registrados.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-      <th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Saldo</th><th>Costo unit.</th><th>Motivo</th><th>Usuario</th>
+      <th>Fecha</th><th>Tipo</th><th>Entrada</th><th>Salida</th><th>Saldo</th><th>Costo unit.</th><th>Motivo</th><th>Usuario</th><th></th>
       </tr></thead><tbody>${filas.map(f=>`<tr>
         <td>${fechaCelda(f.m.fecha)}</td>
         <td>${TIPO_MOVIMIENTO_LABEL[f.m.tipo]||f.m.tipo}</td>
         <td>${f.entrada?f.entrada:'—'}</td>
         <td>${f.salida?f.salida:'—'}</td>
         <td><strong>${f.saldoTrasEsteMovimiento}</strong></td>
-        <td>${f.m.tipo==='ajuste_costo'?(money(f.m.costoAnterior)+' → '+money(f.m.costoNuevo)):(f.m.costoUnit!=null?money(f.m.costoUnit):'—')}</td>
+        <td>${f.m.tipo==='ajuste_costo'?(money(f.m.costoAnterior)+' → '+money(f.m.costoNuevo)):(f.m.tipo==='entrada'?money(f.m.cantidad>0?(f.m.monto||0)/f.m.cantidad:0):(f.m.costoUnit!=null?money(f.m.costoUnit):'—'))}</td>
         <td>${f.m.tipo==='salida_no_comercial'?esc(`${f.m.motivo||'—'} · ${f.m.tipoCortesia==='proveedor'?'Cortesía proveedor':'Cortesía Zona Bariátrica'}${f.m.nota?' · '+f.m.nota:''}`):esc(f.m.motivo||f.m.nota||'—')}</td>
         <td>${esc(f.m.usuario||'—')}</td>
+        <td>${f.m.tipo==='entrada'?`<button type="button" class="btn-secundario" style="padding:2px 8px;font-size:11.5px;" onclick="abrirEditarCompra('${f.m.id}')">Editar</button>`:''}</td>
       </tr>`).join('')}</tbody></table></div>`}
     <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
 }
@@ -4742,6 +4743,44 @@ function entradaTieneMovimientosPosteriores(mov){
   const movs=db.movimientosStock||[];
   const iMov=movs.indexOf(mov);
   return movs.some((m,i)=>m!==mov&&m.stockId===mov.stockId&&TIPOS_MOVIMIENTO_FISICO.includes(m.tipo)&&comparaMovimientos(m,i,mov,iMov)>0);
+}
+// TEMPORAL (2026-09-14, pedido de Genesis): Roberto va a corregir cantidad/costo de entradas
+// de stock viejas que ya tienen movimientos posteriores. Mientras esto sea true, el candado de
+// entradaTieneMovimientosPosteriores() no bloquea editar cantidad/costo (sigue bloqueando
+// eliminar). Volver a false cuando Genesis confirme que terminaron las correcciones — es el
+// único cambio que hace falta revertir.
+const PERMITIR_EDITAR_ENTRADAS_CON_MOVIMIENTOS_POSTERIORES=true;
+function recalcularStockDesdeMovimientos(stockId){
+  // Reconstruye cantidad y costoPromedio del producto reproduciendo TODO su historial de
+  // movimientos en orden cronológico, en vez de revertir/aplicar solo el movimiento editado
+  // (que asume que es el último). Así una entrada vieja se puede corregir sin descuadrar el
+  // costo promedio aunque haya ventas/ajustes después. Ventas ya registradas no se tocan: su
+  // costoUnit queda congelado como siempre (mismo principio que "Corregir costo actual").
+  const s=porId(db.stock,stockId);
+  if(!s)return;
+  const movs=(db.movimientosStock||[]).filter(m=>m.stockId===stockId);
+  const ordenados=movs.map((m,i)=>({m,i})).sort((a,b)=>comparaMovimientos(a.m,a.i,b.m,b.i)).map(x=>x.m);
+  let cantidad=0,costoPromedio=0;
+  ordenados.forEach(m=>{
+    if(m.tipo==='entrada'){
+      const costoUnit=m.cantidad>0?(m.monto||0)/m.cantidad:0;
+      const valorPrevio=cantidad*costoPromedio;
+      cantidad+=m.cantidad;
+      costoPromedio=cantidad>0?(valorPrevio+m.cantidad*costoUnit)/cantidad:0;
+    }else if(m.tipo==='entrada_inicial'){
+      const valorPrevio=cantidad*costoPromedio;
+      cantidad+=m.cantidad;
+      costoPromedio=cantidad>0?(valorPrevio+m.cantidad*(m.costoUnit||0))/cantidad:0;
+    }else if(m.tipo==='salida'||m.tipo==='salida_no_comercial'){
+      cantidad-=m.cantidad;
+    }else if(m.tipo==='ajuste'||m.tipo==='devolucion_cancelacion'||m.tipo==='correccion_pedido'){
+      cantidad+=m.cantidad;
+    }else if(m.tipo==='ajuste_costo'){
+      costoPromedio=m.costoNuevo!=null?m.costoNuevo:costoPromedio;
+    }
+  });
+  s.cantidad=cantidad;
+  s.costoPromedio=costoPromedio;
 }
 function aplicarCompra(stockItem,cantidad,costoUnit){
   const cantidadPrevia=stockItem.cantidad||0;
@@ -4786,7 +4825,7 @@ function abrirEditarCompra(id){
   const mov=porId(db.movimientosStock,id);
   const s=porId(db.stock,mov.stockId);
   const costoUnitActual=mov.cantidad>0?(mov.monto||0)/mov.cantidad:0;
-  const bloqueada=entradaTieneMovimientosPosteriores(mov);
+  const bloqueada=entradaTieneMovimientosPosteriores(mov)&&!PERMITIR_EDITAR_ENTRADAS_CON_MOVIMIENTOS_POSTERIORES;
   if(bloqueada){
     abrirModal(`
       <button class="cerrar-x" onclick="cerrarModal()">✕</button>
@@ -4839,7 +4878,7 @@ function guardarEditarCompra(ev,id){
   const mov=porId(db.movimientosStock,id);
   const s=porId(db.stock,mov.stockId);
   if(!s){alert('El producto de esta compra ya no existe en Stock.');return false;}
-  if(entradaTieneMovimientosPosteriores(mov)){
+  if(entradaTieneMovimientosPosteriores(mov)&&!PERMITIR_EDITAR_ENTRADAS_CON_MOVIMIENTOS_POSTERIORES){
     alert('Esta entrada ya tiene movimientos posteriores. Para conservar la trazabilidad no puede modificarse directamente. Registra una corrección mediante ajuste.');
     cerrarModal();pintarStock();
     return false;
@@ -4850,11 +4889,12 @@ function guardarEditarCompra(ev,id){
   if(costoUnit<0){alert('El costo unitario no puede ser negativo.');return false;}
   const proveedor=document.getElementById('cp-proveedor').value.trim();
   const fecha=document.getElementById('cp-fecha').value||hoyStr();
-  revertirCompra(mov);
-  aplicarCompra(s,cantidad,costoUnit);
-  if(proveedor)s.proveedor=proveedor;
   mov.cantidad=cantidad;mov.monto=cantidad*costoUnit;mov.proveedor=proveedor;mov.fecha=fecha;
-  guardar();cerrarModal();pintarStock();pintarProveedores();
+  // Recálculo completo (no revertirCompra/aplicarCompra) para que quede bien aunque esta
+  // entrada no sea el último movimiento del producto — ver recalcularStockDesdeMovimientos.
+  recalcularStockDesdeMovimientos(mov.stockId);
+  if(proveedor)s.proveedor=proveedor;
+  guardar();pintarStock();pintarProveedores();abrirKardexStock(s.id);
   return false;
 }
 function eliminarCompra(id){
