@@ -87,12 +87,6 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
 .marca-login{text-align:center;}
 .marca-login h1{margin:0;font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
 .marca-login p{margin:4px 0 0;color:var(--muted);font-size:12.5px;}
-.usuarios-login{display:flex;gap:10px;justify-content:center;width:100%;}
-.login-pregunta{margin:8px 0 0;color:var(--muted);font-size:12.5px;font-weight:600;}
-.usuario-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 10px;text-align:center;flex:1;min-width:0;box-shadow:var(--shadow-xs);cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
-.usuario-card .avatar{width:40px;height:40px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;}
-.usuario-card .nombre{font-weight:600;color:var(--text);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.usuario-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;width:280px;text-align:center;box-shadow:var(--shadow-lg);}
 .login-shell .pin-box{border:none;box-shadow:none;padding:0;width:100%;}
 .pin-input-wrap{position:relative;margin:16px 0 4px;}
@@ -730,22 +724,12 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
       <h1>Zona Bariátrica</h1>
       <p>Gestión comercial</p>
     </div>
-    <p class="login-pregunta">¿Quién está ingresando?</p>
-    <div id="usuariosLogin" class="usuarios-login"></div>
-
-    <div id="pinBox" class="pin-box oculto">
-      <div id="pinNombre" style="font-weight:700;"></div>
-      <form onsubmit="return validarPinForm(event)">
-        <div class="pin-input-wrap">
-          <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="····" oninput="onPinInput()">
-          <button type="button" class="pin-ojito" id="pinOjitoBtn" onclick="togglePinOjito()" title="Mostrar PIN" aria-label="Mostrar PIN">👁️</button>
-        </div>
-        <div class="pin-error" id="pinError"></div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button type="button" class="btn-secundario" style="flex:1;" onclick="volverAUsuarios()">← Volver</button>
-          <button class="btn" type="submit" style="flex:1;">Entrar</button>
-        </div>
-      </form>
+    <div id="pinBox" class="pin-box">
+      <div class="pin-input-wrap">
+        <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="····" oninput="onPinInput()">
+        <button type="button" class="pin-ojito" id="pinOjitoBtn" onclick="togglePinOjito()" title="Mostrar contraseña" aria-label="Mostrar contraseña">👁️</button>
+      </div>
+      <div class="pin-error" id="pinError"></div>
     </div>
     <p class="login-footer-nota">Panel interno · Zona Bariátrica</p>
   </div>
@@ -1109,7 +1093,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
    ========================================================= */
 
 const CLAVE='zbdb_v1';
-const MODO_PRUEBAS=false; // PIN interno ACTIVO (2026-08-27). La seguridad real es el login de Supabase (correo+contraseña); el PIN es solo la 2ª identificación: quién está usando el CRM. Ya NO controla si se recuerda la sesión en la pestaña (ver entrarApp/intentarAutoLogin, 2026-09-17) — solo si elegirUsuario() salta el PIN.
+const MODO_PRUEBAS=false; // PIN interno ACTIVO (2026-08-27). La seguridad real es el login de Supabase (correo+contraseña); el PIN es solo la 2ª identificación: quién está usando el CRM. Ya NO controla si se recuerda la sesión en la pestaña (ver entrarApp/intentarAutoLogin, 2026-09-17) — solo si continuarLuegoDeLoginNube() salta el PIN y entra directo como el primer usuario (conveniencia de desarrollo local).
 const SUPABASE_URL='https://zuispovrhevalznsrdax.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_PhNcFR421xTZxfXhSr6wfg_t1HJA2rf';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -1120,7 +1104,6 @@ let ultimoErrorNube=null; // FIX D3: null si la última sincronización con Supa
 let guardarNubeTimeout=null;
 let sesion=null;          // usuario actual {id,nombre,pin,color}
 let seccionActual='leads';
-let pinCandidato=null;
 let pedidoItemsTmp=[];
 let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
 let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
@@ -1773,7 +1756,12 @@ async function continuarLuegoDeLoginNube(){
   document.getElementById('pantallaLoginNube').classList.add('oculto');
   document.getElementById('pantallaLogin').classList.remove('oculto');
   await cargar();
-  if(!intentarAutoLogin())pintarUsuariosLogin();
+  if(!intentarAutoLogin()){
+    // MODO_PRUEBAS sigue siendo solo una conveniencia de desarrollo local (permanece en false en
+    // producción): entra directo como el primer usuario, sin pedir PIN.
+    if(MODO_PRUEBAS&&db.usuarios[0]){sesion=db.usuarios[0];entrarApp();}
+    else prepararPinInput();
+  }
   suscribirCambiosNube();
 }
 async function cerrarSesionNube(){
@@ -1792,34 +1780,20 @@ async function cerrarSesionNube(){
 }
 
 /* ================= LOGIN / PIN ================= */
-function pintarUsuariosLogin(){
-  const cont=document.getElementById('usuariosLogin');
-  cont.innerHTML=db.usuarios.map(u=>`
-    <div class="usuario-card" onclick="elegirUsuario('${u.id}')">
-      <div class="avatar" style="background:${u.color}">${esc(u.nombre[0])}</div>
-      <div class="nombre">${esc(u.nombre)}</div>
-    </div>`).join('');
-}
-function elegirUsuario(id){
-  if(MODO_PRUEBAS){
-    sesion=porId(db.usuarios,id);
-    entrarApp();
-    return;
-  }
-  pinCandidato=porId(db.usuarios,id);
-  document.getElementById('pinNombre').textContent=pinCandidato.nombre;
-  document.getElementById('pinError').textContent='';
-  document.documentElement.style.setProperty('--rol',pinCandidato.color);
+// SIN TARJETAS DE USUARIO (2026-09-17, pedido de Genesis: "quitar los cuadros de los nombres,
+// solo dejar la barra de la clave"): ya no se elige primero quién eres — el PIN identifica al
+// usuario directamente (deben ser únicos entre db.usuarios, ver validarPin). Una sola pantalla,
+// la barra de clave siempre visible, sin tarjetas ni botones "Volver"/"Entrar" (antes tampoco
+// hacía falta un botón de "Entrar": esto ya validaba solo al llegar a 4 dígitos).
+function prepararPinInput(){
   const elPin=document.getElementById('pinInput');
+  if(!elPin)return;
   elPin.value='';
   elPin.type='password';
-  document.getElementById('pinOjitoBtn').textContent='👁️';
-  document.getElementById('pinBox').classList.remove('oculto');
+  const elOjito=document.getElementById('pinOjitoBtn');
+  elOjito.textContent='👁️';elOjito.title='Mostrar contraseña';elOjito.setAttribute('aria-label','Mostrar contraseña');
+  document.getElementById('pinError').textContent='';
   setTimeout(()=>elPin.focus(),50);
-}
-function volverAUsuarios(){
-  document.getElementById('pinBox').classList.add('oculto');
-  pinCandidato=null;
 }
 // PIN COMO BARRA DE TEXTO CON OJITO (2026-09-17, pedido de Genesis): antes era un teclado
 // numérico en pantalla (pin-teclado) con puntitos (pin-dots) — se reemplaza por un <input>
@@ -1832,7 +1806,7 @@ function togglePinOjito(){
   const mostrar=el.type==='password';
   el.type=mostrar?'text':'password';
   btn.textContent=mostrar?'🙈':'👁️';
-  btn.title=mostrar?'Ocultar PIN':'Mostrar PIN';
+  btn.title=mostrar?'Ocultar contraseña':'Mostrar contraseña';
   btn.setAttribute('aria-label',btn.title);
   el.focus();
 }
@@ -1842,19 +1816,14 @@ function onPinInput(){
   document.getElementById('pinError').textContent='';
   if(el.value.length===4)setTimeout(validarPin,120);
 }
-function validarPinForm(ev){
-  ev.preventDefault();
-  validarPin();
-  return false;
-}
 function validarPin(){
-  if(!pinCandidato)return;
   const el=document.getElementById('pinInput');
-  if(el.value===pinCandidato.pin){
-    sesion=pinCandidato;
+  const usuario=db.usuarios.find(u=>u.pin===el.value);
+  if(usuario){
+    sesion=usuario;
     entrarApp();
   }else{
-    document.getElementById('pinError').textContent='PIN incorrecto';
+    document.getElementById('pinError').textContent='Contraseña incorrecta';
     el.value='';
     el.focus();
   }
@@ -1893,15 +1862,14 @@ function entrarApp(){
   }
 }
 function cerrarSesion(){
-  sesion=null;pinCandidato=null;
+  sesion=null;
   sessionStorage.removeItem('zbUltimoUsuario');
   document.getElementById('app').classList.add('oculto');
   document.getElementById('pantallaLogin').classList.remove('oculto');
-  document.getElementById('pinBox').classList.add('oculto');
   document.getElementById('mainApp').classList.remove('oculto');
   document.getElementById('vistaSocio').classList.add('oculto');
   document.documentElement.style.setProperty('--rol','#2563eb');
-  pintarUsuariosLogin();
+  prepararPinInput();
 }
 function intentarAutoLogin(){
   const ultimoId=sessionStorage.getItem('zbUltimoUsuario');
