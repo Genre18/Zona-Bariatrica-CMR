@@ -933,17 +933,6 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         </div>
         <div id="histContenido"></div>
       </div>
-
-      <!-- Compatibilidad interna (no visible): pintarPedidos() sigue llamándose desde
-           guardar/editar/eliminar pedido en Clientes (fuera de Reportes) para refrescar su
-           propia tabla en memoria — estos elementos deben seguir existiendo para que esas
-           llamadas no fallen, aunque la vista visible ahora es Historial → Ventas. -->
-      <div class="oculto">
-        <select id="pedidosFiltroMarca" onchange="pintarPedidos()"><option value="">Todas las marcas</option></select>
-        <input type="date" id="pedidosFiltroDesde" onchange="pintarPedidos()">
-        <input type="date" id="pedidosFiltroHasta" onchange="pintarPedidos()">
-        <div id="listaPedidos"></div>
-      </div>
     </section>
 
     <!-- ===== CONFIG ===== -->
@@ -2770,14 +2759,19 @@ function abrirFichaCliente(clienteId){
           const celdaEstado=p.estadoPago==='pendiente pago'
             ?`<button type="button" class="chip chip-violeta" title="Registrar que el cliente ya pagó" onclick="marcarPedidoPagado('${p.id}')">Pendiente de pago</button>`
             :`<span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'))}</span>`;
+          // ENTREGA (2026-09-17, pedido de Roberto): igual patrón que "Pendiente de pago" pero
+          // para provincia — solo aplica a pedidos por Shalom, no a InDrive/local.
+          const celdaEntrega=p.metodoEnvio!=='shalom'||p.estadoPago==='cancelado'?'':(p.estadoEnvio==='entregado'
+            ?`<br><span class="chip chip-verde" style="margin-top:4px;display:inline-block;">Entregado</span>`
+            :`<br><button type="button" class="chip chip-naranja" style="margin-top:4px;" title="Registrar que el pedido llegó al cliente" onclick="marcarPedidoEntregado('${p.id}')">Pendiente de entrega</button>`);
           return `<tr${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
             <td>${fechaBonita(p.fecha)}</td>
             <td style="text-align:left;">${productosTxt}</td>
             <td style="text-align:right;">${money(p.total)}</td>
-            <td>${celdaEstado}</td>
+            <td>${celdaEstado}${celdaEntrega}</td>
             <td style="text-align:center;">${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 4px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
-        }).join('')}</tbody></table></div>${pedidos.some(p=>p.estadoPago==='pendiente pago')?'<p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">Toca el estado <span style="color:var(--violeta);font-weight:600;">Pendiente de pago</span> cuando el cliente pague.</p>':''}`}
+        }).join('')}</tbody></table></div>${pedidos.some(p=>p.estadoPago==='pendiente pago')||pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?`<p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">${pedidos.some(p=>p.estadoPago==='pendiente pago')?'Toca el estado <span style="color:var(--violeta);font-weight:600;">Pendiente de pago</span> cuando el cliente pague. ':''}${pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?'Toca <span style="color:var(--warning);font-weight:600;">Pendiente de entrega</span> cuando el pedido de provincia llegue al cliente.':''}</p>`:''}`}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
@@ -2820,6 +2814,40 @@ function confirmarPedidoPagado(ev,pedidoId){
   cerrarModal();
   pintarClientes();
   if(typeof pintarProveedores==='function')pintarProveedores();
+  abrirFichaCliente(p.clienteId);
+  return false;
+}
+// PENDIENTE DE ENTREGA → ENTREGADO (2026-09-17, pedido de Roberto): mismo patrón que "Marcar
+// como pagado" de arriba, pero para pedidos por Shalom (provincia) — Roberto quería poder
+// identificar cuándo un pedido de provincia ya llegó al cliente, sin abrir "Editar pedido"
+// completo ni pasar por los estados intermedios preparado/enviado (que en la práctica nadie
+// actualiza). NO toca estadoPago, stock ni total — solo estadoEnvio + huella de quién/cuándo.
+function marcarPedidoEntregado(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='shalom'||p.estadoEnvio==='entregado'){alert('Este pedido ya no está pendiente de entrega.');return;}
+  const cli=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Marcar como entregado</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc(cli.nombre+' '+cli.apellido):'Cliente'} · ${fechaBonita(p.fecha)} · Shalom${p.numeroOrden?' · N° '+esc(p.numeroOrden):''}</p>
+    <form onsubmit="return confirmarPedidoEntregado(event,'${p.id}')">
+      <label style="margin-top:0;">Fecha en que llegó al cliente</label>
+      <input type="date" id="me-fecha" value="${hoyStr()}">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Confirmar entrega</button>
+      </div>
+    </form>`);
+}
+function confirmarPedidoEntregado(ev,pedidoId){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='shalom'||p.estadoEnvio==='entregado')return false;
+  p.estadoEnvio='entregado';
+  p.fechaEntrega=document.getElementById('me-fecha').value||hoyStr();
+  p.entregaConfirmadaPor=sesion?sesion.nombre:'';
+  guardar();
+  cerrarModal();
   abrirFichaCliente(p.clienteId);
   return false;
 }
@@ -3289,33 +3317,9 @@ function validarImportesPedido(items,descuento,embalaje,delivery){
 }
 
 /* ================= PEDIDOS ================= */
-const ESTADO_PAGO_CHIP={'pendiente pago':'chip-violeta',pagado:'chip-azul',cancelado:'chip-rojo'};
-const ESTADO_ENVIO_CHIP={'pendiente preparación':'chip-gris',preparado:'chip-azul',enviado:'chip-naranja',entregado:'chip-verde'};
 const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
 const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','entregado'];
-// MARCAR ENTREGADO (2026-09-17, pedido de Roberto): para pedidos por Shalom (provincia), único
-// uso real de estadoEnvio hasta ahora — los estados intermedios preparado/enviado casi nadie los
-// actualiza. Un clic directo desde la tabla de Pedidos, sin pasar por "Editar pedido" completo.
-// Salta directo a "entregado" (no obliga a marcar preparado/enviado antes). No toca estadoPago,
-// stock ni total — solo el estado de envío + huella de quién/cuándo lo confirmó.
-function marcarPedidoEntregado(pedidoId){
-  const p=porId(db.pedidos,pedidoId);
-  if(!p||p.estadoEnvio==='entregado')return;
-  if(!confirm('¿Marcar este pedido como entregado al cliente?'))return;
-  p.estadoEnvio='entregado';
-  p.fechaEntrega=hoyStr();
-  p.entregaConfirmadaPor=sesion?sesion.nombre:'';
-  guardar();
-  pintarPedidos();
-}
 let edicionPedidoBackup=null; // respaldo de stock/movimientos mientras se edita un pedido, para poder deshacer si se cancela la edición
-function responsableEnvioPedido(pedido){
-  for(const it of pedido.items){
-    const resp=it.responsableDespacho||(db.config.responsableDespachoMarca||{})[it.marca];
-    if(resp==='proveedor')return it.marca;
-  }
-  return 'Zona Bariátrica';
-}
 function stockInsuficienteEnPedidoTmp(){
   const necesarios={};
   pedidoItemsTmp.forEach(it=>{
@@ -3337,55 +3341,6 @@ function stockInsuficienteEnPedidoTmp(){
 // datos históricos con una regla que no existía cuando se vendió.
 function itemSinResponsableDespacho(items){
   return (items||[]).find(it=>!it.responsableDespacho);
-}
-function pintarFiltroMarcaPedidos(){
-  const sel=document.getElementById('pedidosFiltroMarca');
-  const actual=sel.value;
-  sel.innerHTML='<option value="">Todas las marcas</option>'+(db.config.marcas||[]).map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
-  sel.value=actual;
-}
-function pintarPedidos(){
-  pintarFiltroMarcaPedidos();
-  const filtroMarca=document.getElementById('pedidosFiltroMarca').value;
-  const filtroDesde=document.getElementById('pedidosFiltroDesde').value;
-  const filtroHasta=document.getElementById('pedidosFiltroHasta').value;
-  let pedidos=db.pedidos.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
-  if(filtroMarca)pedidos=pedidos.filter(p=>p.items.some(it=>it.marca===filtroMarca));
-  if(filtroDesde)pedidos=pedidos.filter(p=>p.fecha>=filtroDesde);
-  if(filtroHasta)pedidos=pedidos.filter(p=>p.fecha<=filtroHasta);
-  const cont=document.getElementById('listaPedidos');
-  if(pedidos.length===0){cont.innerHTML='<div class="vacio">No hay pedidos todavía.</div>';return;}
-  cont.innerHTML=`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-    <th>Fecha</th><th>Cliente</th><th>Marca</th><th>Productos</th><th>Total</th><th>Estado</th><th>Acciones</th>
-    </tr></thead><tbody>${pedidos.map(p=>{
-    const cliente=porId(db.clientes,p.clienteId);
-    const responsable=responsableEnvioPedido(p);
-    const marcasPedido=[...new Set(p.items.map(it=>it.marca))].join(', ');
-    return `<tr>
-      <td>${fechaCelda(p.fecha)}</td>
-      <td style="text-align:left;white-space:normal;min-width:170px;">
-        <div>${cliente?esc(cliente.nombre+' '+cliente.apellido):'Cliente eliminado'}</div>
-        <div style="font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px;">${esc(p.metodoEnvio)} · ${esc(p.metodoPago||'—')}${p.pagoReferencia?' (ref. '+esc(p.pagoReferencia)+')':''} · atendió ${esc(p.atendidoPor||'—')}</div>
-        ${responsable!=='Zona Bariátrica'?`<div style="font-size:10.5px;color:var(--warning);font-weight:400;margin-top:2px;">envía ${esc(responsable)}</div>`:''}
-        ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:10.5px;color:var(--muted);font-weight:400;margin-top:2px;">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
-        ${p.notas?`<div style="font-size:10.5px;color:var(--muted);font-style:italic;font-weight:400;margin-top:2px;">"${esc(p.notas)}"</div>`:''}
-      </td>
-      <td>${esc(marcasPedido)}</td>
-      <td style="text-align:left;white-space:normal;min-width:170px;">${p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ')}</td>
-      <td>${money(p.total)}<div style="font-size:10px;color:var(--muted);font-weight:400;">embalaje S/${Number(p.embalaje||0).toFixed(2)}</div></td>
-      <td><span class="chip ${ESTADO_PAGO_CHIP[p.estadoPago]||'chip-gris'}" style="display:inline-block;margin-bottom:4px;">${esc(p.estadoPago)}</span><br>${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'
-        ?`<button type="button" class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" title="Marcar como entregado al cliente" onclick="marcarPedidoEntregado('${p.id}')">${esc(p.estadoEnvio)}</button>`
-        :`<span class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" style="display:inline-block;">${esc(p.estadoEnvio)}</span>`}</td>
-      <td>
-        ${p.estadoPago!=='cancelado'?`
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <button class="btn-secundario btn-chico" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>
-            <button class="btn-peligro btn-chico" onclick="eliminarPedido('${p.id}')">Cancelar</button>
-          </div>
-        `:'<span class="chip chip-rojo">Cancelado</span>'}
-      </td>
-    </tr>`;
-  }).join('')}</tbody></table></div>`;
 }
 function abrirFormPedido(clienteIdPre){
   pedidoItemsTmp=[];
@@ -3698,7 +3653,7 @@ function guardarPedido(ev){
   };
   db.pedidos.push(pedido);
   descontarStock(pedido);
-  guardar();pintarPedidos();pintarStock();pintarClientes();
+  guardar();pintarStock();pintarClientes();
   mostrarTicket(pedido,porId(db.clientes,clienteId));
   return false;
 }
@@ -3976,7 +3931,7 @@ function guardarEditarPedido(ev,id){
     }
   }
   edicionPedidoBackup=null;
-  guardar();cerrarModal();pintarPedidos();pintarStock();
+  guardar();cerrarModal();pintarStock();
   return false;
 }
 // ELIMINAR COMPRA CON AUDITORÍA (2026-08-24): antes esto era un solo confirm() sin dejar
@@ -4020,7 +3975,7 @@ function confirmarCancelarPedido(ev,id){
   p.canceladoFecha=hoyStr();
   p.motivoCancelacion=motivo;
   p.autorizadoPor=autorizadoPor;
-  guardar();cerrarModal();pintarPedidos();pintarStock();
+  guardar();cerrarModal();pintarStock();
   return false;
 }
 /* ================= STOCK ================= */
