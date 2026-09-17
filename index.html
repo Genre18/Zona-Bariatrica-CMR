@@ -2460,10 +2460,13 @@ function eliminarLead(id){
 // Herramienta de Roberto (pedido 2026-09-11): armar una propuesta de precio para un lead ANTES
 // de que compre. A propósito NO es un pedido — reusa el mismo selector de productos y el mismo
 // motor de precios que "Nuevo pedido" (pedidoItemsTmp/pedidoAgregarItem/pedidoRenderItems/
-// calcularTotalesPedido, ver PEDIDOS) para que el número cotizado sea EXACTAMENTE el que pagaría
-// si compra, pero: NO descuenta stock, NO crea pedido, NO calcula recargo de tarjeta (se avisa
-// como nota aparte porque el método de pago todavía no se decide a esta altura). Se guarda en
-// db.cotizaciones ligada al leadId para que quede como historial en la ficha del lead.
+// calcularTotalesPedido/pedidoActualizarEnvio/pedidoActualizarTotales, ver PEDIDOS) para que el
+// número cotizado sea EXACTAMENTE el que pagaría si compra, pero: NO descuenta stock, NO crea
+// pedido. Envío y método de pago son OPCIONALES acá (2026-09-17, ajuste de Roberto): a veces el
+// lead ya preguntó "¿aceptan tarjeta?"/"¿es a provincia?" desde el inicio y conviene cotizar con
+// el recargo/embalaje real, otras veces no se sabe todavía — si se dejan en blanco, simplemente
+// no se cobra ese cargo (nunca se adivina). Se guarda en db.cotizaciones ligada al leadId para
+// que quede como historial en la ficha del lead.
 function abrirFormCotizacion(leadId){
   const l=porId(db.leads,leadId);
   if(!l){alert('Lead no encontrado.');return;}
@@ -2485,9 +2488,24 @@ function abrirFormCotizacion(leadId){
       <div id="pedidoItemsList" style="margin-top:10px;"></div>
 
       <div class="fila-2">
+        <div><label>Envío (opcional, si ya se sabe)</label>
+          <select id="pd-envio" onchange="pedidoActualizarEnvio()">
+            <option value="">Aún no sé</option>
+            <option value="shalom">Shalom (provincia)</option>
+            <option value="indrive">InDrive (local)</option>
+          </select>
+        </div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+      </div>
+      <div class="fila-2">
         <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
         <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
       </div>
+      <label>Método de pago (opcional, si ya se sabe)</label>
+      <select id="pd-metodopago" onchange="pedidoActualizarTotales()">
+        <option value="">Aún no sé</option>
+        <option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option>
+      </select>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
       <label>Notas (opcional, solo interno — no sale en el texto para WhatsApp)</label>
       <textarea id="cot-notas" rows="2"></textarea>
@@ -2507,19 +2525,25 @@ function guardarCotizacion(ev,leadId){
   if(!l){alert('Lead no encontrado.');return false;}
   const descuentoManual=parseFloat(document.getElementById('pd-descuento').value)||0;
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
+  const embalaje=parseFloat(document.getElementById('pd-embalaje').value)||0;
+  const metodoEnvio=document.getElementById('pd-envio').value;
+  const metodoPago=document.getElementById('pd-metodopago').value;
   const fecha=hoyStr();
   // Misma función que ya usa la vista previa en vivo (pedidoActualizarTotales) y guardarPedido —
   // así el número guardado nunca puede divergir de lo que se vio en pantalla antes de guardar.
+  // Envío/método de pago son opcionales (2026-09-17, pedido de Roberto): a veces el lead ya
+  // preguntó "¿aceptan tarjeta?" o "¿es a provincia?" desde el inicio, y otras veces no se sabe
+  // todavía — si se dejan en blanco, no se cobra recargo/embalaje (no se adivina).
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
-  const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery);
+  const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
   if(errorImportes){alert(errorImportes);return false;}
-  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,0,delivery,'');
+  const t=calcularTotalesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery,metodoPago);
   const cotizacion={
     id:nuevoId(),leadId,fecha,createdAt:new Date().toISOString(),
     items:pedidoItemsTmp.slice(),
     subtotal:t.subtotal,
     descuento:desc.descuentoTotal,descuentoPromocionalBN:desc.descuentoPromocionalBN,
-    delivery,total:t.total,
+    delivery,embalaje,metodoEnvio,metodoPago,recargoTarjeta:t.recargoTarjeta,total:t.total,
     notas:document.getElementById('cot-notas').value.trim(),
     creadoPor:sesion?sesion.nombre:''
   };
@@ -2547,10 +2571,12 @@ function textoCotizacionWhatsApp(id){
   const c=porId(db.cotizaciones,id);
   if(!c)return '';
   const l=porId(db.leads,c.leadId);
-  const lineas=c.items.map(it=>`• ${it.cantidad}x ${it.producto} — ${money(it.cantidad*it.precioUnit)}`).join('\n');
+  const lineas=c.items.map(it=>`• ${it.cantidad}x ${it.marca} ${it.producto} — ${money(it.cantidad*it.precioUnit)}`).join('\n');
   let txt=`¡Claro! Aquí te dejo tu cotización${l&&l.nombre?', '+l.nombre:''} 😊\n\n${lineas}\n\nSubtotal: ${money(c.subtotal)}`;
   if(c.descuento)txt+=`\nDescuento: −${money(c.descuento)}`;
+  if(c.embalaje)txt+=`\nEmbalaje: ${money(c.embalaje)}`;
   if(c.delivery)txt+=`\nDelivery: ${money(c.delivery)}`;
+  if(c.recargoTarjeta)txt+=`\nRecargo tarjeta (4%): ${money(c.recargoTarjeta)}`;
   txt+=`\nTotal: ${money(c.total)}`;
   txt+=`\n\nCualquier duda me escribes 🙂`;
   return txt;
@@ -3267,6 +3293,21 @@ const ESTADO_PAGO_CHIP={'pendiente pago':'chip-violeta',pagado:'chip-azul',cance
 const ESTADO_ENVIO_CHIP={'pendiente preparación':'chip-gris',preparado:'chip-azul',enviado:'chip-naranja',entregado:'chip-verde'};
 const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
 const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','entregado'];
+// MARCAR ENTREGADO (2026-09-17, pedido de Roberto): para pedidos por Shalom (provincia), único
+// uso real de estadoEnvio hasta ahora — los estados intermedios preparado/enviado casi nadie los
+// actualiza. Un clic directo desde la tabla de Pedidos, sin pasar por "Editar pedido" completo.
+// Salta directo a "entregado" (no obliga a marcar preparado/enviado antes). No toca estadoPago,
+// stock ni total — solo el estado de envío + huella de quién/cuándo lo confirmó.
+function marcarPedidoEntregado(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoEnvio==='entregado')return;
+  if(!confirm('¿Marcar este pedido como entregado al cliente?'))return;
+  p.estadoEnvio='entregado';
+  p.fechaEntrega=hoyStr();
+  p.entregaConfirmadaPor=sesion?sesion.nombre:'';
+  guardar();
+  pintarPedidos();
+}
 let edicionPedidoBackup=null; // respaldo de stock/movimientos mientras se edita un pedido, para poder deshacer si se cancela la edición
 function responsableEnvioPedido(pedido){
   for(const it of pedido.items){
@@ -3332,7 +3373,9 @@ function pintarPedidos(){
       <td>${esc(marcasPedido)}</td>
       <td style="text-align:left;white-space:normal;min-width:170px;">${p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ')}</td>
       <td>${money(p.total)}<div style="font-size:10px;color:var(--muted);font-weight:400;">embalaje S/${Number(p.embalaje||0).toFixed(2)}</div></td>
-      <td><span class="chip ${ESTADO_PAGO_CHIP[p.estadoPago]||'chip-gris'}" style="display:inline-block;margin-bottom:4px;">${esc(p.estadoPago)}</span><br><span class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" style="display:inline-block;">${esc(p.estadoEnvio)}</span></td>
+      <td><span class="chip ${ESTADO_PAGO_CHIP[p.estadoPago]||'chip-gris'}" style="display:inline-block;margin-bottom:4px;">${esc(p.estadoPago)}</span><br>${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'
+        ?`<button type="button" class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" title="Marcar como entregado al cliente" onclick="marcarPedidoEntregado('${p.id}')">${esc(p.estadoEnvio)}</button>`
+        :`<span class="chip ${ESTADO_ENVIO_CHIP[p.estadoEnvio]||'chip-gris'}" style="display:inline-block;">${esc(p.estadoEnvio)}</span>`}</td>
       <td>
         ${p.estadoPago!=='cancelado'?`
           <div style="display:flex;flex-direction:column;gap:4px;">
