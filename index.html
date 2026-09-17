@@ -790,7 +790,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
            tuckean en "⋯". Los leads ya convertidos en cliente se ocultan por defecto — no con un
            botón permanente, sino con un chip discreto que solo aparece si hay alguno oculto (ver
            leadsOcultarClientes/pintarLeads). -->
-      <div class="filtros toolbar-modulo">
+      <div class="filtros toolbar-modulo" style="border-bottom:none;margin-bottom:6px;padding-bottom:0;">
         <input id="leadsBuscar" placeholder="Buscar en la tabla (nombre, DNI, ciudad, estatus, responsable...)" oninput="pintarLeads()">
         <details class="menu-mas-opciones">
           <summary title="Más filtros (estado exacto, rango de fechas)" aria-label="Más filtros">⋯</summary>
@@ -1941,8 +1941,8 @@ function pintarChipConvertidosLeads(n){
   if(!cont)return;
   if(n<=0){cont.innerHTML='';return;}
   cont.innerHTML=leadsOcultarClientes
-    ?`<button type="button" class="chip chip-verde" onclick="toggleLeadsOcultarClientes()">${n} convertido${n===1?'':'s'} · ver</button>`
-    :`<button type="button" class="chip chip-gris" onclick="toggleLeadsOcultarClientes()">Ocultar convertidos</button>`;
+    ?`<button type="button" class="chip chip-verde" onclick="toggleLeadsOcultarClientes()">${n} cliente${n===1?'':'s'} · ver</button>`
+    :`<button type="button" class="chip chip-gris" onclick="toggleLeadsOcultarClientes()">Ocultar clientes</button>`;
 }
 // ART DIRECTION (2026-08-22) — sección 7: badges realmente pastel (fondo muy suave + texto de
 // color, sin blanco-sobre-saturado) para que el estado acompañe a la fila en vez de atravesarla
@@ -2157,8 +2157,7 @@ function pintarLeads(){
           </select>`}
         </td>
         <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
-      </tr>`;}).join('')}</tbody></table></div>
-    <p class="vacio" style="text-align:left;">Toca el nombre de un lead para ver su motivo de consulta, en qué producto está interesado, fuente de captación e historial, y para convertir en cliente.</p>`;
+      </tr>`;}).join('')}</tbody></table></div>`;
 }
 function actualizarCampoLead(id,campo,valor){
   // MICRO-HOTFIX FECHA/HORA LEADS (2026-08-27): la fecha y la hora de un lead son datos
