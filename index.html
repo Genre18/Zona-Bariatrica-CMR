@@ -780,7 +780,6 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <div class="page-title-row">
           <div>
             <h2 class="page-title">Leads</h2>
-            <p class="page-description">Contactos que llegan por WhatsApp o pauta, antes de convertirse en clientes.</p>
           </div>
           <div class="page-actions"><button class="btn" onclick="abrirFormLead()">+ Nuevo lead</button></div>
         </div>
@@ -1942,8 +1941,8 @@ function pintarChipConvertidosLeads(n){
   if(!cont)return;
   if(n<=0){cont.innerHTML='';return;}
   cont.innerHTML=leadsOcultarClientes
-    ?`<button type="button" class="chip chip-verde" onclick="toggleLeadsOcultarClientes()">${n} ya convertido${n===1?'':'s'} en cliente · ver</button>`
-    :`<button type="button" class="chip chip-gris" onclick="toggleLeadsOcultarClientes()">Mostrando convertidos · ocultar</button>`;
+    ?`<button type="button" class="chip chip-verde" onclick="toggleLeadsOcultarClientes()">${n} convertido${n===1?'':'s'} · ver</button>`
+    :`<button type="button" class="chip chip-gris" onclick="toggleLeadsOcultarClientes()">Ocultar convertidos</button>`;
 }
 // ART DIRECTION (2026-08-22) — sección 7: badges realmente pastel (fondo muy suave + texto de
 // color, sin blanco-sobre-saturado) para que el estado acompañe a la fila en vez de atravesarla
