@@ -2870,6 +2870,9 @@ function confirmarPedidoPagado(ev,pedidoId){
 // identificar cuándo un pedido de provincia ya llegó al cliente, sin abrir "Editar pedido"
 // completo ni pasar por los estados intermedios preparado/enviado (que en la práctica nadie
 // actualiza). NO toca estadoPago, stock ni total — solo estadoEnvio + huella de quién/cuándo.
+// Reachable desde 2 lugares: ficha de cliente (drawer historial) y Historial → Ver detalle
+// (contenidoDetalleVenta, agregado el mismo día porque ahí solo se veía el texto sin poder
+// tocarlo) — confirmarPedidoEntregado() decide a dónde volver según detalleVentaAbierta.
 function marcarPedidoEntregado(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(!p||p.metodoEnvio!=='shalom'||p.estadoEnvio==='entregado'){alert('Este pedido ya no está pendiente de entrega.');return;}
@@ -2895,8 +2898,15 @@ function confirmarPedidoEntregado(ev,pedidoId){
   p.fechaEntrega=document.getElementById('me-fecha').value||hoyStr();
   p.entregaConfirmadaPor=sesion?sesion.nombre:'';
   guardar();
-  cerrarModal();
-  abrirFichaCliente(p.clienteId);
+  // Reachable desde dos lugares (ficha de cliente e Historial → Ver detalle, 2026-09-17): si se
+  // abrió desde el detalle de Historial, vuelve ahí refrescado (mismo patrón que
+  // marcarObligacionPagada/refrescarDetalleAbierto) en vez de forzar la navegación a Clientes.
+  if(detalleVentaAbierta===pedidoId){
+    refrescarDetalleAbierto();
+  }else{
+    cerrarModal();
+    abrirFichaCliente(p.clienteId);
+  }
   return false;
 }
 function abrirEditarCliente(id){
@@ -7356,7 +7366,9 @@ function contenidoDetalleVenta(pedidoId){
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Envío</div>
-      <div>${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</div>
+      <div>${esc(envioTxt)}${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&!anulada
+        ?` · <button type="button" class="chip chip-naranja" title="Registrar que el pedido llegó al cliente" onclick="marcarPedidoEntregado('${p.id}')">Pendiente de entrega</button>`
+        :` · ${esc(p.estadoEnvio||'—')}`}</div>
       ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
     </div>
     ${anulada?`<div class="drawer-seccion">
