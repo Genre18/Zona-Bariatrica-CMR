@@ -270,6 +270,11 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .toolbar-historial summary{height:34px;width:34px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;color:var(--muted);list-style:none;}
 .toolbar-historial summary::-webkit-details-marker{display:none;}
 .toolbar-historial summary:hover{background:var(--bg-soft);color:var(--text);}
+/* Mismo "⋯" de más opciones, reutilizado fuera de Historial (ej. filtro fino de Leads, 2026-09-17) */
+.acciones details.menu-mas-opciones{position:relative;display:inline-block;vertical-align:middle;}
+.acciones details.menu-mas-opciones summary{height:30px;width:30px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:15px;color:var(--muted);list-style:none;background:#fff;}
+.acciones details.menu-mas-opciones summary::-webkit-details-marker{display:none;}
+.acciones details.menu-mas-opciones summary:hover{background:var(--bg-soft);color:var(--text);}
 table.historial-tabla{width:100%;}
 table.historial-tabla th{padding:6px 8px;font-size:9.5px;}
 table.historial-tabla td{padding:5px 8px;font-size:12px;}
@@ -783,11 +788,30 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
           <div class="page-actions"><button class="btn" onclick="abrirFormLead()">+ Nuevo lead</button></div>
         </div>
       </div>
+      <!-- VISTA POR GRUPOS (2026-09-17, pedido de Genesis): "Por trabajar" agrupa los estados
+           activos para que la pantalla del día a día no se vea cargada con leads que ya se
+           convirtieron en cliente o que se perdieron — sin esconder ni borrar nada, un clic los
+           vuelve a mostrar. El filtro fino por estado exacto (antes el único control) sigue
+           disponible dentro de "⋯", para cuando de verdad hace falta ver solo "seguimiento" o
+           similar. Ver cambiarGrupoLeads()/pintarLeads(). -->
+      <div class="acciones" style="margin-bottom:12px;">
+        <button type="button" class="btn btn-chico" id="leadsGrupo-trabajar" onclick="cambiarGrupoLeads('trabajar')">Por trabajar</button>
+        <button type="button" class="btn-secundario btn-chico" id="leadsGrupo-cliente" onclick="cambiarGrupoLeads('cliente')">Ya son clientes</button>
+        <button type="button" class="btn-secundario btn-chico" id="leadsGrupo-perdido" onclick="cambiarGrupoLeads('perdido')">Perdidos</button>
+        <button type="button" class="btn-secundario btn-chico" id="leadsGrupo-todos" onclick="cambiarGrupoLeads('todos')">Todos</button>
+        <details class="menu-mas-opciones">
+          <summary title="Filtro fino por estado exacto" aria-label="Filtro fino por estado exacto">⋯</summary>
+          <div class="menu-mas-opciones-panel">
+            <label style="margin:0;font-size:11.5px;font-weight:600;color:var(--muted);">Estado exacto
+              <select id="leadsFiltroEstado" onchange="pintarLeads()" style="margin-top:4px;">
+                <option value="">Cualquiera del grupo</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      </div>
       <div class="filtros toolbar-modulo">
         <input id="leadsBuscar" placeholder="Buscar en la tabla (nombre, DNI, ciudad, estatus, responsable...)" oninput="pintarLeads()">
-        <select id="leadsFiltroEstado" onchange="pintarLeads()">
-          <option value="">Todos los estados</option>
-        </select>
         <label style="margin:0;">Desde<input type="date" id="leadsFiltroDesde" onchange="pintarLeads()"></label>
         <label style="margin:0;">Hasta<input type="date" id="leadsFiltroHasta" onchange="pintarLeads()"></label>
       </div>
@@ -1901,6 +1925,24 @@ function irA(sec){
 const CANALES_LEAD=['WhatsApp','Facebook','Instagram','TikTok','Recomendación','Página web','Otro'];
 const ESTADOS_LEAD=['sin contactar','seguimiento','cliente potencial','renovación','cliente','no contactar'];
 const ESTADOS_LEAD_PERDIDA=['no contactar'];
+// VISTA POR GRUPOS (2026-09-17, pedido de Genesis): agrupa los 6 estados finos en 3 grupos
+// grandes para la vista rápida del día a día (ver botones "Por trabajar"/"Ya son clientes"/
+// "Perdidos"/"Todos" en el HTML) — puramente de presentación, nunca cambia ESTADOS_LEAD ni
+// l.estado. "todos" no filtra nada (mismo comportamiento de siempre).
+const LEADS_GRUPO_ESTADOS={
+  trabajar:['sin contactar','seguimiento','cliente potencial','renovación'],
+  cliente:['cliente'],
+  perdido:ESTADOS_LEAD_PERDIDA
+};
+let leadsGrupo='trabajar'; // solo UI, en memoria — no persiste ni se guarda en db
+function cambiarGrupoLeads(grupo){
+  leadsGrupo=grupo;
+  ['trabajar','cliente','perdido','todos'].forEach(g=>{
+    const btn=document.getElementById('leadsGrupo-'+g);
+    if(btn)btn.className=g===grupo?'btn btn-chico':'btn-secundario btn-chico';
+  });
+  pintarLeads();
+}
 // ART DIRECTION (2026-08-22) — sección 7: badges realmente pastel (fondo muy suave + texto de
 // color, sin blanco-sobre-saturado) para que el estado acompañe a la fila en vez de atravesarla
 // visualmente. Mismas claves/mismo objeto — solo cambian los valores bg/fg.
@@ -1929,7 +1971,7 @@ function usuariosAdmin(){
 function pintarFiltroEstadoLeads(){
   const sel=document.getElementById('leadsFiltroEstado');
   const actual=sel.value;
-  sel.innerHTML='<option value="">Todos los estados</option>'+ESTADOS_LEAD.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
+  sel.innerHTML='<option value="">Cualquiera del grupo</option>'+ESTADOS_LEAD.map(e=>`<option value="${e}">${esc(e)}</option>`).join('');
   sel.value=actual;
 }
 // MICRO-SPRINT LEADS (2026-08-24) — sección 1: fuente de verdad ÚNICA de si un Lead ya está
@@ -2025,7 +2067,14 @@ function pintarLeads(){
     leadEstaConvertido(l)?'cliente':(l.estado||''),
     l.atendidoPor||''
   ].join('\n').toLowerCase().includes(buscar));
-  if(filtroEstado)leads=leads.filter(l=>l.estado===filtroEstado);
+  // Filtro fino ("⋯" > Estado exacto) manda sobre el grupo si está elegido; si no, manda el
+  // grupo activo (Por trabajar/Ya son clientes/Perdidos/Todos — "todos" no filtra nada).
+  if(filtroEstado){
+    leads=leads.filter(l=>l.estado===filtroEstado);
+  }else if(LEADS_GRUPO_ESTADOS[leadsGrupo]){
+    const permitidos=LEADS_GRUPO_ESTADOS[leadsGrupo];
+    leads=leads.filter(l=>permitidos.includes(l.estado));
+  }
   // Filtro por fecha (usa l.fecha REAL del lead; nunca se inventa una fecha para leads sin
   // ella) — solo Desde: desde inclusive; solo Hasta: hasta inclusive; ambos: intervalo inclusivo.
   if(avisoFecha){
@@ -2048,7 +2097,18 @@ function pintarLeads(){
   });
   const cont=document.getElementById('listaLeads');
   if(avisoFecha){cont.innerHTML=avisoFecha;return;}
-  if(leads.length===0){cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';return;}
+  if(leads.length===0){
+    // Mensaje distinto según por qué está vacío — antes decía siempre "no hay leads todavía"
+    // aunque la causa fuera el grupo/filtro activo, lo cual confundía (2026-09-17).
+    if(db.leads.length===0){
+      cont.innerHTML='<div class="vacio">No hay leads todavía. Registra los que llegan por WhatsApp o importa los de la pauta en Configuración.</div>';
+    }else if(!buscar&&!filtroEstado&&!filtroDesde&&!filtroHasta&&leadsGrupo==='trabajar'){
+      cont.innerHTML='<div class="vacio">Estás al día — no hay leads pendientes de trabajar ahorita. 🎉</div>';
+    }else{
+      cont.innerHTML='<div class="vacio">Ningún lead coincide con este grupo/filtro/búsqueda.</div>';
+    }
+    return;
+  }
   // UX PRECISIÓN LEADS (2026-08-22) — sección 1: la tabla principal pasa a ser de SOLO
   // LECTURA para fecha/hora/apellido/edad/DNI/celular/email/ciudad (antes eran <input> que
   // llamaban a actualizarCampoLead() con solo tocar el teclado — edición accidental real).
