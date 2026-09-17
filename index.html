@@ -3989,7 +3989,15 @@ function guardarEditarPedido(ev,id){
     }
   }
   edicionPedidoBackup=null;
-  guardar();cerrarModal();pintarStock();
+  guardar();
+  cerrarModal();
+  // Único acceso real es Historial → Ver detalle (2026-09-17) — al guardar, refresca todo lo que
+  // puede haber cambiado (cliente/fecha/total/estados) en vez de solo Stock como antes, cuando
+  // el único caller era la tabla "Pedidos" ya eliminada.
+  pintarStock();
+  if(typeof pintarClientes==='function')pintarClientes();
+  if(typeof pintarHistorial==='function')pintarHistorial();
+  if(typeof pintarProveedores==='function')pintarProveedores();
   return false;
 }
 // ELIMINAR COMPRA CON AUDITORÍA (2026-08-24): antes esto era un solo confirm() sin dejar
@@ -7396,6 +7404,7 @@ function abrirDetalleVentaHistorial(pedidoId){
     ${contenidoDetalleVenta(pedidoId)}
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+      ${p.estadoPago!=='cancelado'?`<button type="button" class="btn-secundario" onclick="abrirEditarPedido('${p.id}')">Editar</button>`:''}
       <button type="button" class="btn" onclick="imprimirTicket('${p.id}')">Reimprimir comprobante</button>
     </div>`,'modal-centrado venta-detalle-modal');
 }
