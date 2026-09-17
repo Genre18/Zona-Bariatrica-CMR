@@ -95,13 +95,10 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
 .usuario-card:hover{border-color:var(--primary);box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;width:280px;text-align:center;box-shadow:var(--shadow-lg);}
 .login-shell .pin-box{border:none;box-shadow:none;padding:0;width:100%;}
-.pin-dots{display:flex;justify-content:center;gap:12px;margin:16px 0 20px;}
-.pin-dots span{width:12px;height:12px;border-radius:50%;border:2px solid var(--border);}
-.pin-dots span.on{background:var(--rol);border-color:var(--rol);}
-.pin-teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.pin-teclado button{padding:14px 0;font-size:18px;border-radius:var(--r-sm);border:1px solid var(--border);background:#fff;transition:background .15s,border-color .15s;}
-.pin-teclado button:hover{border-color:#d8dee7;background:var(--bg-soft);}
-.pin-teclado button:active{background:var(--rol-suave);}
+.pin-input-wrap{position:relative;margin:16px 0 4px;}
+.pin-input-wrap input{padding-right:40px;letter-spacing:4px;font-size:20px;text-align:center;}
+.pin-ojito{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;padding:0;border:none;background:transparent;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+.pin-ojito:hover{color:var(--text);}
 .pin-error{color:var(--danger);font-size:13px;height:18px;margin-top:6px;}
 
 /* ---------- APP ---------- */
@@ -738,16 +735,17 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
 
     <div id="pinBox" class="pin-box oculto">
       <div id="pinNombre" style="font-weight:700;"></div>
-      <div class="pin-dots">
-        <span id="pd0"></span><span id="pd1"></span><span id="pd2"></span><span id="pd3"></span>
-      </div>
-      <div class="pin-error" id="pinError"></div>
-      <div class="pin-teclado">
-        <button onclick="teclaPin('1')">1</button><button onclick="teclaPin('2')">2</button><button onclick="teclaPin('3')">3</button>
-        <button onclick="teclaPin('4')">4</button><button onclick="teclaPin('5')">5</button><button onclick="teclaPin('6')">6</button>
-        <button onclick="teclaPin('7')">7</button><button onclick="teclaPin('8')">8</button><button onclick="teclaPin('9')">9</button>
-        <button onclick="volverAUsuarios()">←</button><button onclick="teclaPin('0')">0</button><button onclick="teclaPin('borrar')">⌫</button>
-      </div>
+      <form onsubmit="return validarPinForm(event)">
+        <div class="pin-input-wrap">
+          <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="····" oninput="onPinInput()">
+          <button type="button" class="pin-ojito" id="pinOjitoBtn" onclick="togglePinOjito()" title="Mostrar PIN" aria-label="Mostrar PIN">👁️</button>
+        </div>
+        <div class="pin-error" id="pinError"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button type="button" class="btn-secundario" style="flex:1;" onclick="volverAUsuarios()">← Volver</button>
+          <button class="btn" type="submit" style="flex:1;">Entrar</button>
+        </div>
+      </form>
     </div>
     <p class="login-footer-nota">Panel interno · Zona Bariátrica</p>
   </div>
@@ -1111,7 +1109,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
    ========================================================= */
 
 const CLAVE='zbdb_v1';
-const MODO_PRUEBAS=false; // PIN interno ACTIVO (2026-08-27). La seguridad real es el login de Supabase (correo+contraseña); el PIN es solo la 2ª identificación: quién está usando el CRM.
+const MODO_PRUEBAS=false; // PIN interno ACTIVO (2026-08-27). La seguridad real es el login de Supabase (correo+contraseña); el PIN es solo la 2ª identificación: quién está usando el CRM. Ya NO controla si se recuerda la sesión en la pestaña (ver entrarApp/intentarAutoLogin, 2026-09-17) — solo si elegirUsuario() salta el PIN.
 const SUPABASE_URL='https://zuispovrhevalznsrdax.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_PhNcFR421xTZxfXhSr6wfg_t1HJA2rf';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -1123,7 +1121,6 @@ let guardarNubeTimeout=null;
 let sesion=null;          // usuario actual {id,nombre,pin,color}
 let seccionActual='leads';
 let pinCandidato=null;
-let pinEscrito='';
 let pedidoItemsTmp=[];
 let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
 let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
@@ -1810,47 +1807,68 @@ function elegirUsuario(id){
     return;
   }
   pinCandidato=porId(db.usuarios,id);
-  pinEscrito='';
   document.getElementById('pinNombre').textContent=pinCandidato.nombre;
   document.getElementById('pinError').textContent='';
   document.documentElement.style.setProperty('--rol',pinCandidato.color);
-  actualizarPinDots();
+  const elPin=document.getElementById('pinInput');
+  elPin.value='';
+  elPin.type='password';
+  document.getElementById('pinOjitoBtn').textContent='👁️';
   document.getElementById('pinBox').classList.remove('oculto');
+  setTimeout(()=>elPin.focus(),50);
 }
 function volverAUsuarios(){
   document.getElementById('pinBox').classList.add('oculto');
-  pinCandidato=null;pinEscrito='';
+  pinCandidato=null;
 }
-function actualizarPinDots(){
-  for(let i=0;i<4;i++){
-    document.getElementById('pd'+i).classList.toggle('on',i<pinEscrito.length);
-  }
+// PIN COMO BARRA DE TEXTO CON OJITO (2026-09-17, pedido de Genesis): antes era un teclado
+// numérico en pantalla (pin-teclado) con puntitos (pin-dots) — se reemplaza por un <input>
+// normal, type="password" por defecto (oculto) con un botón para alternar a texto plano y ver
+// lo que se tecleó. inputmode="numeric" sigue mostrando teclado numérico en celular, pero ahora
+// también se puede escribir con teclado físico/autocompletar, no solo tocando botones.
+function togglePinOjito(){
+  const el=document.getElementById('pinInput');
+  const btn=document.getElementById('pinOjitoBtn');
+  const mostrar=el.type==='password';
+  el.type=mostrar?'text':'password';
+  btn.textContent=mostrar?'🙈':'👁️';
+  btn.title=mostrar?'Ocultar PIN':'Mostrar PIN';
+  btn.setAttribute('aria-label',btn.title);
+  el.focus();
 }
-function teclaPin(t){
-  if(!pinCandidato)return;
-  if(t==='borrar'){pinEscrito=pinEscrito.slice(0,-1);actualizarPinDots();return;}
-  if(pinEscrito.length>=4)return;
-  pinEscrito+=t;
-  actualizarPinDots();
-  if(pinEscrito.length===4)setTimeout(validarPin,120);
+function onPinInput(){
+  const el=document.getElementById('pinInput');
+  el.value=el.value.replace(/[^0-9]/g,'').slice(0,4);
+  document.getElementById('pinError').textContent='';
+  if(el.value.length===4)setTimeout(validarPin,120);
 }
-document.addEventListener('keydown',e=>{
-  if(!pinCandidato||document.getElementById('pinBox').classList.contains('oculto'))return;
-  if(/^[0-9]$/.test(e.key))teclaPin(e.key);
-  else if(e.key==='Backspace')teclaPin('borrar');
-});
+function validarPinForm(ev){
+  ev.preventDefault();
+  validarPin();
+  return false;
+}
 function validarPin(){
-  if(pinEscrito===pinCandidato.pin){
+  if(!pinCandidato)return;
+  const el=document.getElementById('pinInput');
+  if(el.value===pinCandidato.pin){
     sesion=pinCandidato;
     entrarApp();
   }else{
     document.getElementById('pinError').textContent='PIN incorrecto';
-    pinEscrito='';
-    actualizarPinDots();
+    el.value='';
+    el.focus();
   }
 }
 function entrarApp(){
-  if(MODO_PRUEBAS)sessionStorage.setItem('zbUltimoUsuario',sesion.id);
+  // RECORDAR SESIÓN EN LA PESTAÑA (2026-09-17, pedido de Genesis): antes esto solo se guardaba
+  // con MODO_PRUEBAS=true, así que desde que se apagó (27/08, cierre de seguridad) cada refresh
+  // de la página volvía a pedir PIN — efecto secundario no buscado de esa fecha, no la intención
+  // real. Ahora se guarda siempre que se valida el PIN (o en modo pruebas, que lo salta), y
+  // intentarAutoLogin() ya no depende de MODO_PRUEBAS — ver esa función. sessionStorage (no
+  // localStorage) es a propósito: sobrevive un refresh/actualización de la misma pestaña, pero
+  // se borra si se cierra la pestaña o el navegador, así que un equipo/navegador nuevo sigue
+  // pidiendo PIN. cerrarSesionNube()/cerrarSesion() siguen limpiándolo para cerrar de verdad.
+  sessionStorage.setItem('zbUltimoUsuario',sesion.id);
   document.getElementById('pantallaLogin').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
   document.documentElement.style.setProperty('--rol',sesion.color);
@@ -1875,7 +1893,7 @@ function entrarApp(){
   }
 }
 function cerrarSesion(){
-  sesion=null;pinCandidato=null;pinEscrito='';
+  sesion=null;pinCandidato=null;
   sessionStorage.removeItem('zbUltimoUsuario');
   document.getElementById('app').classList.add('oculto');
   document.getElementById('pantallaLogin').classList.remove('oculto');
@@ -1886,7 +1904,6 @@ function cerrarSesion(){
   pintarUsuariosLogin();
 }
 function intentarAutoLogin(){
-  if(!MODO_PRUEBAS)return false;
   const ultimoId=sessionStorage.getItem('zbUltimoUsuario');
   const usuario=ultimoId&&porId(db.usuarios,ultimoId);
   if(!usuario)return false;
