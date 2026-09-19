@@ -5549,10 +5549,11 @@ function guardarPagoProveedorModalidad(ev,proveedor,modalidad){
 function pintarVistaSocio(){
   const proveedor=sesion.proveedor||'';
 
-  // El socio (ej. Dr. Mariano/Bariatric Fusion) solo opera bajo reparto de ingresos:
-  // ve únicamente lo esencial de su marca, nunca el modelo de compra propia/consignación
-  // que sí usan Roberto y Genesis en Stock/Proveedores para otros proveedores.
-  const marcas=marcasRepartoDeSocio(proveedor);
+  // El socio (ej. Dr. Mariano) puede tener a la vez reparto de ingresos (marcas propias, ver
+  // marcasRepartoDeSocio) y consignación en otras marcas que igual provee (marcasProveedorDeSocio,
+  // ej. Bari&Nutrition) — se pagan juntos con una sola transferencia real, así que su portal
+  // muestra ambas cosas mezcladas en una sola cuenta (ver ventasDeSocio/pagosDeSocio/saldoDeSocio).
+  const marcas=[...new Set([...marcasRepartoDeSocio(proveedor),...marcasProveedorDeSocio(proveedor)])];
   document.getElementById('socioNombreTitulo').textContent=sesion.nombre;
   document.getElementById('socioMarcaTitulo').textContent=marcas.length?marcas.join(', '):proveedor;
   document.getElementById('socioFechaTxt').textContent='Zona Bariátrica · '+new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long'});
@@ -5561,10 +5562,10 @@ function pintarVistaSocio(){
     bloqueReparto.classList.add('oculto');
   }else{
     bloqueReparto.classList.remove('oculto');
-    const ventas=ventasRepartoDeSocio(proveedor);
-    const liquidaciones=liquidacionesDeSocio(proveedor);
-    const saldo=saldoRepartoSocio(proveedor);
-    const aCompensar=saldoAFavorSocio(proveedor);
+    const ventas=ventasDeSocio(proveedor);
+    const liquidaciones=pagosDeSocio(proveedor);
+    const saldo=saldoDeSocio(proveedor);
+    const aCompensar=aCompensarDeSocio(proveedor);
     const stockMarca=db.stock.filter(s=>s.activo!==false&&marcas.includes(s.marca));
     const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
     const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
@@ -6300,6 +6301,53 @@ function saldoAFavorSocio(proveedor,excluirLiqId){
 }
 function marcasRepartoDeSocio(proveedor){
   return (db.config.marcas||[]).filter(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos'&&(db.config.repartoMarca||{})[m]&&(db.config.repartoMarca||{})[m].socio===proveedor);
+}
+/* ===== PORTAL DEL SOCIO — CUENTA COMBINADA (2026-09-19) =====
+   Un socio como Dr. Mariano puede tener DOS relaciones económicas a la vez: reparto de ingresos
+   en sus propias marcas (donde se le debe costo+participación, ver totalDoctorItem — NO solo la
+   comisión) y consignación en otras marcas que igual provee (ej. Bari&Nutrition). En la vida real
+   Roberto le paga con UNA sola transferencia diaria que cubre ambas cosas juntas, así que su
+   portal (pintarVistaSocio) las muestra juntas: una sola lista de Ventas, una sola de Pagos, un
+   solo saldo — aunque internamente sigan siendo dos libros distintos (pagosProveedor/
+   liquidacionesSocio) que NO se fusionan en ningún otro lado del sistema.
+   Deliberadamente usa totalDoctorItem() (la MISMA fuente que la pestaña Proveedores) para reparto,
+   no ventasRepartoDeSocio()/saldoRepartoSocio() (esas siguen siendo "solo participación", protegidas,
+   las sigue usando pintarRepartoIngresos() sin cambios). */
+function marcasProveedorDeSocio(proveedor){
+  const modalidades=new Set(['consignacion','bajo_pedido']);
+  return[...new Set((db.stock||[]).filter(s=>s.proveedor===proveedor&&modalidades.has((db.config.modalidadMarca||{})[s.marca])).map(s=>s.marca))];
+}
+function ventasDeSocio(proveedor){
+  const filas=[];
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado')return;
+    (p.items||[]).forEach(it=>{
+      if(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor){
+        const td=totalDoctorItem(it);
+        if(!td)return;
+        filas.push({pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,monto:td.total});
+      }else if((it.modalidadComercial==='consignacion'||it.modalidadComercial==='bajo_pedido')&&it.proveedorVenta===proveedor){
+        if(typeof it.costoProveedorVenta!=='number')return;
+        filas.push({pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,monto:round2(it.cantidad*it.costoProveedorVenta)});
+      }
+    });
+  });
+  return filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function pagosDeSocio(proveedor){
+  const pp=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor).map(pg=>({fecha:pg.fecha,monto:pg.monto,nota:pg.nota}));
+  const ls=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor).map(l=>({fecha:l.fecha,monto:l.monto,nota:l.nota}));
+  return[...pp,...ls].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+function saldoDeSocio(proveedor){
+  const generado=ventasDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
+  const pagado=pagosDeSocio(proveedor).reduce((s,pg)=>s+(pg.monto||0),0);
+  return Math.max(0,round2(generado-pagado));
+}
+function aCompensarDeSocio(proveedor){
+  const generado=ventasDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
+  const pagado=pagosDeSocio(proveedor).reduce((s,pg)=>s+(pg.monto||0),0);
+  return Math.max(0,round2(pagado-generado));
 }
 function sociosConReparto(){
   const set=new Set();
