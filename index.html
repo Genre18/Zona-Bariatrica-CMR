@@ -1742,6 +1742,18 @@ function abrirModal(html,claseExtra){
   box.innerHTML=html;
   document.getElementById('modalOverlay').classList.remove('oculto');
 }
+// EVITAR ENVÍO ACCIDENTAL CON ENTER (2026-09-19): causa real que encontró Genesis de por qué
+// Roberto tuvo que anular varios pedidos seguidos con Diana Zumarán el 18/09 — el botón final de
+// estos formularios ("Guardar pedido"/"Guardar cambios") no tenía type="button", así que por
+// defecto en HTML es type="submit". Presionar Enter en CUALQUIER input de texto/número (algo
+// natural después de escribir un monto en Descuento/Embalaje/Delivery) dispara el envío del
+// formulario completo aunque no se haya terminado de llenar ni tocado el botón a propósito.
+// onkeydown en el <form>, no en cada input — un solo lugar cubre todos los campos presentes y
+// futuros. No bloquea Enter en <textarea> (ahí Enter es un salto de línea normal) ni cuando el
+// foco ya está en el propio botón de submit (ahí Enter sí debe confirmar).
+function evitarEnviarConEnter(ev){
+  if(ev.key==='Enter'&&ev.target.tagName!=='TEXTAREA'&&ev.target.type!=='submit')ev.preventDefault();
+}
 function cerrarModal(){
   if(edicionPedidoBackup){
     // Se abrió edición de un pedido (que revierte su stock en memoria) y se cerró sin guardar: deshacer.
@@ -2512,7 +2524,7 @@ function abrirFormCotizacion(leadId){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Cotización para ${esc(nombreLead(l))}</h3>
-    <form onsubmit="return guardarCotizacion(event,'${leadId}')">
+    <form onsubmit="return guardarCotizacion(event,'${leadId}')" onkeydown="evitarEnviarConEnter(event)">
       <label>Agregar producto</label>
       <div class="fila-2">
         <select id="pi-marca" onchange="pedidoLlenarProductos()">
@@ -2579,7 +2591,7 @@ function guardarCotizacion(ev,leadId){
     id:nuevoId(),leadId,fecha,createdAt:new Date().toISOString(),
     items:pedidoItemsTmp.slice(),
     subtotal:t.subtotal,
-    descuento:desc.descuentoTotal,descuentoPromocionalBN:desc.descuentoPromocionalBN,
+    descuento:desc.descuentoTotal,descuentoPromocionalBN:desc.descuentoPromocionalBN,descuentoPromocionalFusion:desc.descuentoPromocionalFusion,
     delivery,embalaje,metodoEnvio,metodoPago,recargoTarjeta:t.recargoTarjeta,total:t.total,
     notas:document.getElementById('cot-notas').value.trim(),
     creadoPor:sesion?sesion.nombre:''
@@ -2983,7 +2995,7 @@ function abrirFormCliente(leadId){
     </select>
     <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
     `:''}
-    <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})">
+    <form onsubmit="return guardarCliente(event,${leadId?`'${leadId}'`:'null'})" onkeydown="evitarEnviarConEnter(event)">
       <div class="form-grupo-titulo">Datos del cliente</div>
       <div class="fila-2">
         <div><label>Nombre</label><input id="cl-nombre" value="${lead?esc(lead.nombre||''):''}"></div>
@@ -3140,6 +3152,7 @@ function guardarCliente(ev,leadId){
     subtotal:t.subtotal,
     descuento:desc.descuentoTotal,
     descuentoPromocionalBN:desc.descuentoPromocionalBN,
+    descuentoPromocionalFusion:desc.descuentoPromocionalFusion,
     embalaje,
     delivery,
     recargoTarjeta:t.recargoTarjeta,
@@ -3309,37 +3322,66 @@ function calcularDescuentoPromocionalBN(items){
 function fechaAplicaPromocionBN(fecha){
   return !!fecha&&fecha>=VIGENCIA_PROMO_BN;
 }
-// Único punto que combina el descuento manual (input pd-descuento) con la promo automática en
-// un descuentoTotal — reusado por los 3 formularios de pedido (nuevo desde cliente, nuevo desde
-// ficha/lead, edición) y su vista previa en vivo (pedidoActualizarTotales), para que la promo
-// nunca pueda calcularse distinto entre la vista previa y lo que realmente se guarda.
-// pedido.descuento SIGUE siendo el total (compatibilidad con pedidos históricos que no tienen
-// descuentoPromocionalBN); descuentoManual nunca se persiste aparte, se deriva restando.
-function descuentosPedido(items,descuentoManual,fecha){
-  const promo=fechaAplicaPromocionBN(fecha)?calcularDescuentoPromocionalBN(items):0;
-  return{descuentoManual:round2(descuentoManual||0),descuentoPromocionalBN:promo,descuentoTotal:round2((descuentoManual||0)+promo)};
+// PROMO FUSION (2026-09-19, confirmada por Genesis tal cual sale en zonabariatrica.com): S/10 de
+// descuento por cada PAR de unidades de Bariatric Fusion, sin distinguir producto/presentación
+// (a diferencia de B&N, que sí separa polvo/líquida) — mucho más simple, un solo tramo, sin
+// stacking especial más allá de los pares. VIGENCIA_PROMO_FUSION es la fecha en que se programó
+// esto: ventas anteriores (como la de Diana Zumarán, 2026-09-18, corregida a mano una sola vez)
+// NO se recalculan solas — mismo principio que ya usa B&N, para no reescribir en silencio un
+// pedido histórico si se vuelve a abrir en "Editar".
+const VIGENCIA_PROMO_FUSION='2026-09-19';
+const MONTO_PACK_FUSION=10; // descuento por cada par de unidades de Bariatric Fusion
+function unidadesFusionEnItems(items){
+  return (items||[]).filter(it=>it.marca==='Bariatric Fusion').reduce((s,it)=>s+(it.cantidad||0),0);
 }
-// BLOQUE 2 — FIX (2026-09-07): descuento de un pedido YA EXISTENTE que se está editando. La
-// promoción automática con la que se vendió queda CONGELADA — editar/consultar un pedido nunca
-// la recalcula (evita que re-guardar una venta histórica de "promo vieja S/15 + manual S/25"
-// pase a "promo nueva S/40 + manual S/25 = S/65"). Solo el descuento MANUAL sigue siendo
-// editable (es intención explícita de renegociar). Devuelve la misma forma que descuentosPedido.
-// Un pedido histórico sin descuentoPromocionalBN guardado -> promo congelada = 0 (su descuento
-// siempre fue 100% manual). NO migra ni recalcula nada: solo lee el valor ya guardado.
+function calcularDescuentoPromocionalFusion(items){
+  const total=unidadesFusionEnItems(items);
+  if(total<=0)return 0;
+  return round2(Math.floor(total/2)*MONTO_PACK_FUSION);
+}
+function fechaAplicaPromocionFusion(fecha){
+  return !!fecha&&fecha>=VIGENCIA_PROMO_FUSION;
+}
+// Único punto que combina el descuento manual (input pd-descuento) con las promos automáticas
+// (B&N + Fusion, independientes entre sí — un pedido con ambas marcas puede tener las dos a la
+// vez) en un descuentoTotal — reusado por los 3 formularios de pedido (nuevo desde cliente,
+// nuevo desde ficha/lead, edición) y su vista previa en vivo (pedidoActualizarTotales), para que
+// la promo nunca pueda calcularse distinto entre la vista previa y lo que realmente se guarda.
+// pedido.descuento SIGUE siendo el total (compatibilidad con pedidos históricos que no tienen
+// descuentoPromocionalBN/Fusion); descuentoManual nunca se persiste aparte, se deriva restando.
+function descuentosPedido(items,descuentoManual,fecha){
+  const promoFusion=fechaAplicaPromocionFusion(fecha)?calcularDescuentoPromocionalFusion(items):0;
+  const promo=fechaAplicaPromocionBN(fecha)?calcularDescuentoPromocionalBN(items):0;
+  return{descuentoManual:round2(descuentoManual||0),descuentoPromocionalBN:promo,descuentoPromocionalFusion:promoFusion,descuentoTotal:round2((descuentoManual||0)+promo+promoFusion)};
+}
+// BLOQUE 2 — FIX (2026-09-07, extendido 2026-09-19 para Fusion): descuento de un pedido YA
+// EXISTENTE que se está editando. Las promociones automáticas con las que se vendió quedan
+// CONGELADAS — editar/consultar un pedido nunca las recalcula (evita que re-guardar una venta
+// histórica de "promo vieja S/15 + manual S/25" pase a "promo nueva S/40 + manual S/25 = S/65").
+// Solo el descuento MANUAL sigue siendo editable (es intención explícita de renegociar). Devuelve
+// la misma forma que descuentosPedido. Un pedido histórico sin descuentoPromocionalBN/Fusion
+// guardado -> promo congelada = 0 (su descuento siempre fue 100% manual). NO migra ni recalcula
+// nada: solo lee el valor ya guardado.
 function descuentosPedidoEdicion(pedidoId,descuentoManual){
   const p=porId(db.pedidos,pedidoId);
+  const promoFusion=round2((p&&p.descuentoPromocionalFusion)||0);
   const promo=round2((p&&p.descuentoPromocionalBN)||0);
   const manual=round2(descuentoManual||0);
-  return{descuentoManual:manual,descuentoPromocionalBN:promo,descuentoTotal:round2(promo+manual)};
+  return{descuentoManual:manual,descuentoPromocionalBN:promo,descuentoPromocionalFusion:promoFusion,descuentoTotal:round2(promo+promoFusion+manual)};
 }
 // Desglosa pedido.descuento en sus líneas de presentación (ticket/detalle histórico), sin
-// duplicar esta lógica en los 3 lugares que la muestran. Pedidos sin descuentoPromocionalBN
-// (todos los anteriores a esta promo) siguen mostrando "Descuento" genérico, igual que siempre.
+// duplicar esta lógica en los 3 lugares que la muestran. Pedidos sin descuentoPromocionalBN/
+// Fusion (todos los anteriores a esas promos) siguen mostrando "Descuento" genérico, igual que
+// siempre.
 function lineasDescuentoPedido(p){
   const promo=p.descuentoPromocionalBN||0;
-  if(!promo)return p.descuento?[{label:'Descuento',monto:p.descuento}]:[];
-  const manual=Math.max(0,round2((p.descuento||0)-promo));
-  const lineas=[{label:'Promoción B&N',monto:promo}];
+  const promoFusion=p.descuentoPromocionalFusion||0;
+  const promoTotal=round2(promo+promoFusion);
+  if(!promoTotal)return p.descuento?[{label:'Descuento',monto:p.descuento}]:[];
+  const manual=Math.max(0,round2((p.descuento||0)-promoTotal));
+  const lineas=[];
+  if(promo)lineas.push({label:'Promoción B&N',monto:promo});
+  if(promoFusion)lineas.push({label:'Promoción Fusion',monto:promoFusion});
   if(manual)lineas.push({label:'Descuento manual',monto:manual});
   return lineas;
 }
@@ -3408,7 +3450,7 @@ function abrirFormPedido(clienteIdPre){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Nueva compra (recompra)</h3>
-    <form onsubmit="return guardarPedido(event)">
+    <form onsubmit="return guardarPedido(event)" onkeydown="evitarEnviarConEnter(event)">
       ${clientePre?`
       <div class="card" style="background:var(--bg-soft);margin-bottom:12px;">
         <strong>${esc(clientePre.nombre)} ${esc(clientePre.apellido)}</strong>
@@ -3659,6 +3701,7 @@ function pedidoActualizarTotales(){
   cont.innerHTML=`
     <div class="item-linea"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
     ${desc.descuentoPromocionalBN?`<div class="item-linea"><span>Promoción B&amp;N</span><span>−${money(desc.descuentoPromocionalBN)}</span></div>`:''}
+    ${desc.descuentoPromocionalFusion?`<div class="item-linea"><span>Promoción Fusion</span><span>−${money(desc.descuentoPromocionalFusion)}</span></div>`:''}
     ${desc.descuentoManual?`<div class="item-linea"><span>Descuento manual</span><span>−${money(desc.descuentoManual)}</span></div>`:''}
     ${embalaje?`<div class="item-linea"><span>Embalaje</span><span>${money(embalaje)}</span></div>`:''}
     ${delivery?`<div class="item-linea"><span>Delivery</span><span>${money(delivery)}</span></div>`:''}
@@ -3691,6 +3734,7 @@ function guardarPedido(ev){
     subtotal:t.subtotal,
     descuento:desc.descuentoTotal,
     descuentoPromocionalBN:desc.descuentoPromocionalBN,
+    descuentoPromocionalFusion:desc.descuentoPromocionalFusion,
     embalaje,
     delivery,
     recargoTarjeta:t.recargoTarjeta,
@@ -3850,7 +3894,7 @@ function abrirEditarPedido(id){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Editar pedido</h3>
-    <form onsubmit="return guardarEditarPedido(event,'${id}')">
+    <form onsubmit="return guardarEditarPedido(event,'${id}')" onkeydown="evitarEnviarConEnter(event)">
       <label>Cliente *</label>
       <select id="pd-cliente" required>
         <option value="">Selecciona un cliente...</option>
@@ -3882,7 +3926,7 @@ function abrirEditarPedido(id){
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)))}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)-(p.descuentoPromocionalFusion||0)))}" oninput="pedidoActualizarTotales()"></div>
         <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
@@ -3974,6 +4018,7 @@ function guardarEditarPedido(ev,id){
     const desc=descuentosPedidoEdicion(id,descuentoManual);
     p.descuento=desc.descuentoTotal;
     p.descuentoPromocionalBN=desc.descuentoPromocionalBN;
+    p.descuentoPromocionalFusion=desc.descuentoPromocionalFusion;
     p.delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
     // p.metodoPago ya se actualizó arriba con el valor del form antes de este bloque.
     const t=calcularTotalesPedido(itemsCorregidos,p.descuento,p.embalaje,p.delivery,p.metodoPago);
