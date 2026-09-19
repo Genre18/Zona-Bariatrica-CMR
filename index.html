@@ -391,6 +391,9 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
 #vistaSocio .eq-cuerpo{max-width:1100px;margin:0 auto;padding:20px 16px 60px;}
 #vistaSocio .eq-seccion{margin-bottom:28px;}
+#vistaSocio .socio-acordeon-btn{width:100%;background:none;border:none;padding:0 0 10px;display:flex;align-items:center;justify-content:space-between;text-align:left;}
+#vistaSocio .socio-acordeon-btn .tabla-titulo{margin:0;}
+#vistaSocio .socio-acordeon-flecha{color:var(--muted);font-size:11px;transition:transform .15s;}
 
 /* .eq-tabla: estilo de tabla compacto, reutilizado también fuera de #vistaSocio
    (ej. Historial de ventas de Reportes) para que ambas vistas luzcan iguales. */
@@ -1076,17 +1079,15 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
       </section>
 
       <section class="eq-seccion">
-        <h3 class="tabla-titulo">Stock</h3>
-        <div id="socioStockDetalle"></div>
-      </section>
-
-      <section class="eq-seccion">
         <h3 class="tabla-titulo">Ventas</h3>
         <div id="socioVentasReparto"></div>
       </section>
 
       <section class="eq-seccion">
-        <h3 class="tabla-titulo">Pagos recibidos</h3>
+        <div id="socioStockDetalle"></div>
+      </section>
+
+      <section class="eq-seccion">
         <div id="socioLiquidaciones"></div>
       </section>
     </div>
@@ -1122,6 +1123,7 @@ let seccionActual='leads';
 let pedidoItemsTmp=[];
 let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
 let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
+let socioAcordeonAbierto={stock:false,pagos:false}; // Stock/Pagos de la vista socio colapsados por defecto (2026-09-19) — son consulta ocasional, no la vista de uso diario
 
 /* ---------- helpers ---------- */
 function nuevoId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
@@ -2917,6 +2919,38 @@ function confirmarPedidoEntregado(ev,pedidoId){
   }
   return false;
 }
+// ACREDITACIÓN DE TARJETA (2026-09-19): única puerta para confirmar que el banco ya acreditó una
+// venta pagada con tarjeta (ver ventaAcreditada() y VIGENCIA_ACREDITACION_TARJETA). Solo vive en
+// Historial → Ver detalle → sección Pago (mismo criterio que "Editar pedido"/"Pendiente de
+// entrega": una acción pesada y poco frecuente va en el detalle, no en la lista de uso diario).
+function marcarVentaAcreditada(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoPago!=='Tarjeta de crédito'||ventaAcreditada(p)){alert('Esta venta ya no está pendiente de acreditación.');return;}
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Confirmar acreditación de tarjeta</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${correlativoVenta(p.id)} · ${fechaBonita(p.fecha)} · ${money(p.total)}</p>
+    <form onsubmit="return confirmarVentaAcreditada(event,'${p.id}')">
+      <label style="margin-top:0;">Fecha en que se vio acreditado en el banco</label>
+      <input type="date" id="va-fecha" value="${hoyStr()}">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Confirmar acreditación</button>
+      </div>
+    </form>`);
+}
+function confirmarVentaAcreditada(ev,pedidoId){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoPago!=='Tarjeta de crédito'||ventaAcreditada(p))return false;
+  p.acreditadoTarjeta=true;
+  p.acreditadoTarjetaFecha=document.getElementById('va-fecha').value||hoyStr();
+  p.acreditadoTarjetaPor=sesion?sesion.nombre:'';
+  guardar();
+  refrescarDetalleAbierto();
+  if(seccionActual==='reportes')pintarReportes();
+  return false;
+}
 function abrirEditarCliente(id){
   const c=porId(db.clientes,id);
   abrirModal(`
@@ -3337,6 +3371,22 @@ function calcularDescuentoPromocionalFusion(items){
 }
 function fechaAplicaPromocionFusion(fecha){
   return !!fecha&&fecha>=VIGENCIA_PROMO_FUSION;
+}
+// ACREDITACIÓN DE TARJETA (2026-09-19, caso real: venta de Diana con tarjeta). pedido.estadoPago=
+// 'pagado' solo dice que el CLIENTE completó el pago — una venta con tarjeta tarda en liquidarse
+// de verdad en la cuenta bancaria de Zona Bariátrica, y hasta entonces esa plata no existe todavía
+// para nadie: ni cuenta como Ganancia ZB (Reportes) ni habilita el pago a proveedor/socio de esa
+// línea (estadoCuentaProveedor). Se confirma A MANO (Roberto la marca cuando la ve en el banco,
+// mismo patrón que "Pendiente de pago" de provincia) — no hay fecha automática de acreditación.
+// VIGENCIA_ACREDITACION_TARJETA: la regla solo aplica desde esta fecha en adelante, para no
+// recalcular en silencio la Ganancia ZB/pagos históricos ya vistos por Roberto (mismo principio
+// que las promos B&N/Fusion) — todo pedido con tarjeta anterior a esta fecha se trata como ya
+// acreditado.
+const VIGENCIA_ACREDITACION_TARJETA='2026-09-19';
+function ventaAcreditada(p){
+  if(!p||p.metodoPago!=='Tarjeta de crédito')return true;
+  if(!p.fecha||p.fecha<VIGENCIA_ACREDITACION_TARJETA)return true;
+  return p.acreditadoTarjeta===true;
 }
 // Único punto que combina el descuento manual (input pd-descuento) con las promos automáticas
 // (B&N + Fusion, independientes entre sí — un pedido con ambas marcas puede tener las dos a la
@@ -5300,8 +5350,9 @@ function estadoCuentaProveedor(proveedor,modelo,marca){
         obl=(it.cantidad||0)*it.costoProveedorVenta;
       }
       const k=p.id+'|'+it.stockId;
-      if(!acc[k])acc[k]={pedidoId:p.id,stockId:it.stockId,producto:it.producto,marca:it.marca,fecha:p.fecha,obligacion:0};
+      if(!acc[k])acc[k]={pedidoId:p.id,stockId:it.stockId,producto:it.producto,marca:it.marca,fecha:p.fecha,obligacion:0,cantidad:0};
       acc[k].obligacion=round2(acc[k].obligacion+obl);
+      acc[k].cantidad=(acc[k].cantidad||0)+(it.cantidad||0);
     });
   });
   const lineas=Object.values(acc);
@@ -5332,17 +5383,27 @@ function estadoCuentaProveedor(proveedor,modelo,marca){
   // (no se usa pedido.estadoPago para el TOTAL — ver nota arriba), pero si el CLIENTE todavía
   // no pagó esa venta, ese tramo del saldo NO es exigible aún. Se marca la línea/venta y se
   // separa enEsperaCobro (informativo); saldo/obligacionTotal/pagadoTotal NO cambian.
-  const estadoPagoPedido={};
-  (db.pedidos||[]).forEach(p=>{estadoPagoPedido[p.id]=p.estadoPago;});
-  lineas.forEach(l=>{ l.pendienteCobroCliente=estadoPagoPedido[l.pedidoId]==='pendiente pago'; });
+  const pedidoPorId={};
+  (db.pedidos||[]).forEach(p=>{pedidoPorId[p.id]=p;});
+  // NO EXIGIBLE AÚN, dos motivos independientes (2026-09-19): (1) el cliente todavía no paga esta
+  // venta (pendienteCobroCliente, provincia contra entrega) — ya existía; (2) pagó con tarjeta pero
+  // el banco todavía no lo acredita (pendienteAcreditacionTarjeta, ver ventaAcreditada()) — nuevo.
+  // Ambos bajan a enEsperaCobro/exigible igual (esa plata no existe todavía para nadie), pero se
+  // guardan separados porque la UI necesita explicar el motivo correcto en cada caso.
+  lineas.forEach(l=>{
+    const p=pedidoPorId[l.pedidoId];
+    l.pendienteCobroCliente=(p&&p.estadoPago)==='pendiente pago';
+    l.pendienteAcreditacionTarjeta=!ventaAcreditada(p);
+    l.noExigibleAun=l.pendienteCobroCliente||l.pendienteAcreditacionTarjeta;
+  });
   const porVenta={};
   lineas.forEach(l=>{
-    if(!porVenta[l.pedidoId])porVenta[l.pedidoId]={pedidoId:l.pedidoId,fecha:l.fecha,lineas:[],obligacion:0,pendiente:0,pendienteCobroCliente:l.pendienteCobroCliente};
+    if(!porVenta[l.pedidoId])porVenta[l.pedidoId]={pedidoId:l.pedidoId,fecha:l.fecha,lineas:[],obligacion:0,pendiente:0,pendienteCobroCliente:l.pendienteCobroCliente,pendienteAcreditacionTarjeta:l.pendienteAcreditacionTarjeta};
     const v=porVenta[l.pedidoId];
     v.lineas.push(l); v.obligacion=round2(v.obligacion+l.obligacion); v.pendiente=round2(v.pendiente+l.pendiente);
   });
   const ventas=Object.values(porVenta).map(v=>Object.assign(v,{pagada:v.pendiente<=0.005}));
-  const enEsperaCobro=round2(lineas.filter(l=>l.pendienteCobroCliente).reduce((s,l)=>s+l.pendiente,0));
+  const enEsperaCobro=round2(lineas.filter(l=>l.noExigibleAun).reduce((s,l)=>s+l.pendiente,0));
   const exigible=Math.max(0,round2(saldo-enEsperaCobro));
   return {proveedor,modelo,marca,obligacionTotal,pagadoTotal,saldo,enEsperaCobro,exigible,lineas,ventas};
 }
@@ -5563,7 +5624,8 @@ function pintarVistaSocio(){
     bloqueReparto.classList.remove('oculto');
     const ventas=ventasDeSocio(proveedor);
     const liquidaciones=pagosDeSocio(proveedor);
-    const saldo=saldoDeSocio(proveedor);
+    const exigible=exigibleDeSocio(proveedor);
+    const enEspera=enEsperaDeSocio(proveedor);
     const aCompensar=aCompensarDeSocio(proveedor);
     // FIX 2026-09-19: filtrar SOLO por marca inflaba el conteo con stock de esa marca que es de
     // OTRO proveedor o todavía sin asignar (ver "falta asignar" en Stock) — ahora exige que el
@@ -5571,15 +5633,28 @@ function pintarVistaSocio(){
     const stockMarca=db.stock.filter(s=>s.activo!==false&&s.proveedor===proveedor);
     const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
     const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
+    // SPLIT EXIGIBLE/EN ESPERA (2026-09-19, caso Diana/tarjeta): nunca se vuelven a mezclar en un
+    // solo "Saldo pendiente" — "Exigible ahora" es lo que de verdad se le debe pagar ya; "En
+    // espera" es lo que todavía no es exigible (cliente sin pagar o tarjeta sin acreditar), ver
+    // exigibleDeSocio()/enEsperaDeSocio().
     document.getElementById('socioResumenReparto').innerHTML=`
       <div class="stat"><div class="num">${unidadesEnStock} unidades</div><div class="lbl">Stock disponible</div></div>
-      <div class="stat"><div class="num"${saldo>0.005?' style="color:var(--danger);"':''}>${money(saldo)}</div><div class="lbl">Saldo pendiente</div></div>
+      <div class="stat"><div class="num"${exigible>0.005?' style="color:var(--danger);"':''}>${money(exigible)}</div><div class="lbl">Exigible ahora</div></div>
+      ${enEspera>0.005?`<div class="stat"><div class="num" style="color:var(--violeta);">${money(enEspera)}</div><div class="lbl">En espera (cliente/tarjeta)</div></div>`:''}
       <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>
       ${aCompensar>0.005?`<div class="stat"><div class="num" style="color:var(--primary);">${money(aCompensar)}</div><div class="lbl">Monto a compensar</div></div>`:''}`;
+
     const contStock=document.getElementById('socioStockDetalle');
-    contStock.innerHTML=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+    const stockCuerpo=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
       <th>Producto</th><th>Marca</th><th>Cantidad</th>
       </tr></thead><tbody>${stockMarca.map(s=>`<tr><td>${esc(s.producto)}</td><td>${esc(s.marca)}</td><td>${s.cantidad} ${esc(s.unidad||'')}</td></tr>`).join('')}</tbody></table></div>`;
+    contStock.innerHTML=`
+      <button type="button" class="socio-acordeon-btn" onclick="toggleSocioAcordeon('stock')">
+        <span class="tabla-titulo">Stock — ${unidadesEnStock} unidades, ${stockMarca.length} productos</span>
+        <span class="socio-acordeon-flecha" style="transform:rotate(${socioAcordeonAbierto.stock?'180deg':'0deg'});">▾</span>
+      </button>
+      <div class="${socioAcordeonAbierto.stock?'':'oculto'}">${stockCuerpo}</div>`;
+
     const contVentas=document.getElementById('socioVentasReparto');
     if(ventas.length===0){
       contVentas.innerHTML='<div class="vacio">Todavía no se ha vendido tu marca.</div>';
@@ -5597,17 +5672,24 @@ function pintarVistaSocio(){
           <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
         </div>
         ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Fecha</th><th>Marca</th><th>Producto</th><th>Unidades</th><th>Monto</th>
+        <th>Fecha</th><th>Marca</th><th>Producto</th><th>Unidades</th><th>Estado</th><th>Monto</th>
         </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
-          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marca)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${money(f.monto)}</td>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marca)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
         </tr>`).join('')}</tbody></table></div>`}`;
     }
+
     const contLiq=document.getElementById('socioLiquidaciones');
-    contLiq.innerHTML=liquidaciones.length===0?'<div class="vacio">Todavía no has recibido pagos.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+    const pagosCuerpo=liquidaciones.length===0?'<div class="vacio">Todavía no has recibido pagos.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
       <th>Fecha</th><th>Concepto</th><th>Monto</th>
       </tr></thead><tbody>${liquidaciones.map(l=>`<tr>
         <td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td>
       </tr>`).join('')}</tbody></table></div>`;
+    contLiq.innerHTML=`
+      <button type="button" class="socio-acordeon-btn" onclick="toggleSocioAcordeon('pagos')">
+        <span class="tabla-titulo">Historial de transferencias recibidas (${liquidaciones.length})</span>
+        <span class="socio-acordeon-flecha" style="transform:rotate(${socioAcordeonAbierto.pagos?'180deg':'0deg'});">▾</span>
+      </button>
+      <div class="${socioAcordeonAbierto.pagos?'':'oculto'}">${pagosCuerpo}</div>`;
   }
 
   document.getElementById('socioSinDatos').classList.toggle('oculto',marcas.length>0);
@@ -5615,6 +5697,21 @@ function pintarVistaSocio(){
 function cambiarMesSocio(valor){
   socioMesFiltro=valor||'';
   pintarVistaSocio();
+}
+function toggleSocioAcordeon(seccion){
+  socioAcordeonAbierto[seccion]=!socioAcordeonAbierto[seccion];
+  pintarVistaSocio();
+}
+// Estado por venta en el portal del socio (2026-09-19, caso Diana/tarjeta): "Pagada" ya se le
+// liquidó; "Tarjeta sin acreditar"/"Pendiente de pago (cliente)" todavía no son exigibles (ver
+// estadoCuentaProveedor) — se distinguen porque el motivo real es distinto aunque el efecto para
+// él sea el mismo (esa plata no existe todavía); sin ninguna de esas dos, es solo el lag normal
+// de "ya se generó, falta que te paguen a ti".
+function chipEstadoVentaSocio(f){
+  if(f.pagada)return '<span class="chip chip-verde">Pagada</span>';
+  if(f.pendienteAcreditacionTarjeta)return '<span class="chip chip-violeta" title="Pagó con tarjeta, aún sin acreditar en el banco">Tarjeta sin acreditar</span>';
+  if(f.pendienteCobroCliente)return '<span class="chip chip-violeta" title="El cliente aún no paga esta venta">Pendiente de pago (cliente)</span>';
+  return '<span class="chip chip-gris">Pendiente de pago a ti</span>';
 }
 // PRE-PAUTA (2026-08-22) — sección 1/20: 'consignacion' es una clave técnica LEGACY que hoy
 // representa, en el modelo real del negocio, "Stock a crédito" (el proveedor entrega mercadería
@@ -6098,7 +6195,10 @@ function seccionVentasDrawer(ec){
   const pend=ordenarFilas('provVentasPend',conObl.filter(v=>!v.pagada),accP);
   const pag=ordenarFilas('provVentasPag',conObl.filter(v=>v.pagada),accG);
   const nprod=v=>v.lineas.length===1?'1 producto':v.lineas.length+' productos';
-  const filaP=v=>`<tr${v.pendienteCobroCliente?' class="prov-fila-espera"':''}><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}${v.pendienteCobroCliente?' <span title="El cliente aún no paga esta venta">⏳</span>':''}</td><td>${fechaCelda(v.fecha)}</td><td>${nprod(v)}</td><td>${money(v.pendiente)}</td><td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${v.pedidoId}')">Abono</button></td></tr>`;
+  const motivoEspera=v=>v.pendienteCobroCliente&&v.pendienteAcreditacionTarjeta?'El cliente aún no paga esta venta, y encima fue con tarjeta sin acreditar':
+    v.pendienteCobroCliente?'El cliente aún no paga esta venta':
+    v.pendienteAcreditacionTarjeta?'Pagó con tarjeta, todavía sin acreditar en el banco':'';
+  const filaP=v=>{const espera=v.pendienteCobroCliente||v.pendienteAcreditacionTarjeta;return `<tr${espera?' class="prov-fila-espera"':''}><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}${espera?` <span title="${escAttr(motivoEspera(v))}">⏳</span>`:''}</td><td>${fechaCelda(v.fecha)}</td><td>${nprod(v)}</td><td>${money(v.pendiente)}</td><td><button type="button" class="btn-secundario btn-chico" onclick="abrirModalAbono('${v.pedidoId}')">Abono</button></td></tr>`;};
   const filaG=v=>`<tr><td title="${escAttr(v.pedidoId)}">${correlativoVenta(v.pedidoId)}</td><td>${fechaCelda(v.fecha)}</td><td>${money(v.obligacion)}</td></tr>`;
   const tablaPend=pend.length===0
     ?'<div class="vacio">Nada pendiente con este proveedor.</div>'
@@ -6110,7 +6210,7 @@ function seccionVentasDrawer(ec){
       <div class="drawer-seccion-titulo">Pendiente de pago</div>
       ${tablaPend}
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
-      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:3px 4px 0;"><span>⏳ En espera de cobro al cliente</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
+      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:3px 4px 0;"><span>⏳ Aún no exigible (cliente sin pagar / tarjeta sin acreditar)</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
     </div>
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Pagadas</div>
@@ -6319,19 +6419,25 @@ function marcasProveedorDeSocio(proveedor){
   const modalidades=new Set(['consignacion','bajo_pedido']);
   return[...new Set((db.stock||[]).filter(s=>s.proveedor===proveedor&&modalidades.has((db.config.modalidadMarca||{})[s.marca])).map(s=>s.marca))];
 }
+// Todas las cuentas económicas de un socio: cada una es un (modelo,marca) que ya sabe resolver
+// estadoCuentaProveedor() — reutilizamos ESA fuente única (no la reinventamos acá) para que el
+// portal del socio muestre exactamente el mismo estado por línea (pagada/pendiente/no exigible
+// aún) que ya ve Roberto/Genesis en la pestaña Proveedores.
+function cuentasDeSocio(proveedor){
+  const cuentas=marcasRepartoDeSocio(proveedor).map(marca=>({modelo:'reparto_ingresos',marca}));
+  marcasProveedorDeSocio(proveedor).forEach(marca=>cuentas.push({modelo:(db.config.modalidadMarca||{})[marca],marca}));
+  return cuentas;
+}
 function ventasDeSocio(proveedor){
   const filas=[];
-  db.pedidos.forEach(p=>{
-    if(p.estadoPago==='cancelado')return;
-    (p.items||[]).forEach(it=>{
-      if(it.modalidadComercial==='reparto_ingresos'&&it.socioReparto===proveedor){
-        const td=totalDoctorItem(it);
-        if(!td)return;
-        filas.push({pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,monto:td.total});
-      }else if((it.modalidadComercial==='consignacion'||it.modalidadComercial==='bajo_pedido')&&it.proveedorVenta===proveedor){
-        if(typeof it.costoProveedorVenta!=='number')return;
-        filas.push({pedidoId:p.id,fecha:p.fecha,marca:it.marca,producto:it.producto,cantidad:it.cantidad,monto:round2(it.cantidad*it.costoProveedorVenta)});
-      }
+  cuentasDeSocio(proveedor).forEach(c=>{
+    const ec=estadoCuentaProveedor(proveedor,c.modelo,c.marca);
+    ec.lineas.forEach(l=>{
+      filas.push({
+        pedidoId:l.pedidoId,fecha:l.fecha,marca:l.marca||c.marca,producto:l.producto,cantidad:l.cantidad,
+        monto:l.obligacion,pagada:l.pagada,pendienteCobroCliente:l.pendienteCobroCliente,
+        pendienteAcreditacionTarjeta:l.pendienteAcreditacionTarjeta
+      });
     });
   });
   return filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
@@ -6342,14 +6448,22 @@ function pagosDeSocio(proveedor){
   return[...pp,...ls].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
 }
 function saldoDeSocio(proveedor){
-  const generado=ventasDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
-  const pagado=pagosDeSocio(proveedor).reduce((s,pg)=>s+(pg.monto||0),0);
-  return Math.max(0,round2(generado-pagado));
+  return round2(cuentasDeSocio(proveedor).reduce((s,c)=>s+estadoCuentaProveedor(proveedor,c.modelo,c.marca).saldo,0));
+}
+// Split del saldo (2026-09-19, caso Diana/tarjeta): "exigible" es lo que de verdad se le debe
+// pagar YA; "en espera" es lo que todavía no es exigible (cliente sin pagar o tarjeta sin
+// acreditar) — nunca se vuelven a mezclar en un solo número, ver estadoCuentaProveedor().
+function exigibleDeSocio(proveedor){
+  return round2(cuentasDeSocio(proveedor).reduce((s,c)=>s+estadoCuentaProveedor(proveedor,c.modelo,c.marca).exigible,0));
+}
+function enEsperaDeSocio(proveedor){
+  return round2(cuentasDeSocio(proveedor).reduce((s,c)=>s+estadoCuentaProveedor(proveedor,c.modelo,c.marca).enEsperaCobro,0));
 }
 function aCompensarDeSocio(proveedor){
-  const generado=ventasDeSocio(proveedor).reduce((s,f)=>s+f.monto,0);
-  const pagado=pagosDeSocio(proveedor).reduce((s,pg)=>s+(pg.monto||0),0);
-  return Math.max(0,round2(pagado-generado));
+  return round2(cuentasDeSocio(proveedor).reduce((s,c)=>{
+    const ec=estadoCuentaProveedor(proveedor,c.modelo,c.marca);
+    return s+Math.max(0,round2(ec.pagadoTotal-ec.obligacionTotal));
+  },0));
 }
 function sociosConReparto(){
   const set=new Set();
@@ -6844,7 +6958,7 @@ function pintarReportes(){
   if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
   const desde=document.getElementById('repDesde').value;
   const hasta=document.getElementById('repHasta').value;
-  const pedidosFacturables=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta&&p.estadoPago==='pagado');
+  const pedidosFacturables=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta&&p.estadoPago==='pagado'&&ventaAcreditada(p));
   const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
 
   // Regla de fechas (sección 9): TODO en Resumen respeta Desde/Hasta, incluyendo Leads/
@@ -7477,7 +7591,9 @@ function contenidoDetalleVenta(pedidoId){
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Pago</div>
-      <div>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}</div>
+      <div>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}${!anulada&&p.metodoPago==='Tarjeta de crédito'&&!ventaAcreditada(p)
+        ?` · <button type="button" class="chip chip-violeta" title="Confirmar que el banco ya acreditó este pago con tarjeta" onclick="marcarVentaAcreditada('${p.id}')">Tarjeta sin acreditar</button>`
+        :(p.metodoPago==='Tarjeta de crédito'&&p.acreditadoTarjeta?' · <span class="chip chip-verde">Tarjeta acreditada</span>':'')}</div>
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Envío</div>
