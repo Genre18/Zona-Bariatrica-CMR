@@ -5679,10 +5679,12 @@ function pintarVistaSocio(){
           </select>
           <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
         </div>
-        ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla" style="table-layout:fixed;width:100%;">
+        <colgroup><col style="width:12%"><col style="width:15%"><col style="width:35%"><col style="width:26%"><col style="width:12%"></colgroup>
+        <thead><tr>
         <th>Fecha</th><th>Marca</th><th>Productos</th><th>Estado</th><th>Monto</th>
         </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
-          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marcas.join(', '))}</td><td style="text-align:left;">${esc(f.productos.map(p=>`${p.cantidad}× ${p.producto}`).join(', '))}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marcas.join(', '))}</td><td style="text-align:left;white-space:normal;word-break:break-word;">${esc(f.productos.map(p=>`${p.cantidad}× ${p.producto}`).join(', '))}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
         </tr>`).join('')}</tbody></table></div>`}`;
     }
 
