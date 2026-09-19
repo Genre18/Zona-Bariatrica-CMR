@@ -1146,6 +1146,11 @@ function mesLabel(mesStr){
   return new Date(Number(y),Number(m)-1,1).toLocaleDateString('es-PE',{month:'long',year:'numeric'});
 }
 function primerDiaMes(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+// stock[i].unidad se guarda siempre en plural ('unidades'/'botellas'/'frascos') — singularizar
+// a mano cuando cantidad===1 para no mostrar "1 unidades" (usado en la Vista Socio, 2026-09-19).
+function unidadSingular(u){
+  return {unidades:'unidad',botellas:'botella',frascos:'frasco'}[u]||u;
+}
 function porId(arr,id){return arr.find(x=>x.id===id);}
 
 /* ---------- persistencia ---------- */
@@ -5653,9 +5658,23 @@ function pintarVistaSocio(){
       <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>`;
 
     const contStock=document.getElementById('socioStockDetalle');
+    // AGRUPADO POR MARCA CON SUBTOTAL (2026-09-19, feedback de Genesis): una lista plana de 13
+    // productos con unidades/botellas/frascos mezclados obligaba a sumar las 13 filas a mano para
+    // confiar en el total. Con un subtotal visible por marca puede confirmar la suma de un
+    // vistazo, sin perder el detalle producto por producto que necesita para cuadrar SU propio
+    // inventario contra el de Zona Bariátrica.
+    const porMarcaStock={};
+    stockMarca.forEach(s=>{
+      if(!porMarcaStock[s.marca])porMarcaStock[s.marca]={marca:s.marca,items:[],total:0};
+      porMarcaStock[s.marca].items.push(s);
+      porMarcaStock[s.marca].total+=(s.cantidad||0);
+    });
     const stockCuerpo=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-      <th>Producto</th><th>Marca</th><th>Cantidad</th>
-      </tr></thead><tbody>${stockMarca.map(s=>`<tr><td>${esc(s.producto)}</td><td>${esc(s.marca)}</td><td>${s.cantidad} ${esc(s.unidad||'')}</td></tr>`).join('')}</tbody></table></div>`;
+      <th>Producto</th><th>Cantidad</th>
+      </tr></thead><tbody>${Object.values(porMarcaStock).map(g=>`
+        <tr style="background:var(--bg-soft);"><td style="text-align:left;font-weight:700;color:var(--text);">${esc(g.marca)}</td><td style="font-weight:700;color:var(--text);">${g.total} unidades</td></tr>
+        ${g.items.map(s=>`<tr><td style="text-align:left;">${esc(s.producto)}</td><td>${s.cantidad} ${esc(s.cantidad===1?unidadSingular(s.unidad):(s.unidad||''))}</td></tr>`).join('')}
+      `).join('')}</tbody></table></div>`;
     contStock.innerHTML=`
       <button type="button" class="socio-acordeon-btn" onclick="toggleSocioAcordeon('stock')">
         <span class="tabla-titulo">Stock — ${unidadesEnStock} unidades, ${stockMarca.length} productos</span>
