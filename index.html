@@ -374,25 +374,23 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
    fija text-align/padding — esto solo ajusta tipografía/color donde el inline no interviene. */
 .vacio[style]{font-size:12.5px;line-height:1.5;color:var(--text-light);}
 
-/* ---------- VISTA SOCIO: estado de cuenta ---------- */
-#vistaSocio{--eq-border:#e2e8f0;background:var(--bg);min-height:100vh;}
-#vistaSocio .eq-header{background:var(--dark);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;}
+/* ---------- VISTA SOCIO: estado de cuenta ----------
+   REUNIFICADO (2026-09-19): antes tenía su propio mini-sistema de diseño (--eq-border, cajas
+   .eq-resumen, ancho .eq-cuerpo distinto) que terminó viéndose distinto del resto del panel
+   (líneas de otro gris, tarjetas de resumen distintas a las de Reportes). Ahora reutiliza
+   EXACTAMENTE las mismas piezas que ya usan Roberto/Genesis en vez de mantener una paralela:
+   .reportes-kpis/.stat para el resumen (igual que Reportes), .tabla-titulo para los rótulos de
+   sección (igual que el resto de tablas), var(--border) en vez de un gris propio, mismo ancho de
+   página que <main>, y el mismo botón "Salir"/avatar-chip del header principal. */
+#vistaSocio{background:var(--bg);min-height:100vh;}
+#vistaSocio .eq-header{background:var(--dark);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
 #vistaSocio .eq-header-nombre{font-size:21px;font-weight:700;letter-spacing:-.01em;}
 #vistaSocio .eq-header-marca{font-size:13px;color:rgba(255,255,255,.6);margin-top:3px;}
 #vistaSocio .eq-header-fecha{font-size:12px;color:rgba(255,255,255,.42);margin-top:6px;}
-#vistaSocio .eq-header-derecha{display:flex;align-items:center;gap:18px;}
-#vistaSocio .eq-btn-salir{background:transparent;border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.8);border-radius:var(--r-sm);padding:6px 14px;font-size:12.5px;font-weight:500;transition:background .15s,border-color .15s,color .15s;}
-#vistaSocio .eq-btn-salir:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:#fff;}
+#vistaSocio .eq-header-derecha{display:flex;align-items:center;gap:12px;}
 
-#vistaSocio .eq-cuerpo{max-width:920px;margin:0 auto;padding:30px 24px 60px;}
-#vistaSocio .eq-seccion{margin-bottom:36px;}
-#vistaSocio .eq-seccion-titulo{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 12px;}
-
-#vistaSocio .eq-resumen{display:flex;border:1px solid var(--eq-border);border-radius:var(--r-md);overflow:hidden;background:var(--card);box-shadow:var(--shadow-xs);}
-#vistaSocio .eq-resumen-item{flex:1;padding:18px 20px;text-align:center;border-right:1px solid var(--eq-border);}
-#vistaSocio .eq-resumen-item:last-child{border-right:none;}
-#vistaSocio .eq-resumen-lbl{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:9px;}
-#vistaSocio .eq-resumen-val{font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+#vistaSocio .eq-cuerpo{max-width:1100px;margin:0 auto;padding:20px 16px 60px;}
+#vistaSocio .eq-seccion{margin-bottom:28px;}
 
 /* .eq-tabla: estilo de tabla compacto, reutilizado también fuera de #vistaSocio
    (ej. Historial de ventas de Reportes) para que ambas vistas luzcan iguales. */
@@ -420,10 +418,7 @@ tr.prov-fila-espera td{opacity:.6;}
 
 @media(max-width:640px){
   #vistaSocio .eq-header{padding:18px 16px;}
-  #vistaSocio .eq-cuerpo{padding:22px 14px 40px;}
-  #vistaSocio .eq-resumen{flex-direction:column;}
-  #vistaSocio .eq-resumen-item{border-right:none;border-bottom:1px solid var(--eq-border);}
-  #vistaSocio .eq-resumen-item:last-child{border-bottom:none;}
+  #vistaSocio .eq-cuerpo{padding:16px 14px 40px;}
   .fecha-larga{display:none;}
   .fecha-corta{display:inline;}
   table.eq-tabla th,table.eq-tabla td{padding:8px 6px;font-size:12px;}
@@ -1069,28 +1064,29 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
         <div class="eq-header-fecha" id="socioFechaTxt"></div>
       </div>
       <div class="eq-header-derecha">
-        <button class="eq-btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+        <span id="socioAvatar" class="avatar-chip"></span>
+        <button class="btn-secundario btn-chico" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3);" onclick="cerrarSesion()">Salir</button>
       </div>
     </header>
 
     <div id="socioBloqueReparto" class="oculto eq-cuerpo">
       <section class="eq-seccion">
-        <h3 class="eq-seccion-titulo">Resumen</h3>
-        <div id="socioResumenReparto" class="eq-resumen"></div>
+        <h3 class="tabla-titulo">Resumen</h3>
+        <div id="socioResumenReparto" class="reportes-kpis"></div>
       </section>
 
       <section class="eq-seccion">
-        <h3 class="eq-seccion-titulo">Stock</h3>
+        <h3 class="tabla-titulo">Stock</h3>
         <div id="socioStockDetalle"></div>
       </section>
 
       <section class="eq-seccion">
-        <h3 class="eq-seccion-titulo">Ventas</h3>
+        <h3 class="tabla-titulo">Ventas</h3>
         <div id="socioVentasReparto"></div>
       </section>
 
       <section class="eq-seccion">
-        <h3 class="eq-seccion-titulo">Pagos recibidos</h3>
+        <h3 class="tabla-titulo">Pagos recibidos</h3>
         <div id="socioLiquidaciones"></div>
       </section>
     </div>
@@ -5557,6 +5553,9 @@ function pintarVistaSocio(){
   document.getElementById('socioNombreTitulo').textContent=sesion.nombre;
   document.getElementById('socioMarcaTitulo').textContent=marcas.length?marcas.join(', '):proveedor;
   document.getElementById('socioFechaTxt').textContent='Zona Bariátrica · '+new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long'});
+  const elAvatar=document.getElementById('socioAvatar');
+  elAvatar.textContent=esc(sesion.nombre[0]);
+  elAvatar.title=sesion.nombre;
   const bloqueReparto=document.getElementById('socioBloqueReparto');
   if(marcas.length===0){
     bloqueReparto.classList.add('oculto');
@@ -5566,14 +5565,17 @@ function pintarVistaSocio(){
     const liquidaciones=pagosDeSocio(proveedor);
     const saldo=saldoDeSocio(proveedor);
     const aCompensar=aCompensarDeSocio(proveedor);
-    const stockMarca=db.stock.filter(s=>s.activo!==false&&marcas.includes(s.marca));
+    // FIX 2026-09-19: filtrar SOLO por marca inflaba el conteo con stock de esa marca que es de
+    // OTRO proveedor o todavía sin asignar (ver "falta asignar" en Stock) — ahora exige que el
+    // stock sea suyo de verdad, igual que vería Roberto/Genesis filtrando Stock por proveedor.
+    const stockMarca=db.stock.filter(s=>s.activo!==false&&s.proveedor===proveedor);
     const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
     const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
     document.getElementById('socioResumenReparto').innerHTML=`
-      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Stock disponible</div><div class="eq-resumen-val">${unidadesEnStock} unidades</div></div>
-      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Saldo pendiente</div><div class="eq-resumen-val" style="${saldo>0.005?'color:var(--warning);':''}">${money(saldo)}</div></div>
-      <div class="eq-resumen-item"><div class="eq-resumen-lbl">Total pagado</div><div class="eq-resumen-val">${money(totalPagado)}</div></div>
-      ${aCompensar>0.005?`<div class="eq-resumen-item"><div class="eq-resumen-lbl">Monto a compensar</div><div class="eq-resumen-val" style="color:var(--primary);">${money(aCompensar)}</div></div>`:''}`;
+      <div class="stat"><div class="num">${unidadesEnStock} unidades</div><div class="lbl">Stock disponible</div></div>
+      <div class="stat"><div class="num"${saldo>0.005?' style="color:var(--danger);"':''}>${money(saldo)}</div><div class="lbl">Saldo pendiente</div></div>
+      <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>
+      ${aCompensar>0.005?`<div class="stat"><div class="num" style="color:var(--primary);">${money(aCompensar)}</div><div class="lbl">Monto a compensar</div></div>`:''}`;
     const contStock=document.getElementById('socioStockDetalle');
     contStock.innerHTML=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
       <th>Producto</th><th>Marca</th><th>Cantidad</th>
