@@ -2532,11 +2532,11 @@ function abrirFormCotizacion(leadId){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.5" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="0.01" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.01" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <label>Método de pago (opcional, si ya se sabe)</label>
       <select id="pd-metodopago" onchange="pedidoActualizarTotales()">
@@ -3026,15 +3026,15 @@ function abrirFormCliente(leadId){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago${lead&&lead.metodoPagoPreferido?' <span style="font-weight:400;color:var(--muted);">(preferido del lead)</span>':''}</label>
@@ -3442,15 +3442,15 @@ function abrirFormPedido(clienteIdPre){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
@@ -3875,15 +3875,15 @@ function abrirEditarPedido(id){
             <option value="indrive" ${p.metodoEnvio==='indrive'?'selected':''}>InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.5" value="${p.embalaje}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${p.embalaje}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2 ${p.metodoEnvio!=='shalom'?'oculto':''}" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden" value="${esc(p.numeroOrden||'')}"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.5" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)))}" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.5" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)))}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
