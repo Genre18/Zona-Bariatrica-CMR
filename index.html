@@ -5626,7 +5626,6 @@ function pintarVistaSocio(){
     const liquidaciones=pagosDeSocio(proveedor);
     const exigible=exigibleDeSocio(proveedor);
     const enEspera=enEsperaDeSocio(proveedor);
-    const aCompensar=aCompensarDeSocio(proveedor);
     // FIX 2026-09-19: filtrar SOLO por marca inflaba el conteo con stock de esa marca que es de
     // OTRO proveedor o todavía sin asignar (ver "falta asignar" en Stock) — ahora exige que el
     // stock sea suyo de verdad, igual que vería Roberto/Genesis filtrando Stock por proveedor.
@@ -5637,12 +5636,17 @@ function pintarVistaSocio(){
     // solo "Saldo pendiente" — "Exigible ahora" es lo que de verdad se le debe pagar ya; "En
     // espera" es lo que todavía no es exigible (cliente sin pagar o tarjeta sin acreditar), ver
     // exigibleDeSocio()/enEsperaDeSocio().
+    // "Monto a compensar" (aCompensarDeSocio) se QUITÓ de esta vista a propósito (2026-09-19,
+    // pedido explícito de Genesis): puede salir de un pago mal etiquetado a una marca sin ventas
+    // (caso real: dos pagos de S/54.60 en Bariatric Life/Nutrifath Bariatric sin obligación —
+    // posible error interno, pendiente de confirmar con Roberto) — es un tema de contabilidad
+    // interna de Zona Bariátrica que no debe exponerse ni confundir al doctor. La función sigue
+    // existiendo (uso interno/futuro), solo no se pinta acá.
     document.getElementById('socioResumenReparto').innerHTML=`
       <div class="stat"><div class="num">${unidadesEnStock} unidades</div><div class="lbl">Stock disponible</div></div>
       <div class="stat"><div class="num"${exigible>0.005?' style="color:var(--danger);"':''}>${money(exigible)}</div><div class="lbl">Exigible ahora</div></div>
       ${enEspera>0.005?`<div class="stat"><div class="num" style="color:var(--violeta);">${money(enEspera)}</div><div class="lbl">En espera (cliente/tarjeta)</div></div>`:''}
-      <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>
-      ${aCompensar>0.005?`<div class="stat"><div class="num" style="color:var(--primary);">${money(aCompensar)}</div><div class="lbl">Monto a compensar</div></div>`:''}`;
+      <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>`;
 
     const contStock=document.getElementById('socioStockDetalle');
     const stockCuerpo=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
