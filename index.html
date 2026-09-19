@@ -3381,8 +3381,12 @@ function fechaAplicaPromocionFusion(fecha){
 // VIGENCIA_ACREDITACION_TARJETA: la regla solo aplica desde esta fecha en adelante, para no
 // recalcular en silencio la Ganancia ZB/pagos históricos ya vistos por Roberto (mismo principio
 // que las promos B&N/Fusion) — todo pedido con tarjeta anterior a esta fecha se trata como ya
-// acreditado.
-const VIGENCIA_ACREDITACION_TARJETA='2026-09-19';
+// acreditado. OJO: es '2026-09-18', NO el día en que se escribió este código ('19') — la venta
+// real de Diana que motivó todo esto (`mu7t1cfno57vk`) es del 18, así que la vigencia tiene que
+// cubrirla o el caso que la disparó queda afuera (bug real detectado y corregido el mismo día:
+// primero se puso '19' por copiar el patrón de VIGENCIA_PROMO_FUSION sin revisar la fecha real).
+// Verificado que ningún otro pedido con tarjeta cae en 2026-09-18 salvo el de Diana.
+const VIGENCIA_ACREDITACION_TARJETA='2026-09-18';
 function ventaAcreditada(p){
   if(!p||p.metodoPago!=='Tarjeta de crédito')return true;
   if(!p.fecha||p.fecha<VIGENCIA_ACREDITACION_TARJETA)return true;
