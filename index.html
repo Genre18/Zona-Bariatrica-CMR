@@ -6711,7 +6711,14 @@ function gananciaZBPedido(p){
   });
   const promoBN=p.descuentoPromocionalBN||0;
   if(promoBN&&marcasPedido.has('Bari&Nutrition'))ganancia-=promoBN;
-  const manual=Math.max(0,round2((p.descuento||0)-promoBN));
+  // PROMO FUSION (2026-09-19, confirmado por Genesis): Zona Bariátrica absorbe 100% este
+  // descuento — igual que la de B&N. gananciaZBItem ya calculó la participación del socio
+  // (Dr. Mariano, reparto_ingresos) sobre el precio SIN descuento (usa it.precioUnit tal cual),
+  // así que restar la promo acá directo de "ganancia" (que ya es solo la parte de ZB) reduce
+  // ÚNICAMENTE lo que le toca a ZB — la participación del socio no se mueve.
+  const promoFusion=p.descuentoPromocionalFusion||0;
+  if(promoFusion&&marcasPedido.has('Bariatric Fusion'))ganancia-=promoFusion;
+  const manual=Math.max(0,round2((p.descuento||0)-promoBN-promoFusion));
   let noAtribuible=false;
   if(manual){
     const marcasArr=[...marcasPedido];
@@ -6752,7 +6759,12 @@ function rentabilidadPorMarca(pedidos){
     });
     const promoBN=p.descuentoPromocionalBN||0;
     if(promoBN&&porMarca['Bari&Nutrition'])porMarca['Bari&Nutrition'].gananciaZB=round2(porMarca['Bari&Nutrition'].gananciaZB-promoBN);
-    const manual=Math.max(0,round2((p.descuento||0)-promoBN));
+    // PROMO FUSION (2026-09-19, confirmado por Genesis): mismo tratamiento que B&N arriba — la
+    // absorbe 100% Zona Bariátrica, resta directo de la fila de Fusion sin tocar la
+    // participación del socio (ver gananciaZBPedido, misma regla).
+    const promoFusion=p.descuentoPromocionalFusion||0;
+    if(promoFusion&&porMarca['Bariatric Fusion'])porMarca['Bariatric Fusion'].gananciaZB=round2(porMarca['Bariatric Fusion'].gananciaZB-promoFusion);
+    const manual=Math.max(0,round2((p.descuento||0)-promoBN-promoFusion));
     if(manual){
       const marcasArr=[...marcasPedido];
       const esReparto=marcasArr.some(m=>(db.config.modalidadMarca||{})[m]==='reparto_ingresos');
