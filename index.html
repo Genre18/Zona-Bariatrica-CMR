@@ -5680,9 +5680,9 @@ function pintarVistaSocio(){
           <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
         </div>
         ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-        <th>Fecha</th><th>Marca</th><th>Producto</th><th>Unidades</th><th>Estado</th><th>Monto</th>
+        <th>Fecha</th><th>Marca</th><th>Productos</th><th>Estado</th><th>Monto</th>
         </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
-          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marca)}</td><td>${esc(f.producto)}</td><td>${f.cantidad}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
+          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marcas.join(', '))}</td><td style="text-align:left;">${esc(f.productos.map(p=>`${p.cantidad}× ${p.producto}`).join(', '))}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
         </tr>`).join('')}</tbody></table></div>`}`;
     }
 
@@ -6436,19 +6436,35 @@ function cuentasDeSocio(proveedor){
   marcasProveedorDeSocio(proveedor).forEach(marca=>cuentas.push({modelo:(db.config.modalidadMarca||{})[marca],marca}));
   return cuentas;
 }
+// AGRUPADO POR VENTA, no por línea (2026-09-19, feedback de Genesis: si un pedido tiene 2
+// productos pendientes, antes salían como 2 filas "Pendiente de pago" — el doctor cuenta filas,
+// no ventas, y eso hacía parecer 5-6 ventas sin pagar cuando en realidad eran 3. Reutiliza
+// ec.ventas (la MISMA agrupación por pedido que ya usa el drawer de Proveedores), no una nueva.
+// Un pedido mixto (items de más de una cuenta suya a la vez, ej. B&N + Fusion en la misma venta)
+// se funde en UNA sola fila — es una sola transferencia real de todos modos (ver comentario de
+// cuentasDeSocio). v.pagada ya viene resuelta a nivel de venta completa (pendiente<=0.005), no
+// hay estados mixtos por línea que decidir acá.
 function ventasDeSocio(proveedor){
-  const filas=[];
+  const porPedido={};
   cuentasDeSocio(proveedor).forEach(c=>{
     const ec=estadoCuentaProveedor(proveedor,c.modelo,c.marca);
-    ec.lineas.forEach(l=>{
-      filas.push({
-        pedidoId:l.pedidoId,fecha:l.fecha,marca:l.marca||c.marca,producto:l.producto,cantidad:l.cantidad,
-        monto:l.obligacion,pagada:l.pagada,pendienteCobroCliente:l.pendienteCobroCliente,
-        pendienteAcreditacionTarjeta:l.pendienteAcreditacionTarjeta
-      });
+    ec.ventas.forEach(v=>{
+      if(!porPedido[v.pedidoId]){
+        porPedido[v.pedidoId]={pedidoId:v.pedidoId,fecha:v.fecha,marcas:new Set(),productos:[],monto:0,pendiente:0,
+          pendienteCobroCliente:false,pendienteAcreditacionTarjeta:false};
+      }
+      const agg=porPedido[v.pedidoId];
+      agg.marcas.add(c.marca);
+      v.lineas.forEach(l=>agg.productos.push({producto:l.producto,cantidad:l.cantidad}));
+      agg.monto=round2(agg.monto+v.obligacion);
+      agg.pendiente=round2(agg.pendiente+v.pendiente);
+      agg.pendienteCobroCliente=agg.pendienteCobroCliente||v.pendienteCobroCliente;
+      agg.pendienteAcreditacionTarjeta=agg.pendienteAcreditacionTarjeta||v.pendienteAcreditacionTarjeta;
     });
   });
-  return filas.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  return Object.values(porPedido)
+    .map(v=>Object.assign(v,{marcas:[...v.marcas],pagada:v.pendiente<=0.005}))
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
 }
 function pagosDeSocio(proveedor){
   const pp=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor).map(pg=>({fecha:pg.fecha,monto:pg.monto,nota:pg.nota}));
