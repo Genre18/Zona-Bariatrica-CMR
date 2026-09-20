@@ -7719,16 +7719,22 @@ function pintarConfig(){
   document.getElementById('listaMarcasConfig').innerHTML=(db.config.marcas||[]).map(m=>{
     const mEsc=escJs(m);
     const modalidad=(db.config.modalidadMarca||{})[m]||'';
-    const responsable=(db.config.responsableDespachoMarca||{})[m]||'zona_bariatrica';
+    // FIX 2026-09-20: este <select> mostraba "Despacha Zona Bariátrica" YA seleccionado como
+    // relleno visual cuando en realidad nada se había guardado — hizo que Bariatric Life pareciera
+    // configurada (Genesis la dio por buena) cuando seguía bloqueada de verdad (el bloqueo de venta,
+    // línea ~3623, sí revisa el valor real sin fallback). Ahora el desplegable arranca en blanco,
+    // igual que ya hace el de modelo comercial, para no fingir una selección que no existe.
+    const responsable=(db.config.responsableDespachoMarca||{})[m]||'';
     const reparto=(db.config.repartoMarca||{})[m]||{};
     return `<li style="flex-wrap:wrap;gap:8px;">
-      <span style="min-width:140px;">${esc(m)}${!modalidad?' <span class="chip chip-naranja">falta configurar</span>':''}</span>
+      <span style="min-width:140px;">${esc(m)}${(!modalidad||!responsable)?' <span class="chip chip-naranja">falta configurar</span>':''}</span>
       <span style="display:flex;gap:6px;align-items:center;flex:1;flex-wrap:wrap;">
         <select style="width:auto;flex:1;min-width:220px;" onchange="cambiarModalidadMarca('${mEsc}',this.value)">
           <option value="" ${!modalidad?'selected':''}>— Elige el modelo comercial —</option>
           ${Object.entries(MODALIDADES_MARCA).map(([k,v])=>`<option value="${k}" ${k===modalidad?'selected':''}>${esc(v.label)}</option>`).join('')}
         </select>
         <select style="width:auto;min-width:180px;" title="Quién despacha al cliente (no cambia de quién es la deuda)" onchange="cambiarResponsableDespachoMarca('${mEsc}',this.value)">
+          <option value="" ${!responsable?'selected':''}>— Elige quién despacha —</option>
           <option value="zona_bariatrica" ${responsable==='zona_bariatrica'?'selected':''}>Despacha Zona Bariátrica</option>
           <option value="proveedor" ${responsable==='proveedor'?'selected':''}>Despacha el proveedor</option>
         </select>
