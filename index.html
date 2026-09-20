@@ -5635,10 +5635,20 @@ function pintarVistaSocio(){
     const liquidaciones=pagosDeSocio(proveedor);
     const exigible=exigibleDeSocio(proveedor);
     const enEspera=enEsperaDeSocio(proveedor);
-    // FIX 2026-09-19: filtrar SOLO por marca inflaba el conteo con stock de esa marca que es de
-    // OTRO proveedor o todavía sin asignar (ver "falta asignar" en Stock) — ahora exige que el
-    // stock sea suyo de verdad, igual que vería Roberto/Genesis filtrando Stock por proveedor.
-    const stockMarca=db.stock.filter(s=>s.activo!==false&&s.proveedor===proveedor);
+    // FIX 2026-09-19 (v1): filtrar SOLO por marca inflaba el conteo con stock de esa marca que es
+    // de OTRO proveedor o todavía sin asignar (caso real: 41 en vez de 33). Exigir proveedor===él
+    // arregló eso, PERO en sus marcas de REPARTO (Fusion/Life/Nutrifath) la marca YA determina el
+    // socio sin ambigüedad (1 marca = 1 socio en config.repartoMarca) — a diferencia de
+    // consignación (Bari&Nutrition), donde sí puede haber otro proveedor con la misma marca. Con
+    // el criterio anterior, 3 productos reales suyos (TROPICAL, Nutrifath 1000gr, Gomitas Biotina
+    // de Life) quedaban invisibles solo porque a alguien se le olvidó ponerles proveedor en Stock.
+    // FIX v2: en marcas de reparto usar la marca directamente (nunca ambiguo); en marcas de
+    // consignación/bajo pedido seguir exigiendo el proveedor exacto (ahí sí puede haber otro).
+    const marcasRepartoSocio=marcasRepartoDeSocio(proveedor);
+    const marcasConsigSocio=marcasProveedorDeSocio(proveedor);
+    const stockMarca=db.stock.filter(s=>s.activo!==false&&(
+      marcasRepartoSocio.includes(s.marca)||(marcasConsigSocio.includes(s.marca)&&s.proveedor===proveedor)
+    ));
     const unidadesEnStock=stockMarca.reduce((sum,s)=>sum+(s.cantidad||0),0);
     const totalPagado=liquidaciones.reduce((s,l)=>s+(l.monto||0),0);
     // SPLIT EXIGIBLE/EN ESPERA (2026-09-19, caso Diana/tarjeta): nunca se vuelven a mezclar en un
