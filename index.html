@@ -394,12 +394,9 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 /* TABS DE SECCIÓN (2026-09-19): Ventas/Stock/Pagos como 3 tarjetas clicables — solo una lista
    visible a la vez, en vez de las 3 secciones apiladas siempre abiertas. */
 #vistaSocio .socio-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
-#vistaSocio .socio-tab-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-md);padding:16px 18px;text-align:center;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s,transform .1s;}
+#vistaSocio .socio-tab-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-md);padding:18px;text-align:center;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s;font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.005em;}
 #vistaSocio .socio-tab-card:hover{border-color:var(--text-light);}
-#vistaSocio .socio-tab-card .socio-tab-num{font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
-#vistaSocio .socio-tab-card .socio-tab-lbl{font-size:12px;color:var(--muted);margin-top:3px;}
-#vistaSocio .socio-tab-card.activa{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
-#vistaSocio .socio-tab-card.activa .socio-tab-num{color:var(--primary);}
+#vistaSocio .socio-tab-card.activa{border-color:var(--primary);color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
 @media(max-width:640px){
   #vistaSocio .socio-tabs{grid-template-columns:1fr;}
 }
@@ -1124,7 +1121,7 @@ let seccionActual='leads';
 let pedidoItemsTmp=[];
 let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
 let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
-let socioTabActiva='ventas'; // cuál de las 3 tarjetas (Ventas/Stock/Pagos) de la vista socio está abierta (2026-09-19) — solo una lista visible a la vez
+let socioTabActiva=null; // cuál de las 3 tarjetas (Ventas/Stock/Pagos) de la vista socio está abierta (2026-09-19) — null = ninguna, se abren solo al hacer clic
 
 /* ---------- helpers ---------- */
 function nuevoId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
@@ -5670,20 +5667,17 @@ function pintarVistaSocio(){
 
     // TABS Ventas/Stock/Pagos (2026-09-19, feedback de Genesis): 3 tarjetas clicables, UNA sola
     // lista visible a la vez (socioTabActiva) — en vez de las 3 secciones apiladas siempre
-    // abiertas, que volvía a la pantalla larga que se quería evitar desde el principio.
+    // abiertas, que volvía a la pantalla larga que se quería evitar desde el principio. Ninguna
+    // abierta por defecto (null) — solo texto en la tarjeta, sin número (pedido de Genesis).
     document.getElementById('socioTabsNav').innerHTML=`
-      <button type="button" class="socio-tab-card${socioTabActiva==='ventas'?' activa':''}" onclick="seleccionarTabSocio('ventas')">
-        <div class="socio-tab-num">${ventas.length}</div><div class="socio-tab-lbl">Ventas</div>
-      </button>
-      <button type="button" class="socio-tab-card${socioTabActiva==='stock'?' activa':''}" onclick="seleccionarTabSocio('stock')">
-        <div class="socio-tab-num">${unidadesEnStock}</div><div class="socio-tab-lbl">Stock</div>
-      </button>
-      <button type="button" class="socio-tab-card${socioTabActiva==='pagos'?' activa':''}" onclick="seleccionarTabSocio('pagos')">
-        <div class="socio-tab-num">${liquidaciones.length}</div><div class="socio-tab-lbl">Pagos</div>
-      </button>`;
+      <button type="button" class="socio-tab-card${socioTabActiva==='ventas'?' activa':''}" onclick="seleccionarTabSocio('ventas')">Ventas</button>
+      <button type="button" class="socio-tab-card${socioTabActiva==='stock'?' activa':''}" onclick="seleccionarTabSocio('stock')">Stock</button>
+      <button type="button" class="socio-tab-card${socioTabActiva==='pagos'?' activa':''}" onclick="seleccionarTabSocio('pagos')">Pagos</button>`;
 
     const contTab=document.getElementById('socioTabContenido');
-    if(socioTabActiva==='stock'){
+    if(socioTabActiva===null){
+      contTab.innerHTML='';
+    }else if(socioTabActiva==='stock'){
       // AGRUPADO POR MARCA CON SUBTOTAL (2026-09-19): una lista plana de productos con unidades/
       // botellas/frascos mezclados obligaba a sumar todas las filas a mano para confiar en el
       // total de arriba. Con un subtotal por marca se confirma la suma de un vistazo, sin perder
@@ -5740,7 +5734,7 @@ function cambiarMesSocio(valor){
   pintarVistaSocio();
 }
 function seleccionarTabSocio(tab){
-  socioTabActiva=tab;
+  socioTabActiva=socioTabActiva===tab?null:tab;
   pintarVistaSocio();
 }
 // Estado por venta en el portal del socio (2026-09-19, caso Diana/tarjeta): "Pagada" ya se le
