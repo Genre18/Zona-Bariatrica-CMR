@@ -4324,8 +4324,7 @@ function pintarStock(){
       <col style="width:65px;"><col style="width:58px;"><col style="width:92px;"><col style="width:92px;"><col style="width:118px;">
     </colgroup><thead><tr>
       ${thOrden('stock','marca','Marca','pintarStock()')}<th>Código</th>${thOrden('stock','producto','Producto','pintarStock()')}<th>Presentación</th><th>Sabor</th>${thOrden('stock','cantidad','Cantidad','pintarStock()')}${thOrden('stock','minimo','Mínimo','pintarStock()')}${thOrden('stock','costo','Precio de compra','pintarStock()')}${thOrden('stock','precio','Precio de venta','pintarStock()')}${thOrden('stock','proveedor','Proveedor','pintarStock()')}
-    </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>
-    <p class="vacio" style="text-align:left;">Clic derecho sobre un producto para editar, ajustar stock, corregir costo o archivar. Desliza horizontalmente para ver todas las columnas.</p>`;
+    </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>`;
 }
 function stockToggleNuevoProveedor(sel){
   document.getElementById('st-proveedor-nuevo').classList.toggle('oculto',sel.value!=='__nuevo__');
@@ -7057,7 +7056,6 @@ function pintarReportes(){
       <div class="rn-item rn-total"><span class="rn-lbl">Ganancia neta ZB</span><span class="rn-val" style="color:${gananciaNetaZB<0?'var(--danger)':'var(--success)'};"${hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${money(gananciaNetaZB)}${hayMarcaSinHistoria?' *':''}</span></div>
     </div>
 
-    ${descuentosNoAtribuibles>0?`<p class="vacio" style="text-align:left;">Ganancia ZB global ya incluye ${money(descuentosNoAtribuibles)} de descuento manual en pedidos con varias marcas${rentab.huboDescuentoManualEnReparto?' (incluye al menos un pedido de Crédito + reparto — pendiente de decisión sobre si ese descuento lo asume solo Zona Bariátrica o también el socio, ver auditoría del sprint)':''}, no atribuido a ninguna marca en la tabla de abajo.</p>`:''}
     <h3 class="reportes-subtitulo">Ventas por marca</h3>
     ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel reportes-marca-wrap"><table class="reportes-tabla-marca"><thead><tr>
       <th>Marca</th><th>Ventas</th><th>Ganancia ZB</th>
