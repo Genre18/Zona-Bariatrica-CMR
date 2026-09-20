@@ -391,9 +391,18 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
 #vistaSocio .eq-cuerpo{max-width:1100px;margin:0 auto;padding:20px 16px 60px;}
 #vistaSocio .eq-seccion{margin-bottom:28px;}
-#vistaSocio .socio-acordeon-btn{width:100%;background:none;border:none;padding:0 0 10px;display:flex;align-items:center;justify-content:space-between;text-align:left;}
-#vistaSocio .socio-acordeon-btn .tabla-titulo{margin:0;}
-#vistaSocio .socio-acordeon-flecha{color:var(--muted);font-size:11px;transition:transform .15s;}
+/* TABS DE SECCIÓN (2026-09-19): Ventas/Stock/Pagos como 3 tarjetas clicables — solo una lista
+   visible a la vez, en vez de las 3 secciones apiladas siempre abiertas. */
+#vistaSocio .socio-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+#vistaSocio .socio-tab-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-md);padding:16px 18px;text-align:center;box-shadow:var(--shadow-xs);transition:border-color .15s,box-shadow .15s,transform .1s;}
+#vistaSocio .socio-tab-card:hover{border-color:var(--text-light);}
+#vistaSocio .socio-tab-card .socio-tab-num{font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+#vistaSocio .socio-tab-card .socio-tab-lbl{font-size:12px;color:var(--muted);margin-top:3px;}
+#vistaSocio .socio-tab-card.activa{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring);}
+#vistaSocio .socio-tab-card.activa .socio-tab-num{color:var(--primary);}
+@media(max-width:640px){
+  #vistaSocio .socio-tabs{grid-template-columns:1fr;}
+}
 
 /* .eq-tabla: estilo de tabla compacto, reutilizado también fuera de #vistaSocio
    (ej. Historial de ventas de Reportes) para que ambas vistas luzcan iguales. */
@@ -1079,16 +1088,8 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
       </section>
 
       <section class="eq-seccion">
-        <h3 class="tabla-titulo">Ventas</h3>
-        <div id="socioVentasReparto"></div>
-      </section>
-
-      <section class="eq-seccion">
-        <div id="socioStockDetalle"></div>
-      </section>
-
-      <section class="eq-seccion">
-        <div id="socioLiquidaciones"></div>
+        <div id="socioTabsNav" class="socio-tabs"></div>
+        <div id="socioTabContenido"></div>
       </section>
     </div>
 
@@ -1123,7 +1124,7 @@ let seccionActual='leads';
 let pedidoItemsTmp=[];
 let notaEditando=null; // id de la nota de lead que se está editando en la ficha abierta
 let socioMesFiltro=null; // 'YYYY-MM' seleccionado en el filtro de Ventas de la vista socio; null = todos los meses
-let socioAcordeonAbierto={stock:false,pagos:false}; // Stock/Pagos de la vista socio colapsados por defecto (2026-09-19) — son consulta ocasional, no la vista de uso diario
+let socioTabActiva='ventas'; // cuál de las 3 tarjetas (Ventas/Stock/Pagos) de la vista socio está abierta (2026-09-19) — solo una lista visible a la vez
 
 /* ---------- helpers ---------- */
 function nuevoId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
@@ -5667,68 +5668,69 @@ function pintarVistaSocio(){
       ${enEspera>0.005?`<div class="stat"><div class="num" style="color:var(--violeta);">${money(enEspera)}</div><div class="lbl">En espera (cliente/tarjeta)</div></div>`:''}
       <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>`;
 
-    const contStock=document.getElementById('socioStockDetalle');
-    // AGRUPADO POR MARCA CON SUBTOTAL (2026-09-19, feedback de Genesis): una lista plana de 13
-    // productos con unidades/botellas/frascos mezclados obligaba a sumar las 13 filas a mano para
-    // confiar en el total. Con un subtotal visible por marca puede confirmar la suma de un
-    // vistazo, sin perder el detalle producto por producto que necesita para cuadrar SU propio
-    // inventario contra el de Zona Bariátrica.
-    const porMarcaStock={};
-    stockMarca.forEach(s=>{
-      if(!porMarcaStock[s.marca])porMarcaStock[s.marca]={marca:s.marca,items:[],total:0};
-      porMarcaStock[s.marca].items.push(s);
-      porMarcaStock[s.marca].total+=(s.cantidad||0);
-    });
-    const stockCuerpo=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-      <th>Producto</th><th>Cantidad</th>
-      </tr></thead><tbody>${Object.values(porMarcaStock).map(g=>`
-        <tr style="background:var(--bg-soft);"><td style="text-align:left;font-weight:700;color:var(--text);">${esc(g.marca)}</td><td style="font-weight:700;color:var(--text);">${g.total} unidades</td></tr>
-        ${g.items.map(s=>`<tr><td style="text-align:left;">${esc(s.producto)}</td><td>${s.cantidad} ${esc(s.cantidad===1?unidadSingular(s.unidad):(s.unidad||''))}</td></tr>`).join('')}
-      `).join('')}</tbody></table></div>`;
-    contStock.innerHTML=`
-      <button type="button" class="socio-acordeon-btn" onclick="toggleSocioAcordeon('stock')">
-        <span class="tabla-titulo">Stock — ${unidadesEnStock} unidades, ${stockMarca.length} productos</span>
-        <span class="socio-acordeon-flecha" style="transform:rotate(${socioAcordeonAbierto.stock?'180deg':'0deg'});">▾</span>
+    // TABS Ventas/Stock/Pagos (2026-09-19, feedback de Genesis): 3 tarjetas clicables, UNA sola
+    // lista visible a la vez (socioTabActiva) — en vez de las 3 secciones apiladas siempre
+    // abiertas, que volvía a la pantalla larga que se quería evitar desde el principio.
+    document.getElementById('socioTabsNav').innerHTML=`
+      <button type="button" class="socio-tab-card${socioTabActiva==='ventas'?' activa':''}" onclick="seleccionarTabSocio('ventas')">
+        <div class="socio-tab-num">${ventas.length}</div><div class="socio-tab-lbl">Ventas</div>
       </button>
-      <div class="${socioAcordeonAbierto.stock?'':'oculto'}">${stockCuerpo}</div>`;
+      <button type="button" class="socio-tab-card${socioTabActiva==='stock'?' activa':''}" onclick="seleccionarTabSocio('stock')">
+        <div class="socio-tab-num">${unidadesEnStock}</div><div class="socio-tab-lbl">Stock</div>
+      </button>
+      <button type="button" class="socio-tab-card${socioTabActiva==='pagos'?' activa':''}" onclick="seleccionarTabSocio('pagos')">
+        <div class="socio-tab-num">${liquidaciones.length}</div><div class="socio-tab-lbl">Pagos</div>
+      </button>`;
 
-    const contVentas=document.getElementById('socioVentasReparto');
-    if(ventas.length===0){
-      contVentas.innerHTML='<div class="vacio">Todavía no se ha vendido tu marca.</div>';
+    const contTab=document.getElementById('socioTabContenido');
+    if(socioTabActiva==='stock'){
+      // AGRUPADO POR MARCA CON SUBTOTAL (2026-09-19): una lista plana de productos con unidades/
+      // botellas/frascos mezclados obligaba a sumar todas las filas a mano para confiar en el
+      // total de arriba. Con un subtotal por marca se confirma la suma de un vistazo, sin perder
+      // el detalle producto por producto que necesita para cuadrar SU propio inventario.
+      const porMarcaStock={};
+      stockMarca.forEach(s=>{
+        if(!porMarcaStock[s.marca])porMarcaStock[s.marca]={marca:s.marca,items:[],total:0};
+        porMarcaStock[s.marca].items.push(s);
+        porMarcaStock[s.marca].total+=(s.cantidad||0);
+      });
+      contTab.innerHTML=stockMarca.length===0?'<div class="vacio">Todavía no hay productos tuyos en stock.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Producto</th><th>Cantidad</th>
+        </tr></thead><tbody>${Object.values(porMarcaStock).map(g=>`
+          <tr style="background:var(--bg-soft);"><td style="text-align:left;font-weight:700;color:var(--text);">${esc(g.marca)}</td><td style="font-weight:700;color:var(--text);">${g.total} unidades</td></tr>
+          ${g.items.map(s=>`<tr><td style="text-align:left;">${esc(s.producto)}</td><td>${s.cantidad} ${esc(s.cantidad===1?unidadSingular(s.unidad):(s.unidad||''))}</td></tr>`).join('')}
+        `).join('')}</tbody></table></div>`;
+    }else if(socioTabActiva==='pagos'){
+      contTab.innerHTML=liquidaciones.length===0?'<div class="vacio">Todavía no has recibido pagos.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
+        <th>Fecha</th><th>Concepto</th><th>Monto</th>
+        </tr></thead><tbody>${liquidaciones.map(l=>`<tr>
+          <td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td>
+        </tr>`).join('')}</tbody></table></div>`;
     }else{
-      if(socioMesFiltro===null)socioMesFiltro=mesDe(hoyStr());
-      const meses=[...new Set([mesDe(hoyStr()),...ventas.map(f=>mesDe(f.fecha))])].sort().reverse();
-      const ventasFiltradas=socioMesFiltro?ventas.filter(f=>mesDe(f.fecha)===socioMesFiltro):ventas;
-      const totalPeriodo=ventasFiltradas.reduce((s,f)=>s+f.monto,0);
-      contVentas.innerHTML=`
-        <div class="filtros" style="margin-bottom:10px;align-items:center;">
-          <select id="socioVentasMes" onchange="cambiarMesSocio(this.value)">
-            <option value="" ${socioMesFiltro?'':'selected'}>Todos los meses</option>
-            ${meses.map(m=>`<option value="${m}" ${m===socioMesFiltro?'selected':''}>${esc(mesLabel(m))}</option>`).join('')}
-          </select>
-          <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
-        </div>
-        ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla" style="table-layout:fixed;width:100%;">
-        <colgroup><col style="width:12%"><col style="width:15%"><col style="width:35%"><col style="width:26%"><col style="width:12%"></colgroup>
-        <thead><tr>
-        <th>Fecha</th><th>Marca</th><th>Productos</th><th>Estado</th><th>Monto</th>
-        </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
-          <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marcas.join(', '))}</td><td style="text-align:left;white-space:normal;word-break:break-word;">${esc(f.productos.map(p=>`${p.cantidad}× ${p.producto}`).join(', '))}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
-        </tr>`).join('')}</tbody></table></div>`}`;
+      if(ventas.length===0){
+        contTab.innerHTML='<div class="vacio">Todavía no se ha vendido tu marca.</div>';
+      }else{
+        if(socioMesFiltro===null)socioMesFiltro=mesDe(hoyStr());
+        const meses=[...new Set([mesDe(hoyStr()),...ventas.map(f=>mesDe(f.fecha))])].sort().reverse();
+        const ventasFiltradas=socioMesFiltro?ventas.filter(f=>mesDe(f.fecha)===socioMesFiltro):ventas;
+        const totalPeriodo=ventasFiltradas.reduce((s,f)=>s+f.monto,0);
+        contTab.innerHTML=`
+          <div class="filtros" style="margin-bottom:10px;align-items:center;">
+            <select id="socioVentasMes" onchange="cambiarMesSocio(this.value)">
+              <option value="" ${socioMesFiltro?'':'selected'}>Todos los meses</option>
+              ${meses.map(m=>`<option value="${m}" ${m===socioMesFiltro?'selected':''}>${esc(mesLabel(m))}</option>`).join('')}
+            </select>
+            <span style="font-size:13px;color:var(--muted);">Total del período: <strong style="color:var(--text);">${money(totalPeriodo)}</strong></span>
+          </div>
+          ${ventasFiltradas.length===0?'<div class="vacio">No hay ventas en este período.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla" style="table-layout:fixed;width:100%;">
+          <colgroup><col style="width:12%"><col style="width:15%"><col style="width:35%"><col style="width:26%"><col style="width:12%"></colgroup>
+          <thead><tr>
+          <th>Fecha</th><th>Marca</th><th>Productos</th><th>Estado</th><th>Monto</th>
+          </tr></thead><tbody>${ventasFiltradas.map(f=>`<tr>
+            <td>${fechaCelda(f.fecha)}</td><td>${esc(f.marcas.join(', '))}</td><td style="text-align:left;white-space:normal;word-break:break-word;">${esc(f.productos.map(p=>`${p.cantidad}× ${p.producto}`).join(', '))}</td><td>${chipEstadoVentaSocio(f)}</td><td>${money(f.monto)}</td>
+          </tr>`).join('')}</tbody></table></div>`}`;
+      }
     }
-
-    const contLiq=document.getElementById('socioLiquidaciones');
-    const pagosCuerpo=liquidaciones.length===0?'<div class="vacio">Todavía no has recibido pagos.</div>':`<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr>
-      <th>Fecha</th><th>Concepto</th><th>Monto</th>
-      </tr></thead><tbody>${liquidaciones.map(l=>`<tr>
-        <td>${fechaCelda(l.fecha)}</td><td>${esc(l.nota||'—')}</td><td>${money(l.monto)}</td>
-      </tr>`).join('')}</tbody></table></div>`;
-    contLiq.innerHTML=`
-      <button type="button" class="socio-acordeon-btn" onclick="toggleSocioAcordeon('pagos')">
-        <span class="tabla-titulo">Historial de transferencias recibidas (${liquidaciones.length})</span>
-        <span class="socio-acordeon-flecha" style="transform:rotate(${socioAcordeonAbierto.pagos?'180deg':'0deg'});">▾</span>
-      </button>
-      <div class="${socioAcordeonAbierto.pagos?'':'oculto'}">${pagosCuerpo}</div>`;
   }
 
   document.getElementById('socioSinDatos').classList.toggle('oculto',marcas.length>0);
@@ -5737,8 +5739,8 @@ function cambiarMesSocio(valor){
   socioMesFiltro=valor||'';
   pintarVistaSocio();
 }
-function toggleSocioAcordeon(seccion){
-  socioAcordeonAbierto[seccion]=!socioAcordeonAbierto[seccion];
+function seleccionarTabSocio(tab){
+  socioTabActiva=tab;
   pintarVistaSocio();
 }
 // Estado por venta en el portal del socio (2026-09-19, caso Diana/tarjeta): "Pagada" ya se le
