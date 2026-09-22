@@ -7459,12 +7459,23 @@ function pintarHistorialTodos(cont,buscar,enRango){
     // histórico de algún ítem, y uno nuevo cuando el descuento manual no se pudo atribuir 100% a
     // esta venta (pedido multi-marca o de una marca en reparto_ingresos, ver gananciaZBPedido) —
     // nunca se inventa el número, se avisa con el mismo lenguaje visual que ya usa Resumen.
+    // FIX (2026-09-22): antes esta columna mostraba el monto como si ya contara, para CUALQUIER
+    // venta no anulada — pero Reportes→Resumen (pedidosFacturables) solo suma una venta si
+    // estadoPago==='pagado' Y ventaAcreditada(p). Una venta "pendiente pago" o con tarjeta sin
+    // acreditar mostraba acá un número que Reportes todavía no contaba en su total: "no coincidía"
+    // entre pantallas. Ahora se sigue mostrando el monto (informativo, no se esconde el dato) pero
+    // atenuado con ⏳ y el mismo motivo que ya usa el drawer de Proveedores, dejando claro que
+    // todavía no cuenta en Reportes → Resumen.
     let gananciaHtml='';
     if(!anulada){
       const gz=gananciaZBPedido(p);
+      const noContadaAun=pendienteCobro||!ventaAcreditada(p);
       if(gz.huboCalculable){
         const flag=gz.huboNoCalculable||gz.noAtribuible;
-        gananciaHtml=`<span style="color:var(--success);font-weight:600;"${flag?` title="${escAttr((gz.huboNoCalculable?'Hay ítems sin información de costo suficiente. ':'')+(gz.noAtribuible?'Incluye un descuento manual que no se pudo atribuir 100% a esta venta (multi-marca o reparto) — ver Reportes → Resumen.':''))}"`:''}>${money(gz.ganancia)}${flag?' *':''}</span>`;
+        const motivoNoContada=noContadaAun?(pendienteCobro&&!ventaAcreditada(p)?'El cliente aún no paga esta venta, y encima fue con tarjeta sin acreditar':
+          pendienteCobro?'El cliente aún no paga esta venta':'Pagó con tarjeta, todavía sin acreditar en el banco')+' — todavía no cuenta en Reportes → Resumen.':'';
+        const title=[flag?(gz.huboNoCalculable?'Hay ítems sin información de costo suficiente. ':'')+(gz.noAtribuible?'Incluye un descuento manual que no se pudo atribuir 100% a esta venta (multi-marca o reparto) — ver Reportes → Resumen.':''):'',motivoNoContada].filter(Boolean).join(' ');
+        gananciaHtml=`<span style="color:${noContadaAun?'var(--muted)':'var(--success)'};font-weight:600;"${title?` title="${escAttr(title)}"`:''}>${noContadaAun?'⏳ ':''}${money(gz.ganancia)}${flag?' *':''}</span>`;
       }else{
         gananciaHtml='<span style="color:var(--muted);">—</span>';
       }
