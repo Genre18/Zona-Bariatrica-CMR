@@ -6228,7 +6228,15 @@ function seccionVentasDrawer(ec){
   const accG={venta:v=>correlativoNum(v.pedidoId),fecha:v=>v.fecha,pagado:v=>v.obligacion};
   const pend=ordenarFilas('provVentasPend',conObl.filter(v=>!v.pagada),accP);
   const pag=ordenarFilas('provVentasPag',conObl.filter(v=>v.pagada),accG);
-  const nprod=v=>v.lineas.length===1?'1 producto':v.lineas.length+' productos';
+  // "Productos" cuenta líneas distintas de ESTA cuenta en la venta, no unidades — una venta con
+  // 2 unidades del mismo producto (o cualquier línea con cantidad>1) mostraba igual "1 producto",
+  // sin forma de distinguir 1 unidad de varias. Se agrega el total de unidades cuando difiere del
+  // número de líneas (2026-09-22, reportado por Genesis).
+  const nprod=v=>{
+    const totalUnidades=v.lineas.reduce((s,l)=>s+(l.cantidad||0),0);
+    const productos=v.lineas.length===1?'1 producto':v.lineas.length+' productos';
+    return totalUnidades!==v.lineas.length?`${productos} · ${totalUnidades} uds`:productos;
+  };
   const motivoEspera=v=>v.pendienteCobroCliente&&v.pendienteAcreditacionTarjeta?'El cliente aún no paga esta venta, y encima fue con tarjeta sin acreditar':
     v.pendienteCobroCliente?'El cliente aún no paga esta venta':
     v.pendienteAcreditacionTarjeta?'Pagó con tarjeta, todavía sin acreditar en el banco':'';
