@@ -262,12 +262,23 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-kpis.rk-dash{grid-template-columns:repeat(3,1fr);gap:12px;}
 .reportes-kpis.rk-dash .stat{text-align:left;padding:14px 16px 13px;display:flex;flex-direction:column;gap:3px;}
 .reportes-kpis.rk-dash .stat .lbl{order:-1;font-size:12px;margin:0 0 2px;color:var(--muted);font-weight:500;}
-.reportes-kpis.rk-dash .stat .num{font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.15;}
+.reportes-kpis.rk-dash .stat .num{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
+.rk-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;box-shadow:var(--shadow-xs);margin-bottom:12px;}
+.rk-hero-lbl{font-size:13px;color:var(--muted);font-weight:500;}
+.rk-hero.activa .rk-hero-lbl{color:var(--primary);}
+.rk-hero-num{font-size:48px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:var(--text);margin:4px 0 6px;}
+.rk-hero .rk-delta{font-size:13px;}
+.rk-hero-desglose{display:flex;flex-direction:column;gap:6px;min-width:240px;font-size:13px;}
+.rk-hero-desglose div{display:flex;justify-content:space-between;gap:24px;color:var(--muted);}
+.rk-hero-desglose b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
+.rk-hero-desglose .rk-hero-igual{border-top:1px solid var(--border-light);padding-top:6px;}
+.rk-hero-desglose .rk-hero-igual span{color:var(--text);font-weight:500;}
+@media(max-width:640px){.rk-hero{padding:16px;}.rk-hero-num{font-size:36px;}.rk-hero-desglose{min-width:0;width:100%;}}
 .rk-delta{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-top:2px;}
 .rk-sube{color:var(--success);font-weight:600;}
 .rk-baja{color:var(--danger);font-weight:600;}
 .rk-igual{color:var(--muted);font-weight:600;}
-@media(max-width:640px){.reportes-kpis.rk-dash{grid-template-columns:repeat(2,1fr);gap:8px;}.reportes-kpis.rk-dash .stat .num{font-size:20px;}}
+@media(max-width:640px){.reportes-kpis.rk-dash{grid-template-columns:repeat(2,1fr);gap:8px;}.reportes-kpis.rk-dash .stat .num{font-size:19px;}}
 .rg-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px 12px;box-shadow:var(--shadow-xs);margin-bottom:18px;}
 .rg-cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
 .rg-titulo{font-size:14px;font-weight:600;margin:0;}
@@ -362,7 +373,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .mv-col-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--border-light);}
 .mv-col-cab span:first-child{font-size:13px;font-weight:600;color:var(--text);}
 .mv-col-cab span:last-child{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.mv-item{position:relative;display:grid;grid-template-columns:1fr auto 62px;gap:8px;align-items:center;height:28px;padding:0 8px;font-size:12.5px;}
+.mv-item{position:relative;display:grid;grid-template-columns:1fr auto 74px;gap:8px;align-items:center;height:28px;padding:0 8px;font-size:12.5px;}
 .mv-item>*{position:relative;}
 .mv-sombra{position:absolute !important;left:0;top:3px;bottom:3px;min-width:3px;background:var(--primary);opacity:.13;border-radius:0 5px 5px 0;transition:opacity .15s;}
 .mv-item:hover .mv-sombra{opacity:.24;}
@@ -6754,8 +6765,11 @@ function metricasReportes(desde,hasta,primeraCompra){
   });
   vuelven.forEach(id=>nuevos.delete(id));
   const totalClientes=nuevos.size+vuelven.size;
+  // Sección 15 / BLOQUE 5: pauta fechada del período, solo gastos ACTIVOS (!g.anulado). Es gasto
+  // 100% de ZB: SOLO reduce la ganancia neta (puede quedar negativa), no toca nada más.
+  const pauta=round2((db.gastosPauta||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0));
   return{
-    pedidos,ingresos,rentab,gananciaZB,
+    pedidos,ingresos,rentab,gananciaZB,pauta,gananciaNeta:round2(gananciaZB-pauta),
     hayMarcaSinHistoria:rentab.some(f=>f.huboItemNoCalculable),
     totalLeads:leads.length,convertidos,
     conversion:leads.length?convertidos/leads.length*100:null,
@@ -6778,16 +6792,38 @@ function deltaKPI(actual,anterior,tipo){
   return `<span class="${d>0?'rk-sube':'rk-baja'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(0)}%</span>`;
 }
 function pctTxt(v){return v==null?'—':v.toFixed(1)+'%';}
+// Montos del tablero: redondeados y con separador de miles (S/ 15,690). Los céntimos quedan para
+// las tablas (money), donde sí importa cuadrar al céntimo.
+function moneyEntero(n){const v=Math.round(Number(n)||0);return (v<0?'-':'')+'S/ '+Math.abs(v).toLocaleString('en-US');}
+// Variación de un producto: con bases chicas un % engaña (1→10 und. = "900%"), así que debajo de
+// 10 und. / S/ 500 antes se muestra la diferencia absoluta ("+9 und.").
+function deltaProducto(actual,anterior,soles){
+  if(anterior===0)return actual>0?'<span class="rk-sube">▲ nuevo</span>':'<span class="rk-igual">= igual</span>';
+  if(anterior<(soles?500:10)){
+    const d=round2(actual-anterior);
+    if(d===0)return '<span class="rk-igual">= igual</span>';
+    const txt=soles?moneyEntero(Math.abs(d)):Math.abs(d)+' und.';
+    return `<span class="${d>0?'rk-sube':'rk-baja'}">${d>0?'▲ +':'▼ −'}${txt}</span>`;
+  }
+  return deltaKPI(actual,anterior);
+}
+// En la columna de cada marca no se repite la marca en el nombre ("LVL Drink Hierro" → "Hierro").
+function nombreSinMarca(producto,marca){
+  const p=String(producto||'');
+  if(marca&&p.toLowerCase().startsWith(String(marca).toLowerCase()+' '))return p.slice(String(marca).length+1);
+  return p;
+}
 
 // Indicadores que se pueden graficar (uno por KPI). valor() lee el objeto de metricasReportes().
 // acumulado: los promedios/porcentajes se grafican ACUMULADOS desde el inicio del período hasta cada
 // punto (un % de un solo día con 1-2 clientes salta entre 0 y 100 y no dice nada); así el último
 // punto coincide con el número de la tarjeta. Las sumas (ventas, ganancia, pedidos) van por día/semana/mes.
 const METRICAS_REPORTE={
-  ventas:{lbl:'Ventas',valor:m=>m.ingresos,fmt:money,eje:moneyCorto,minTope:100},
-  ganancia:{lbl:'Ganancia ZB',valor:m=>m.gananciaZB,fmt:money,eje:moneyCorto,minTope:100},
+  neta:{lbl:'Ganancia neta ZB',valor:m=>m.gananciaNeta,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100},
+  ventas:{lbl:'Ventas',valor:m=>m.ingresos,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100},
+  ganancia:{lbl:'Ganancia ZB',valor:m=>m.gananciaZB,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100},
   pedidos:{lbl:'Pedidos',valor:m=>m.pedidos.length,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
-  ticket:{lbl:'Ticket promedio',valor:m=>m.ticket,fmt:money,eje:moneyCorto,minTope:100,acumulado:true},
+  ticket:{lbl:'Ticket promedio',valor:m=>m.ticket,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100,acumulado:true},
   recompra:{lbl:'Clientes que vuelven',valor:m=>m.recompra,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true},
   conversion:{lbl:'Conversión de leads',valor:m=>m.conversion,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true}
 };
@@ -6797,6 +6833,24 @@ function tarjetaKPI(clave,valorHTML,delta,antesTxt,extraNum){
   return `<div class="stat rk-tile${act?' activa':''}" role="button" tabindex="0" aria-pressed="${act}" data-metrica="${clave}" title="Ver ${METRICAS_REPORTE[clave].lbl} en el gráfico"
     onclick="elegirMetricaReportes('${clave}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();elegirMetricaReportes('${clave}');}">
     <div class="num"${extraNum||''}>${valorHTML}</div><div class="lbl">${METRICAS_REPORTE[clave].lbl}</div><div class="rk-delta">${delta}<span>antes ${antesTxt}</span></div></div>`;
+}
+// Tarjeta principal (una sola por vista): Ganancia neta ZB con su desglose. También es clicable.
+function tarjetaHeroReportes(M,A,parcial){
+  const act=reportesMetrica==='neta';
+  const tituloParcial=parcial?' title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."':'';
+  return `<div class="rk-hero rk-tile${act?' activa':''}" role="button" tabindex="0" aria-pressed="${act}" data-metrica="neta" title="Ver Ganancia neta ZB en el gráfico"
+    onclick="elegirMetricaReportes('neta')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();elegirMetricaReportes('neta');}">
+    <div class="rk-hero-principal">
+      <div class="rk-hero-lbl">Ganancia neta ZB</div>
+      <div class="rk-hero-num"${M.gananciaNeta<0?' style="color:var(--danger);"':''}${tituloParcial}>${moneyEntero(M.gananciaNeta)}${parcial?' *':''}</div>
+      <div class="rk-delta">${deltaKPI(M.gananciaNeta,A.gananciaNeta)}<span>antes ${moneyEntero(A.gananciaNeta)}</span></div>
+    </div>
+    <div class="rk-hero-desglose">
+      <div><span>Ganancia ZB</span><b${tituloParcial}>${moneyEntero(M.gananciaZB)}${parcial?' *':''}</b></div>
+      <div><span>− Pauta del período</span><b>${moneyEntero(M.pauta)}</b></div>
+      <div class="rk-hero-igual"><span>= Ganancia neta</span><b>${moneyEntero(M.gananciaNeta)}</b></div>
+    </div>
+  </div>`;
 }
 function elegirMetricaReportes(clave){
   reportesMetrica=clave;
@@ -6971,7 +7025,7 @@ function pintarGraficoReportes(){
 
   document.getElementById('rgTablaCab').textContent=def.lbl;
   document.getElementById('rgTablaCuerpo').innerHTML=actual.map((b,i)=>{const p=anterior[i];
-    return `<tr><td>${etiquetaBucket(b,gran)}</td><td>${b.m.pedidos.length}</td><td>${vAct[i]==null?'—':def.fmt(vAct[i])}</td><td>${p?(vAnt[i]==null?'—':def.fmt(vAnt[i])):'—'}</td></tr>`;}).join('');
+    return `<tr><td>${etiquetaBucket(b,gran)}</td><td>${b.m.pedidos.length}</td><td>${vAct[i]==null?'—':(def.tabla||def.fmt)(vAct[i])}</td><td>${p?(vAnt[i]==null?'—':(def.tabla||def.fmt)(vAnt[i])):'—'}</td></tr>`;}).join('');
 
   const el=cont.querySelector('svg'),cruz=el.querySelector('.rg-cruz'),tip=cont.querySelector('.rg-tip');
   const [lineaCruz,puntoAnt,puntoAct]=cruz.children;
@@ -7051,7 +7105,7 @@ function pintarMasVendidos(){
   const filas=mvFiltrados().sort((a,b)=>val(b)-val(a)||String(a.producto).localeCompare(String(b.producto)));
   const total=filas.reduce((s,f)=>s+val(f),0);
   document.getElementById('mvResumen').textContent=mvDatos.length===0?'':
-    `Mostrando ${filas.length} de ${mvDatos.length} productos · ${soles?money(total):total+' und.'} en total`;
+    `Mostrando ${filas.length} de ${mvDatos.length} productos · ${soles?moneyEntero(total):total+' und.'} en total`;
   if(mvDatos.length===0){cuerpo.innerHTML='<div class="vacio">Sin ventas en el periodo.</div>';return;}
   if(filas.length===0){cuerpo.innerHTML='<div class="vacio">Ningún producto coincide con el filtro.</div>';return;}
   // Una columna por marca (ordenadas por total), filas compactas: la barra es un sombreado detrás
@@ -7061,12 +7115,12 @@ function pintarMasVendidos(){
   const grupos={};
   filas.forEach(f=>{const mc=f.marca||'Sin marca';(grupos[mc]||(grupos[mc]=[])).push(f);});
   const columnas=Object.entries(grupos).map(([mc,fs])=>({mc,fs,tot:fs.reduce((s,f)=>s+val(f),0)})).sort((a,b)=>b.tot-a.tot);
-  const txtVal=v=>soles?money(v):v+' und.';
+  const txtVal=v=>soles?moneyEntero(v):v+' und.';
   cuerpo.innerHTML=`<div class="mv-columnas">${columnas.map(c=>`<div class="mv-col">
       <div class="mv-col-cab"><span>${esc(c.mc)}</span><span>${txtVal(c.tot)} · ${total?Math.round(c.tot/total*100):0}%</span></div>
       ${c.fs.map(f=>`<div class="mv-item" title="${esc(f.producto)} · ${txtVal(val(f))} (antes ${txtVal(ant(f))})">
         <span class="mv-sombra" style="width:${(val(f)/max*100).toFixed(1)}%;"></span>
-        <span class="mv-nombre">${esc(f.producto)}</span><span class="mv-val">${txtVal(val(f))}</span><span class="mv-delta">${deltaKPI(val(f),ant(f))}</span>
+        <span class="mv-nombre">${esc(nombreSinMarca(f.producto,f.marca))}</span><span class="mv-val">${txtVal(val(f))}</span><span class="mv-delta">${deltaProducto(val(f),ant(f),soles)}</span>
       </div>`).join('')}
     </div>`).join('')}</div>`;
 }
@@ -7136,7 +7190,7 @@ function pintarReportes(){
   // (global, sin fecha) para esto, porque no se puede saber a qué período pertenece.
   // BLOQUE 5 (2026-09-07): solo cuentan los gastos ACTIVOS (!g.anulado). Los históricos sin el
   // campo 'anulado' cuentan normalmente (undefined es falsy).
-  const pautaPeriodo=round2((db.gastosPauta||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0));
+  const pautaPeriodo=M.pauta;
   // Ganancia ZB: solo snapshots congelados en pedido.items[] (gananciaZBItem/rentabilidadPorMarca),
   // nunca costo/porcentaje actual de Stock/Config. Suma lo CALCULABLE de cada marca (nunca 0 si
   // hay ganancia conocida) — el * avisa que hay ventas históricas sin información suficiente
@@ -7144,7 +7198,6 @@ function pintarReportes(){
   // BLOQUE 5: la pauta es gasto 100% de Zona Bariátrica — NO toca ventas, costo congelado,
   // deuda con proveedor, participación del Dr. Mariano, reparto ni stock; SOLO reduce esta neta.
   // Puede ser negativa (sin max(0,...)). Hereda el '*' de dato parcial de la Ganancia ZB.
-  const gananciaNetaZB=round2(gananciaZBTotal-pautaPeriodo);
   const tituloParcial=hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:'';
 
   mvDatos=productosVendidosPeriodo(pedidosFacturables,A.pedidos);
@@ -7163,18 +7216,19 @@ function pintarReportes(){
   const pctNuevos=totalCli?M.clientesNuevos/totalCli*100:0;
 
   document.getElementById('repContenido').innerHTML=`
+    ${tarjetaHeroReportes(M,A,hayMarcaSinHistoria)}
     <div class="reportes-kpis rk-dash">
-      ${tarjetaKPI('ventas',money(M.ingresos),deltaKPI(M.ingresos,A.ingresos),money(A.ingresos))}
-      ${tarjetaKPI('ganancia',money(gananciaZBTotal)+(hayMarcaSinHistoria?' *':''),deltaKPI(gananciaZBTotal,A.gananciaZB),money(A.gananciaZB),` style="color:var(--success);"${tituloParcial}`)}
+      ${tarjetaKPI('ventas',moneyEntero(M.ingresos),deltaKPI(M.ingresos,A.ingresos),moneyEntero(A.ingresos))}
+      ${tarjetaKPI('ganancia',moneyEntero(gananciaZBTotal)+(hayMarcaSinHistoria?' *':''),deltaKPI(gananciaZBTotal,A.gananciaZB),moneyEntero(A.gananciaZB),tituloParcial)}
       ${tarjetaKPI('pedidos',String(pedidosFacturables.length),deltaKPI(pedidosFacturables.length,A.pedidos.length),String(A.pedidos.length))}
-      ${tarjetaKPI('ticket',M.ticket==null?'—':money(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':money(A.ticket))}
+      ${tarjetaKPI('ticket',M.ticket==null?'—':moneyEntero(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':moneyEntero(A.ticket))}
       ${tarjetaKPI('recompra',pctTxt(M.recompra),deltaKPI(M.recompra,A.recompra,'pts'),pctTxt(A.recompra))}
-      ${tarjetaKPI('conversion',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion),' style="color:var(--primary);"')}
+      ${tarjetaKPI('conversion',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion))}
     </div>
 
     <div class="rg-card">
       <div class="rg-cabecera">
-        <div><h3 class="rg-titulo" id="rgTitulo"></h3><div class="rg-sub">Toca un indicador de arriba para verlo aquí · pasa el cursor para ver cada ${unidadGran}</div></div>
+        <div><h3 class="rg-titulo" id="rgTitulo"></h3><div class="rg-sub">Toca cualquier indicador de arriba para verlo aquí · pasa el cursor para ver cada ${unidadGran}</div></div>
         <div class="rg-derecha">
           ${htmlFiltroPeriodo(desde,hasta)}
           <div class="rg-leyenda"><span><i class="rg-key rg-key-act"></i>Este período</span><span><i class="rg-key rg-key-ant"></i>${rangoTexto(ant.desde,ant.hasta)}</span></div>
@@ -7186,14 +7240,6 @@ function pintarReportes(){
       </details>
     </div>
 
-    <div class="reportes-neto">
-      <div class="rn-item"><span class="rn-lbl">Ganancia ZB antes de pauta</span><span class="rn-val" style="color:var(--success);"${tituloParcial}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</span></div>
-      <div class="rn-op">−</div>
-      <div class="rn-item"><span class="rn-lbl">Pauta del período</span><span class="rn-val">${money(pautaPeriodo)}</span></div>
-      <div class="rn-op">=</div>
-      <div class="rn-item rn-total"><span class="rn-lbl">Ganancia neta ZB</span><span class="rn-val" style="color:${gananciaNetaZB<0?'var(--danger)':'var(--success)'};"${tituloParcial}>${money(gananciaNetaZB)}${hayMarcaSinHistoria?' *':''}</span></div>
-    </div>
-
     <div class="reportes-fila-bloques" style="margin-top:0;">
       <div class="reportes-bloque">
         <h3 class="reportes-subtitulo">Ventas por marca</h3>
@@ -7201,8 +7247,8 @@ function pintarReportes(){
           <div class="rb-fila rb-cab"><span></span><span>Ventas</span><span>Ganancia ZB</span></div>
           ${rentab.map(f=>`<div class="rb-fila">
             <span class="rb-nombre" title="${esc(f.marca)}">${esc(f.marca)}</span>
-            <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 92px) * ${(f.ventas/maxMarca).toFixed(4)});"></span><span class="rb-valor">${money(f.ventas)}</span></span>
-            <span class="rb-ganancia"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':money(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</span>
+            <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 92px) * ${(f.ventas/maxMarca).toFixed(4)});"></span><span class="rb-valor">${moneyEntero(f.ventas)}</span></span>
+            <span class="rb-ganancia"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':moneyEntero(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</span>
           </div>`).join('')}
         </div>`}
       </div>
