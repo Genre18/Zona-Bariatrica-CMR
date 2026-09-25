@@ -259,26 +259,21 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
    --primary = este período / nuevos; gris = período anterior; naranja = clientes que vuelven
    (par validado para daltonismo). Los textos nunca van en el color de la serie. */
 .rep-comparado{font-size:12px;color:var(--muted);margin:-2px 0 12px;}
-.reportes-kpis.rk-dash{grid-template-columns:repeat(3,1fr);gap:12px;}
-.reportes-kpis.rk-dash .stat{text-align:left;padding:14px 16px 13px;display:flex;flex-direction:column;gap:3px;}
-.reportes-kpis.rk-dash .stat .lbl{order:-1;font-size:12px;margin:0 0 2px;color:var(--muted);font-weight:500;}
-.reportes-kpis.rk-dash .stat .num{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
-.rk-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 24px;box-shadow:var(--shadow-xs);margin-bottom:12px;}
-.rk-hero-lbl{font-size:13px;color:var(--muted);font-weight:500;}
+.reportes-kpis.rk-dash{grid-template-columns:repeat(3,1fr);gap:8px;}
+.reportes-kpis.rk-dash .stat{text-align:left;padding:9px 12px;display:flex;flex-direction:column;gap:1px;}
+.reportes-kpis.rk-dash .stat .lbl{order:-1;font-size:11px;margin:0;color:var(--muted);font-weight:500;}
+.reportes-kpis.rk-dash .stat .num{font-size:17px;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
+.rk-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 16px;box-shadow:var(--shadow-xs);margin-bottom:12px;}
+.rk-hero-lbl{font-size:12px;color:var(--muted);font-weight:500;}
 .rk-hero.activa .rk-hero-lbl{color:var(--primary);}
-.rk-hero-num{font-size:48px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:var(--text);margin:4px 0 6px;}
-.rk-hero .rk-delta{font-size:13px;}
-.rk-hero-desglose{display:flex;flex-direction:column;gap:6px;min-width:240px;font-size:13px;}
-.rk-hero-desglose div{display:flex;justify-content:space-between;gap:24px;color:var(--muted);}
-.rk-hero-desglose b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
-.rk-hero-desglose .rk-hero-igual{border-top:1px solid var(--border-light);padding-top:6px;}
-.rk-hero-desglose .rk-hero-igual span{color:var(--text);font-weight:500;}
-@media(max-width:640px){.rk-hero{padding:16px;}.rk-hero-num{font-size:36px;}.rk-hero-desglose{min-width:0;width:100%;}}
-.rk-delta{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-top:2px;}
+.rk-hero-num{font-size:30px;font-weight:650;letter-spacing:-.02em;line-height:1.1;color:var(--text);margin:2px 0 4px;}
+.rk-hero .rk-delta{font-size:12px;}
+@media(max-width:640px){.rk-hero-num{font-size:26px;}}
+.rk-delta{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-top:1px;}
 .rk-sube{color:var(--success);font-weight:600;}
 .rk-baja{color:var(--danger);font-weight:600;}
 .rk-igual{color:var(--muted);font-weight:600;}
-@media(max-width:640px){.reportes-kpis.rk-dash{grid-template-columns:repeat(2,1fr);gap:8px;}.reportes-kpis.rk-dash .stat .num{font-size:19px;}}
+@media(max-width:640px){.reportes-kpis.rk-dash{grid-template-columns:repeat(2,1fr);gap:8px;}.reportes-kpis.rk-dash .stat .num{font-size:16px;}}
 .rg-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px 12px;box-shadow:var(--shadow-xs);margin-bottom:18px;}
 .rg-cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
 .rg-titulo{font-size:14px;font-weight:600;margin:0;}
@@ -6834,7 +6829,8 @@ function tarjetaKPI(clave,valorHTML,delta,antesTxt,extraNum){
     onclick="elegirMetricaReportes('${clave}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();elegirMetricaReportes('${clave}');}">
     <div class="num"${extraNum||''}>${valorHTML}</div><div class="lbl">${METRICAS_REPORTE[clave].lbl}</div><div class="rk-delta">${delta}<span>antes ${antesTxt}</span></div></div>`;
 }
-// Tarjeta principal (una sola por vista): Ganancia neta ZB con su desglose. También es clicable.
+// Tarjeta principal (una sola por vista): Ganancia neta ZB (ya descontada la pauta). También es clicable.
+// Roberto (2026-09-24) pidió quitar el desglose Ganancia − Pauta y dejarla compacta.
 function tarjetaHeroReportes(M,A,parcial){
   const act=reportesMetrica==='neta';
   const tituloParcial=parcial?' title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."':'';
@@ -6844,11 +6840,6 @@ function tarjetaHeroReportes(M,A,parcial){
       <div class="rk-hero-lbl">Ganancia neta ZB</div>
       <div class="rk-hero-num"${M.gananciaNeta<0?' style="color:var(--danger);"':''}${tituloParcial}>${moneyEntero(M.gananciaNeta)}${parcial?' *':''}</div>
       <div class="rk-delta">${deltaKPI(M.gananciaNeta,A.gananciaNeta)}<span>antes ${moneyEntero(A.gananciaNeta)}</span></div>
-    </div>
-    <div class="rk-hero-desglose">
-      <div><span>Ganancia ZB</span><b${tituloParcial}>${moneyEntero(M.gananciaZB)}${parcial?' *':''}</b></div>
-      <div><span>− Pauta del período</span><b>${moneyEntero(M.pauta)}</b></div>
-      <div class="rk-hero-igual"><span>= Ganancia neta</span><b>${moneyEntero(M.gananciaNeta)}</b></div>
     </div>
   </div>`;
 }
