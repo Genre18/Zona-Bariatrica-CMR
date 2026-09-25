@@ -358,19 +358,18 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rp-seg{display:inline-flex;background:var(--bg-soft);border-radius:var(--r-pill);padding:2px;}
 .rp-seg button{background:none;border:none;border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;color:var(--muted);}
 .rp-seg button.activo{background:var(--card);color:var(--text);font-weight:600;box-shadow:var(--shadow-xs);}
-.mv-lista{display:flex;flex-direction:column;max-height:460px;overflow-y:auto;margin:0 -4px;padding:0 4px;}
-.mv-fila{display:grid;grid-template-columns:22px minmax(140px,240px) 1fr 70px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:13px;}
-.mv-fila:last-child{border-bottom:none;}
-.mv-fila:hover .rb-barra{opacity:.75;}
-.mv-prod{display:flex;flex-direction:column;min-width:0;}
-.mv-prod .mv-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.mv-marca{font-size:11px;color:var(--muted);}
-.mv-delta{font-size:11.5px;text-align:right;white-space:nowrap;}
-@media(max-width:640px){
-  .mv-fila{grid-template-columns:22px 1fr 64px;}
-  .mv-fila .rb-pista{grid-column:2 / 4;grid-row:2;}
-  .mv-controles input[type=search]{width:100%;}
-}
+.mv-columnas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px 22px;align-items:start;}
+.mv-col-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--border-light);}
+.mv-col-cab span:first-child{font-size:13px;font-weight:600;color:var(--text);}
+.mv-col-cab span:last-child{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.mv-item{position:relative;display:grid;grid-template-columns:1fr auto 62px;gap:8px;align-items:center;height:28px;padding:0 8px;font-size:12.5px;}
+.mv-item>*{position:relative;}
+.mv-sombra{position:absolute !important;left:0;top:3px;bottom:3px;min-width:3px;background:var(--primary);opacity:.13;border-radius:0 5px 5px 0;transition:opacity .15s;}
+.mv-item:hover .mv-sombra{opacity:.24;}
+.mv-item .mv-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.mv-val{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.mv-delta{font-size:11px;text-align:right;white-space:nowrap;}
+@media(max-width:640px){.mv-controles input[type=search]{width:100%;}}
 .mv-pop{width:340px;max-width:calc(100vw - 32px);}
 .mv-pop-acciones{display:flex;gap:12px;padding:4px 8px 8px;border-bottom:1px solid var(--border-light);margin-bottom:4px;}
 .mv-pop-acciones button{background:none;border:none;padding:0;font-size:12.5px;color:var(--primary);font-weight:600;}
@@ -7055,13 +7054,21 @@ function pintarMasVendidos(){
     `Mostrando ${filas.length} de ${mvDatos.length} productos · ${soles?money(total):total+' und.'} en total`;
   if(mvDatos.length===0){cuerpo.innerHTML='<div class="vacio">Sin ventas en el periodo.</div>';return;}
   if(filas.length===0){cuerpo.innerHTML='<div class="vacio">Ningún producto coincide con el filtro.</div>';return;}
+  // Una columna por marca (ordenadas por total), filas compactas: la barra es un sombreado detrás
+  // del nombre, escalado contra el MISMO máximo en todas las columnas para que sean comparables.
+  // Sin scroll interno (pedido de Roberto 2026-09-24: subir y bajar dentro de la lista era incómodo).
   const max=Math.max(1,...filas.map(val));
-  cuerpo.innerHTML=filas.map((f,i)=>`<div class="mv-fila">
-      <span class="mv-rank">${String(i+1).padStart(2,'0')}</span>
-      <span class="mv-prod"><span class="mv-nombre" title="${esc(f.producto)}">${esc(f.producto)}</span><span class="mv-marca">${esc(f.marca||'')}</span></span>
-      <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 96px) * ${(val(f)/max).toFixed(4)});"></span><span class="rb-valor">${soles?money(f.soles):f.und+' und.'}</span></span>
-      <span class="mv-delta" title="vs. período anterior">${deltaKPI(val(f),ant(f))}</span>
-    </div>`).join('');
+  const grupos={};
+  filas.forEach(f=>{const mc=f.marca||'Sin marca';(grupos[mc]||(grupos[mc]=[])).push(f);});
+  const columnas=Object.entries(grupos).map(([mc,fs])=>({mc,fs,tot:fs.reduce((s,f)=>s+val(f),0)})).sort((a,b)=>b.tot-a.tot);
+  const txtVal=v=>soles?money(v):v+' und.';
+  cuerpo.innerHTML=`<div class="mv-columnas">${columnas.map(c=>`<div class="mv-col">
+      <div class="mv-col-cab"><span>${esc(c.mc)}</span><span>${txtVal(c.tot)} · ${total?Math.round(c.tot/total*100):0}%</span></div>
+      ${c.fs.map(f=>`<div class="mv-item" title="${esc(f.producto)} · ${txtVal(val(f))} (antes ${txtVal(ant(f))})">
+        <span class="mv-sombra" style="width:${(val(f)/max*100).toFixed(1)}%;"></span>
+        <span class="mv-nombre">${esc(f.producto)}</span><span class="mv-val">${txtVal(val(f))}</span><span class="mv-delta">${deltaKPI(val(f),ant(f))}</span>
+      </div>`).join('')}
+    </div>`).join('')}</div>`;
 }
 function pintarChecklistMV(){
   const lista=document.getElementById('mvChecklist');if(!lista)return;
