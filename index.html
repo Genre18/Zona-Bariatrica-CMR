@@ -254,6 +254,75 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-mas-vendidos{list-style:none;margin:0;padding:0;font-size:13px;}
 .reportes-mas-vendidos li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);}
 .reportes-mas-vendidos li:last-child{border-bottom:none;}
+/* KPIs DASHBOARD (2026-09-24): tablero de Reportes → Resumen. Extiende .reportes-kpis/.stat con
+   el modificador .rk-dash (no toca los otros usos de .reportes-kpis). Colores de datos: azul
+   --primary = este período / nuevos; gris = período anterior; naranja = clientes que vuelven
+   (par validado para daltonismo). Los textos nunca van en el color de la serie. */
+.rep-comparado{font-size:12px;color:var(--muted);margin:-2px 0 12px;}
+.reportes-kpis.rk-dash{grid-template-columns:repeat(3,1fr);gap:12px;}
+.reportes-kpis.rk-dash .stat{text-align:left;padding:14px 16px 13px;display:flex;flex-direction:column;gap:3px;}
+.reportes-kpis.rk-dash .stat .lbl{order:-1;font-size:12px;margin:0 0 2px;color:var(--muted);font-weight:500;}
+.reportes-kpis.rk-dash .stat .num{font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.15;}
+.rk-delta{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-top:2px;}
+.rk-sube{color:var(--success);font-weight:600;}
+.rk-baja{color:var(--danger);font-weight:600;}
+.rk-igual{color:var(--muted);font-weight:600;}
+@media(max-width:640px){.reportes-kpis.rk-dash{grid-template-columns:repeat(2,1fr);gap:8px;}.reportes-kpis.rk-dash .stat .num{font-size:20px;}}
+.rg-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px 12px;box-shadow:var(--shadow-xs);margin-bottom:18px;}
+.rg-cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.rg-titulo{font-size:14px;font-weight:600;margin:0;}
+.rg-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.rg-leyenda{display:flex;gap:14px;font-size:12px;color:var(--muted);}
+.rg-leyenda span{display:inline-flex;align-items:center;gap:6px;}
+.rg-key{width:14px;height:2px;border-radius:2px;display:inline-block;flex-shrink:0;}
+.rg-key-act{background:var(--primary);}
+.rg-key-ant{background:#9ca3af;}
+.rg-lienzo{position:relative;min-height:190px;}
+.rg-lienzo svg{display:block;width:100%;overflow:visible;touch-action:pan-y;}
+.rg-lienzo svg:focus{outline:none;}
+.rg-lienzo svg:focus-visible{outline:2px solid var(--primary-ring);outline-offset:4px;border-radius:8px;}
+.rg-grid{stroke:var(--border-light);stroke-width:1;}
+.rg-eje{font-size:11px;fill:var(--text-light);font-variant-numeric:tabular-nums;}
+.rg-linea{fill:none;stroke:var(--primary);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.rg-linea-ant{fill:none;stroke:#9ca3af;stroke-width:2;stroke-linejoin:round;stroke-linecap:round;opacity:.8;}
+.rg-area{fill:var(--primary);opacity:.1;}
+.rg-punto{fill:var(--primary);stroke:var(--card);stroke-width:2;}
+.rg-punto-ant{fill:#9ca3af;stroke:var(--card);stroke-width:2;}
+.rg-cruz-linea{stroke:var(--border);stroke-width:1;}
+.rg-captura{cursor:crosshair;}
+.rg-tip{position:absolute;top:4px;left:0;pointer-events:none;background:var(--card);border:1px solid var(--border-light);border-radius:10px;box-shadow:var(--shadow-md);padding:8px 10px;font-size:12px;min-width:170px;opacity:0;transition:opacity .12s;z-index:2;}
+.rg-tip.visible{opacity:1;}
+.rg-tip-fecha{color:var(--muted);font-size:11px;margin-bottom:5px;}
+.rg-tip-fila{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:1px 0;}
+.rg-tip-fila span{color:var(--muted);display:inline-flex;align-items:center;gap:6px;}
+.rg-tip-fila b{font-weight:650;color:var(--text);font-variant-numeric:tabular-nums;}
+.rg-tabla summary{font-size:12px;color:var(--muted);cursor:pointer;margin-top:8px;width:max-content;}
+.rg-tabla table{width:100%;font-size:12px;margin-top:6px;border-collapse:collapse;font-variant-numeric:tabular-nums;}
+.rg-tabla th{font-weight:600;color:var(--muted);}
+.rg-tabla td,.rg-tabla th{padding:5px 6px;text-align:right;border-bottom:1px solid var(--border-light);}
+.rg-tabla td:first-child,.rg-tabla th:first-child{text-align:left;}
+.rb-lista{display:flex;flex-direction:column;gap:12px;}
+.rb-fila{display:grid;grid-template-columns:minmax(80px,120px) 1fr 92px;gap:10px;align-items:center;font-size:13px;}
+.rb-cab{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:-4px;}
+.rb-cab span:last-child{text-align:right;}
+.rb-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rb-pista{display:flex;align-items:center;gap:8px;min-width:0;}
+.rb-barra{height:14px;border-radius:0 4px 4px 0;background:var(--primary);min-width:3px;flex-shrink:0;transition:opacity .15s;}
+.rb-fila:hover .rb-barra{opacity:.75;}
+.rb-valor{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;font-size:12.5px;}
+.rb-ganancia{font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
+.rc-total{font-size:13.5px;color:var(--muted);}
+.rc-total b{font-size:22px;font-weight:650;color:var(--text);letter-spacing:-.02em;margin-right:4px;}
+.rc-barra{display:flex;gap:2px;height:14px;margin:10px 0 14px;}
+.rc-seg{border-radius:4px;min-width:4px;}
+.rc-nuevo{background:var(--primary);}
+.rc-vuelve{background:#eb6834;}
+.rc-leyenda{display:flex;flex-direction:column;gap:8px;font-size:13px;}
+.rc-item{display:flex;align-items:center;gap:8px;}
+.rc-sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.rc-item b{margin-left:auto;font-variant-numeric:tabular-nums;}
+.rc-item span{width:40px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;}
+.rc-nota{font-size:11.5px;color:var(--muted);margin:12px 0 0;}
 .mv-rank{font-size:11px;font-weight:700;color:var(--text-light);font-variant-numeric:tabular-nums;width:16px;flex-shrink:0;}
 .mv-nombre{flex:1;color:var(--text);}
 .mv-cant{color:var(--muted);white-space:nowrap;font-size:12px;}
@@ -6565,67 +6634,335 @@ function rentabilidadPorMarca(pedidos){
 function fechaLeadValida(l){
   return typeof l.fecha==='string'&&/^\d{4}-\d{2}-\d{2}/.test(l.fecha);
 }
+// KPIs DASHBOARD (2026-09-24, pedido de Roberto): Resumen pasa a ser un tablero — cada KPI se
+// compara con el período anterior, más ticket promedio, clientes que vuelven y gráficos. Es solo
+// LECTURA: reusa exactamente los mismos filtros (pagado + ventaAcreditada) y rentabilidadPorMarca()
+// de antes; no hay fórmula económica nueva. Período anterior: si el rango es un mes (o el mes en
+// curso) se compara con los mismos días del mes anterior; si no, con los N días inmediatamente previos.
+function fechaISOLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function sumarDiasISO(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return fechaISOLocal(d);}
+function diasEntreISO(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+function fechaDiaMes(iso){return new Date(iso+'T12:00:00').toLocaleDateString('es-PE',{day:'numeric',month:'short'}).replace('.','');}
+function periodoAnteriorReportes(desde,hasta){
+  if(desde.slice(8)==='01'&&desde.slice(0,7)===hasta.slice(0,7)){
+    const d=new Date(desde+'T12:00:00');
+    const iniAnt=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()-1,1,12));
+    const ultAnt=new Date(d.getFullYear(),d.getMonth(),0,12).getDate();
+    const ultAct=new Date(d.getFullYear(),d.getMonth()+1,0,12).getDate();
+    const diaH=parseInt(hasta.slice(8),10);
+    const diaFin=diaH>=ultAct?ultAnt:Math.min(diaH,ultAnt);
+    return{desde:iniAnt,hasta:iniAnt.slice(0,8)+String(diaFin).padStart(2,'0')};
+  }
+  const dias=Math.max(1,diasEntreISO(desde,hasta)+1);
+  return{desde:sumarDiasISO(desde,-dias),hasta:sumarDiasISO(desde,-1)};
+}
+function pedidosFacturablesEntre(desde,hasta){
+  return db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta&&p.estadoPago==='pagado'&&ventaAcreditada(p));
+}
+// Primera compra (no anulada, con fecha válida) de cada cliente — mismo criterio de "pedido
+// válido" que estadoRecompraCliente(). Un cliente es "nuevo" en el período si su primera compra
+// cae dentro del período; si ya había comprado antes, "volvió".
+function primeraCompraPorCliente(){
+  const m={};
+  db.pedidos.forEach(p=>{
+    if(!p.clienteId||p.estadoPago==='cancelado'||typeof p.fecha!=='string'||!/^\d{4}-\d{2}-\d{2}/.test(p.fecha))return;
+    const f=p.fecha.slice(0,10);
+    if(!m[p.clienteId]||f<m[p.clienteId])m[p.clienteId]=f;
+  });
+  return m;
+}
+function metricasReportes(desde,hasta,primeraCompra){
+  const pedidos=pedidosFacturablesEntre(desde,hasta);
+  const ingresos=round2(pedidos.reduce((s,p)=>s+p.total,0));
+  const rentab=rentabilidadPorMarca(pedidos);
+  const gananciaZB=round2(rentab.reduce((s,f)=>s+f.gananciaZB,0)-(rentab.descuentosNoAtribuibles||0));
+  const leads=db.leads.filter(l=>fechaLeadValida(l)&&l.fecha>=desde&&l.fecha<=hasta);
+  const convertidos=leads.filter(l=>l.clienteId).length;
+  const nuevos=new Set(),vuelven=new Set();
+  let pedidosSinCliente=0;
+  pedidos.forEach(p=>{
+    if(!p.clienteId){pedidosSinCliente++;return;}
+    const primera=primeraCompra[p.clienteId];
+    if(primera&&primera<desde)vuelven.add(p.clienteId);else nuevos.add(p.clienteId);
+  });
+  vuelven.forEach(id=>nuevos.delete(id));
+  const totalClientes=nuevos.size+vuelven.size;
+  return{
+    pedidos,ingresos,rentab,gananciaZB,
+    hayMarcaSinHistoria:rentab.some(f=>f.huboItemNoCalculable),
+    totalLeads:leads.length,convertidos,
+    conversion:leads.length?convertidos/leads.length*100:null,
+    ticket:pedidos.length?round2(ingresos/pedidos.length):null,
+    clientesNuevos:nuevos.size,clientesVuelven:vuelven.size,pedidosSinCliente,
+    recompra:totalClientes?vuelven.size/totalClientes*100:null
+  };
+}
+// Variación vs período anterior: flecha + texto (nunca solo color). 'pts' para porcentajes.
+function deltaKPI(actual,anterior,tipo){
+  if(actual==null||anterior==null)return '<span class="rk-igual">—</span>';
+  if(tipo==='pts'){
+    const d=actual-anterior;
+    if(Math.abs(d)<0.05)return '<span class="rk-igual">= igual</span>';
+    return `<span class="${d>0?'rk-sube':'rk-baja'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pts</span>`;
+  }
+  if(anterior===0)return actual>0?'<span class="rk-sube">▲ nuevo</span>':'<span class="rk-igual">= igual</span>';
+  const d=(actual-anterior)/Math.abs(anterior)*100;
+  if(Math.abs(d)<0.5)return '<span class="rk-igual">= igual</span>';
+  return `<span class="${d>0?'rk-sube':'rk-baja'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(0)}%</span>`;
+}
+function tarjetaKPI(lbl,valorHTML,delta,antesTxt,extraNum){
+  return `<div class="stat"><div class="num"${extraNum||''}>${valorHTML}</div><div class="lbl">${lbl}</div><div class="rk-delta">${delta}<span>antes ${antesTxt}</span></div></div>`;
+}
+function pctTxt(v){return v==null?'—':v.toFixed(1)+'%';}
+
+/* ---- Gráfico de ventas (SVG propio, sin librerías) ---- */
+function granularidadReportes(dias){return dias<=31?'dia':dias<=120?'semana':'mes';}
+function serieVentasReportes(pedidos,desde,hasta,gran){
+  const buckets=[];
+  if(gran==='mes'){
+    let cur=desde.slice(0,8)+'01';
+    while(cur<=hasta&&buckets.length<240){
+      const d=new Date(cur+'T12:00:00');
+      const fin=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()+1,0,12));
+      buckets.push({desde:cur<desde?desde:cur,hasta:fin>hasta?hasta:fin,total:0,pedidos:0});
+      cur=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()+1,1,12));
+    }
+  }else{
+    const paso=gran==='dia'?1:7;
+    for(let cur=desde;cur<=hasta&&buckets.length<400;cur=sumarDiasISO(cur,paso)){
+      const fin=sumarDiasISO(cur,paso-1);
+      buckets.push({desde:cur,hasta:fin>hasta?hasta:fin,total:0,pedidos:0});
+    }
+  }
+  pedidos.forEach(p=>{
+    const f=String(p.fecha).slice(0,10);
+    const b=buckets.find(b=>f>=b.desde&&f<=b.hasta);
+    if(b){b.total=round2(b.total+p.total);b.pedidos++;}
+  });
+  return buckets;
+}
+function etiquetaBucket(b,gran){
+  if(gran==='dia')return fechaDiaMes(b.desde);
+  if(gran==='mes')return new Date(b.desde+'T12:00:00').toLocaleDateString('es-PE',{month:'short',year:'numeric'}).replace('.','');
+  return b.desde===b.hasta?fechaDiaMes(b.desde):fechaDiaMes(b.desde)+' – '+fechaDiaMes(b.hasta);
+}
+function pasoEje(max){
+  const raw=max/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),n=raw/mag;
+  return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag;
+}
+function moneyCorto(v){
+  if(v>=1000)return 'S/ '+(v/1000).toFixed(v%1000===0?0:1)+'k';
+  return 'S/ '+Math.round(v);
+}
+// Curva monótona (Fritsch–Carlson): suaviza sin inventar picos ni bajar de cero entre puntos.
+function trazoSuave(pts){
+  const f=v=>v.toFixed(1);
+  if(pts.length<3)return 'M'+pts.map(p=>f(p[0])+','+f(p[1])).join('L');
+  const n=pts.length,dx=[],s=[],t=[];
+  for(let i=0;i<n-1;i++){dx[i]=pts[i+1][0]-pts[i][0];s[i]=(pts[i+1][1]-pts[i][1])/dx[i];}
+  t[0]=s[0];t[n-1]=s[n-2];
+  for(let i=1;i<n-1;i++){
+    t[i]=s[i-1]*s[i]<=0?0:3*(dx[i-1]+dx[i])/((2*dx[i]+dx[i-1])/s[i-1]+(dx[i]+2*dx[i-1])/s[i]);
+  }
+  let d='M'+f(pts[0][0])+','+f(pts[0][1]);
+  for(let i=0;i<n-1;i++){
+    const h=dx[i]/3;
+    d+=`C${f(pts[i][0]+h)},${f(pts[i][1]+t[i]*h)} ${f(pts[i+1][0]-h)},${f(pts[i+1][1]-t[i+1]*h)} ${f(pts[i+1][0])},${f(pts[i+1][1])}`;
+  }
+  return d;
+}
+let graficoVentasDatos=null; // {actual,anterior,gran} — se guarda para redibujar al cambiar el ancho
+function pintarGraficoVentas(){
+  const cont=document.getElementById('rgLienzo');
+  if(!cont||!graficoVentasDatos||!cont.offsetParent)return;
+  const{actual,anterior,gran}=graficoVentasDatos;
+  const W=Math.max(280,cont.clientWidth),H=cont.clientWidth<520?190:230;
+  const m={t:14,r:14,b:26,l:52};
+  const iw=W-m.l-m.r,ih=H-m.t-m.b;
+  const n=Math.max(actual.length,anterior.length,1);
+  const maxV=Math.max(100,...actual.map(b=>b.total),...anterior.map(b=>b.total));
+  const paso=pasoEje(maxV),tope=Math.ceil(maxV/paso)*paso;
+  const x=i=>m.l+(n<=1?iw/2:i*iw/(n-1));
+  const y=v=>m.t+ih-(v/tope)*ih;
+  const base=y(0);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" height="${H}" tabindex="0" role="img" aria-label="Ventas del período comparadas con el período anterior">`;
+  for(let v=0;v<=tope+1e-9;v+=paso){
+    svg+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="rg-grid"/>`;
+    svg+=`<text x="${m.l-10}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" class="rg-eje">${moneyCorto(v)}</text>`;
+  }
+  const idxEtiquetas=[...new Set([0,Math.floor((actual.length-1)/2),actual.length-1])].filter(i=>i>=0);
+  idxEtiquetas.forEach((i,k)=>{
+    const anchor=idxEtiquetas.length===1?'middle':k===0?'start':k===idxEtiquetas.length-1?'end':'middle';
+    const lbl=gran==='semana'?fechaDiaMes(actual[i].desde):etiquetaBucket(actual[i],gran);
+    svg+=`<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="${anchor}" class="rg-eje">${lbl}</text>`;
+  });
+  const ptsAnt=anterior.map((b,i)=>[x(i),y(b.total)]);
+  const ptsAct=actual.map((b,i)=>[x(i),y(b.total)]);
+  if(ptsAnt.length)svg+=`<path d="${trazoSuave(ptsAnt)}" class="rg-linea-ant"/>`;
+  if(ptsAct.length){
+    const linea=trazoSuave(ptsAct);
+    svg+=`<path d="${linea}L${ptsAct[ptsAct.length-1][0].toFixed(1)},${base.toFixed(1)}L${ptsAct[0][0].toFixed(1)},${base.toFixed(1)}Z" class="rg-area"/>`;
+    svg+=`<path d="${linea}" class="rg-linea"/>`;
+    const u=ptsAct[ptsAct.length-1];
+    svg+=`<circle cx="${u[0].toFixed(1)}" cy="${u[1].toFixed(1)}" r="4" class="rg-punto"/>`;
+  }
+  svg+=`<g class="rg-cruz" style="display:none;"><line y1="${m.t}" y2="${base.toFixed(1)}" class="rg-cruz-linea"/><circle r="4" class="rg-punto-ant"/><circle r="4" class="rg-punto"/></g>`;
+  svg+=`<rect x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent" class="rg-captura"/></svg><div class="rg-tip" role="status"></div>`;
+  cont.innerHTML=svg;
+
+  const el=cont.querySelector('svg'),cruz=el.querySelector('.rg-cruz'),tip=cont.querySelector('.rg-tip');
+  const [lineaCruz,puntoAnt,puntoAct]=cruz.children;
+  let idx=actual.length-1;
+  function fila(clase,txtLbl,txtVal){
+    const d=document.createElement('div');d.className='rg-tip-fila';
+    const s=document.createElement('span');const k=document.createElement('i');k.className='rg-key '+clase;s.appendChild(k);s.appendChild(document.createTextNode(txtLbl));
+    const b=document.createElement('b');b.textContent=txtVal;
+    d.appendChild(s);d.appendChild(b);return d;
+  }
+  function mostrar(i){
+    idx=Math.max(0,Math.min(n-1,i));
+    const a=actual[idx],p=anterior[idx];
+    const cx=x(idx);
+    cruz.style.display='';
+    lineaCruz.setAttribute('x1',cx);lineaCruz.setAttribute('x2',cx);
+    if(a){puntoAct.style.display='';puntoAct.setAttribute('cx',cx);puntoAct.setAttribute('cy',y(a.total));}else puntoAct.style.display='none';
+    if(p){puntoAnt.style.display='';puntoAnt.setAttribute('cx',cx);puntoAnt.setAttribute('cy',y(p.total));}else puntoAnt.style.display='none';
+    tip.textContent='';
+    const cab=document.createElement('div');cab.className='rg-tip-fecha';
+    cab.textContent=a?etiquetaBucket(a,gran)+(a.pedidos?' · '+a.pedidos+(a.pedidos===1?' pedido':' pedidos'):''):'—';
+    tip.appendChild(cab);
+    if(a)tip.appendChild(fila('rg-key-act','Este período',money(a.total)));
+    if(p)tip.appendChild(fila('rg-key-ant',etiquetaBucket(p,gran),money(p.total)));
+    tip.classList.add('visible');
+    const escala=cont.clientWidth/W,tw=tip.offsetWidth;
+    let left=cx*escala+14;
+    if(left+tw>cont.clientWidth)left=cx*escala-tw-14;
+    tip.style.left=Math.max(0,left)+'px';
+  }
+  function ocultar(){cruz.style.display='none';tip.classList.remove('visible');}
+  function indiceDesdeEvento(ev){
+    const r=el.getBoundingClientRect();
+    const px=(ev.clientX-r.left)*(W/r.width);
+    return n<=1?0:Math.round((px-m.l)/(iw/(n-1)));
+  }
+  el.addEventListener('pointermove',ev=>mostrar(indiceDesdeEvento(ev)));
+  el.addEventListener('pointerdown',ev=>mostrar(indiceDesdeEvento(ev)));
+  el.addEventListener('pointerleave',ocultar);
+  el.addEventListener('focus',()=>mostrar(idx));
+  el.addEventListener('blur',ocultar);
+  el.addEventListener('keydown',ev=>{
+    if(ev.key==='ArrowLeft'){ev.preventDefault();mostrar(idx-1);}
+    if(ev.key==='ArrowRight'){ev.preventDefault();mostrar(idx+1);}
+  });
+}
+let rgTimerAncho=null;
+window.addEventListener('resize',()=>{clearTimeout(rgTimerAncho);rgTimerAncho=setTimeout(pintarGraficoVentas,150);});
+
 function pintarReportes(){
   if(!document.getElementById('repDesde').value)document.getElementById('repDesde').value=primerDiaMes();
   if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
   const desde=document.getElementById('repDesde').value;
   const hasta=document.getElementById('repHasta').value;
-  const pedidosFacturables=db.pedidos.filter(p=>p.fecha>=desde&&p.fecha<=hasta&&p.estadoPago==='pagado'&&ventaAcreditada(p));
-  const ingresos=pedidosFacturables.reduce((s,p)=>s+p.total,0);
-
+  const ant=periodoAnteriorReportes(desde,hasta);
+  const primeraCompra=primeraCompraPorCliente();
   // Regla de fechas (sección 9): TODO en Resumen respeta Desde/Hasta, incluyendo Leads/
   // Convertidos/Conversión — antes usaban db.leads.length (histórico completo) sin filtrar.
-  const leadsEnRango=db.leads.filter(l=>fechaLeadValida(l)&&l.fecha>=desde&&l.fecha<=hasta);
-  const totalLeads=leadsEnRango.length;
-  const convertidos=leadsEnRango.filter(l=>l.clienteId).length;
-  const tasaConv=totalLeads?((convertidos/totalLeads)*100).toFixed(1):'0.0';
+  const M=metricasReportes(desde,hasta,primeraCompra);
+  const A=metricasReportes(ant.desde,ant.hasta,primeraCompra);
+  const pedidosFacturables=M.pedidos,rentab=M.rentab,gananciaZBTotal=M.gananciaZB,hayMarcaSinHistoria=M.hayMarcaSinHistoria;
+  const totalLeads=M.totalLeads,convertidos=M.convertidos;
+  const tasaConv=M.conversion==null?'0.0':M.conversion.toFixed(1);
   // Sección 15: pauta del período (db.gastosPauta, fechado) — YA NO se usa config.gastoPauta
   // (global, sin fecha) para esto, porque no se puede saber a qué período pertenece.
   // BLOQUE 5 (2026-09-07): solo cuentan los gastos ACTIVOS (!g.anulado). Los históricos sin el
   // campo 'anulado' cuentan normalmente (undefined es falsy).
   const pautaPeriodo=round2((db.gastosPauta||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0));
-
   // Ganancia ZB: solo snapshots congelados en pedido.items[] (gananciaZBItem/rentabilidadPorMarca),
   // nunca costo/porcentaje actual de Stock/Config. Suma lo CALCULABLE de cada marca (nunca 0 si
   // hay ganancia conocida) — el * avisa que hay ventas históricas sin información suficiente
   // mezcladas ahí (ver sección 12B).
-  const rentab=rentabilidadPorMarca(pedidosFacturables);
-  const descuentosNoAtribuibles=rentab.descuentosNoAtribuibles||0;
-  const gananciaZBTotal=round2(rentab.reduce((s,f)=>s+f.gananciaZB,0)-descuentosNoAtribuibles);
-  const hayMarcaSinHistoria=rentab.some(f=>f.huboItemNoCalculable);
   // BLOQUE 5: la pauta es gasto 100% de Zona Bariátrica — NO toca ventas, costo congelado,
   // deuda con proveedor, participación del Dr. Mariano, reparto ni stock; SOLO reduce esta neta.
   // Puede ser negativa (sin max(0,...)). Hereda el '*' de dato parcial de la Ganancia ZB.
   const gananciaNetaZB=round2(gananciaZBTotal-pautaPeriodo);
+  const tituloParcial=hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:'';
 
   const productos={};
   pedidosFacturables.forEach(p=>p.items.forEach(it=>{productos[it.producto]=(productos[it.producto]||0)+it.cantidad;}));
   const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
+  const dias=Math.max(1,diasEntreISO(desde,hasta)+1);
+  const gran=granularidadReportes(dias);
+  graficoVentasDatos={
+    actual:serieVentasReportes(pedidosFacturables,desde,hasta,gran),
+    anterior:serieVentasReportes(A.pedidos,ant.desde,ant.hasta,gran),
+    gran
+  };
+  const nombreGran={dia:'por día',semana:'por semana',mes:'por mes'}[gran];
+
+  const maxMarca=Math.max(1,...rentab.map(f=>f.ventas));
+  const totalCli=M.clientesNuevos+M.clientesVuelven;
+  const pctNuevos=totalCli?M.clientesNuevos/totalCli*100:0;
+
   document.getElementById('repContenido').innerHTML=`
-    <div class="reportes-kpis">
-      <div class="stat"><div class="num">${money(ingresos)}</div><div class="lbl">Ventas</div></div>
-      <div class="stat"><div class="num" style="color:var(--success);"${hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</div><div class="lbl">Ganancia ZB</div></div>
-      <div class="stat"><div class="num">${pedidosFacturables.length}</div><div class="lbl">Pedidos</div></div>
-      <div class="stat"><div class="num" style="color:var(--primary);">${tasaConv}%</div><div class="lbl">Conversión</div></div>
+    <p class="rep-comparado">Comparado con ${fechaDiaMes(ant.desde)} – ${fechaDiaMes(ant.hasta)}</p>
+    <div class="reportes-kpis rk-dash">
+      ${tarjetaKPI('Ventas',money(M.ingresos),deltaKPI(M.ingresos,A.ingresos),money(A.ingresos))}
+      ${tarjetaKPI('Ganancia ZB',money(gananciaZBTotal)+(hayMarcaSinHistoria?' *':''),deltaKPI(gananciaZBTotal,A.gananciaZB),money(A.gananciaZB),` style="color:var(--success);"${tituloParcial}`)}
+      ${tarjetaKPI('Pedidos',String(pedidosFacturables.length),deltaKPI(pedidosFacturables.length,A.pedidos.length),String(A.pedidos.length))}
+      ${tarjetaKPI('Ticket promedio',M.ticket==null?'—':money(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':money(A.ticket))}
+      ${tarjetaKPI('Clientes que vuelven',pctTxt(M.recompra),deltaKPI(M.recompra,A.recompra,'pts'),pctTxt(A.recompra))}
+      ${tarjetaKPI('Conversión de leads',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion),' style="color:var(--primary);"')}
+    </div>
+
+    <div class="rg-card">
+      <div class="rg-cabecera">
+        <div><h3 class="rg-titulo">Ventas ${nombreGran}</h3><div class="rg-sub">Pasa el cursor o toca el gráfico para ver cada ${gran==='dia'?'día':gran==='semana'?'semana':'mes'}</div></div>
+        <div class="rg-leyenda"><span><i class="rg-key rg-key-act"></i>Este período</span><span><i class="rg-key rg-key-ant"></i>Período anterior</span></div>
+      </div>
+      <div class="rg-lienzo" id="rgLienzo"></div>
+      <details class="rg-tabla"><summary>Ver datos en tabla</summary>
+        <table><thead><tr><th>Período</th><th>Pedidos</th><th>Ventas</th><th>Período anterior</th></tr></thead><tbody>
+        ${graficoVentasDatos.actual.map((b,i)=>{const p=graficoVentasDatos.anterior[i];return `<tr><td>${etiquetaBucket(b,gran)}</td><td>${b.pedidos}</td><td>${money(b.total)}</td><td>${p?money(p.total):'—'}</td></tr>`;}).join('')}
+        </tbody></table>
+      </details>
     </div>
 
     <div class="reportes-neto">
-      <div class="rn-item"><span class="rn-lbl">Ganancia ZB antes de pauta</span><span class="rn-val" style="color:var(--success);"${hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</span></div>
+      <div class="rn-item"><span class="rn-lbl">Ganancia ZB antes de pauta</span><span class="rn-val" style="color:var(--success);"${tituloParcial}>${money(gananciaZBTotal)}${hayMarcaSinHistoria?' *':''}</span></div>
       <div class="rn-op">−</div>
       <div class="rn-item"><span class="rn-lbl">Pauta del período</span><span class="rn-val">${money(pautaPeriodo)}</span></div>
       <div class="rn-op">=</div>
-      <div class="rn-item rn-total"><span class="rn-lbl">Ganancia neta ZB</span><span class="rn-val" style="color:${gananciaNetaZB<0?'var(--danger)':'var(--success)'};"${hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${money(gananciaNetaZB)}${hayMarcaSinHistoria?' *':''}</span></div>
+      <div class="rn-item rn-total"><span class="rn-lbl">Ganancia neta ZB</span><span class="rn-val" style="color:${gananciaNetaZB<0?'var(--danger)':'var(--success)'};"${tituloParcial}>${money(gananciaNetaZB)}${hayMarcaSinHistoria?' *':''}</span></div>
     </div>
 
-    <h3 class="reportes-subtitulo">Ventas por marca</h3>
-    ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="tabla-excel reportes-marca-wrap"><table class="reportes-tabla-marca"><thead><tr>
-      <th>Marca</th><th>Ventas</th><th>Ganancia ZB</th>
-      </tr></thead><tbody>${rentab.map(f=>`<tr>
-        <td style="text-align:left;">${esc(f.marca)}</td>
-        <td style="text-align:right;">${money(f.ventas)}</td>
-        <td style="text-align:right;"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':money(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</td>
-      </tr>`).join('')}</tbody></table></div>`}
+    <div class="reportes-fila-bloques" style="margin-top:0;">
+      <div class="reportes-bloque">
+        <h3 class="reportes-subtitulo">Ventas por marca</h3>
+        ${rentab.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<div class="rb-lista">
+          <div class="rb-fila rb-cab"><span></span><span>Ventas</span><span>Ganancia ZB</span></div>
+          ${rentab.map(f=>`<div class="rb-fila">
+            <span class="rb-nombre" title="${esc(f.marca)}">${esc(f.marca)}</span>
+            <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 92px) * ${(f.ventas/maxMarca).toFixed(4)});"></span><span class="rb-valor">${money(f.ventas)}</span></span>
+            <span class="rb-ganancia"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':money(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</span>
+          </div>`).join('')}
+        </div>`}
+      </div>
+      <div class="reportes-bloque">
+        <h3 class="reportes-subtitulo">Clientes del período</h3>
+        ${totalCli===0?'<div class="vacio">Sin ventas en el periodo.</div>':`
+        <div class="rc-total"><b>${totalCli}</b> ${totalCli===1?'cliente compró':'clientes compraron'}</div>
+        <div class="rc-barra" role="img" aria-label="${M.clientesNuevos} nuevos y ${M.clientesVuelven} que vuelven">
+          ${M.clientesNuevos?`<span class="rc-seg rc-nuevo" style="flex:${M.clientesNuevos};"></span>`:''}
+          ${M.clientesVuelven?`<span class="rc-seg rc-vuelve" style="flex:${M.clientesVuelven};"></span>`:''}
+        </div>
+        <div class="rc-leyenda">
+          <div class="rc-item"><i class="rc-sw rc-nuevo"></i>Nuevos (primera compra)<b>${M.clientesNuevos}</b><span>${pctNuevos.toFixed(0)}%</span></div>
+          <div class="rc-item"><i class="rc-sw rc-vuelve"></i>Volvieron a comprar<b>${M.clientesVuelven}</b><span>${(100-pctNuevos).toFixed(0)}%</span></div>
+        </div>
+        ${M.pedidosSinCliente?`<p class="rc-nota">${M.pedidosSinCliente} ${M.pedidosSinCliente===1?'venta no tiene':'ventas no tienen'} cliente asignado y no ${M.pedidosSinCliente===1?'entra':'entran'} en este conteo.</p>`:''}`}
+      </div>
+    </div>
 
     <div class="reportes-fila-bloques">
       <div class="reportes-bloque">
@@ -6643,6 +6980,7 @@ function pintarReportes(){
         ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<ol class="reportes-mas-vendidos">${topProductos.map(([p,q],i)=>`<li><span class="mv-rank">${String(i+1).padStart(2,'0')}</span><span class="mv-nombre">${esc(p)}</span><span class="mv-cant">${q} und.</span></li>`).join('')}</ol>`}
       </div>
     </div>`;
+  pintarGraficoVentas();
 }
 function repRangoRapido(tipo){
   const hoy=hoyStr();
