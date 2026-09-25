@@ -323,6 +323,65 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rc-item b{margin-left:auto;font-variant-numeric:tabular-nums;}
 .rc-item span{width:40px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;}
 .rc-nota{font-size:11.5px;color:var(--muted);margin:12px 0 0;}
+/* KPIs clicables → el gráfico muestra ese indicador */
+.rk-tile{cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
+.rk-tile:hover{border-color:var(--primary);box-shadow:var(--shadow-sm);}
+.rk-tile:focus-visible{outline:2px solid var(--primary-ring);outline-offset:2px;}
+.rk-tile.activa{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary),var(--shadow-sm);}
+.rk-tile.activa .lbl{color:var(--primary);}
+.rg-derecha{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+@media(max-width:640px){.rg-derecha{align-items:flex-start;}}
+/* Filtro de período discreto + menús flotantes (período y elegir productos) */
+.rp-ancla{position:relative;display:inline-block;}
+.rp-boton{display:inline-flex;align-items:center;gap:7px;background:var(--bg-soft);border:1px solid var(--border-light);border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;font-weight:500;color:var(--text);}
+.rp-boton:hover{border-color:var(--border);background:var(--card);}
+.rp-boton svg{color:var(--muted);flex-shrink:0;}
+.rp-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--card);border:1px solid var(--border-light);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;min-width:230px;}
+.rp-pop-der{right:0;}
+@media(max-width:640px){.rp-pop{right:auto;left:0;}}
+.rp-op{display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);text-align:left;}
+.rp-op:hover{background:var(--bg-soft);}
+.rp-op.sel{font-weight:600;}
+.rp-check{width:16px;font-weight:700;color:var(--primary);}
+.rp-personal{border-top:1px solid var(--border-light);margin-top:6px;padding:10px 8px 4px;display:flex;flex-direction:column;gap:8px;}
+.rp-personal-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.rp-personal label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin:0;}
+.rp-personal input{width:auto;padding:5px 8px;font-size:12.5px;}
+/* Productos vendidos */
+.mv-fila-bloque{grid-template-columns:1fr;}
+.mv-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.mv-cab .reportes-subtitulo{margin-bottom:2px;}
+.mv-resumen{font-size:12px;color:var(--muted);}
+.mv-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.mv-controles select,.mv-controles input[type=search]{width:auto;padding:6px 10px;font-size:12.5px;}
+.mv-controles input[type=search]{width:170px;}
+.rp-seg{display:inline-flex;background:var(--bg-soft);border-radius:var(--r-pill);padding:2px;}
+.rp-seg button{background:none;border:none;border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;color:var(--muted);}
+.rp-seg button.activo{background:var(--card);color:var(--text);font-weight:600;box-shadow:var(--shadow-xs);}
+.mv-lista{display:flex;flex-direction:column;max-height:460px;overflow-y:auto;margin:0 -4px;padding:0 4px;}
+.mv-fila{display:grid;grid-template-columns:22px minmax(140px,240px) 1fr 70px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:13px;}
+.mv-fila:last-child{border-bottom:none;}
+.mv-fila:hover .rb-barra{opacity:.75;}
+.mv-prod{display:flex;flex-direction:column;min-width:0;}
+.mv-prod .mv-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mv-marca{font-size:11px;color:var(--muted);}
+.mv-delta{font-size:11.5px;text-align:right;white-space:nowrap;}
+@media(max-width:640px){
+  .mv-fila{grid-template-columns:22px 1fr 64px;}
+  .mv-fila .rb-pista{grid-column:2 / 4;grid-row:2;}
+  .mv-controles input[type=search]{width:100%;}
+}
+.mv-pop{width:340px;max-width:calc(100vw - 32px);}
+.mv-pop-acciones{display:flex;gap:12px;padding:4px 8px 8px;border-bottom:1px solid var(--border-light);margin-bottom:4px;}
+.mv-pop-acciones button{background:none;border:none;padding:0;font-size:12.5px;color:var(--primary);font-weight:600;}
+.mv-checklist{max-height:280px;overflow-y:auto;}
+.mv-check{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:13px;margin:0;cursor:pointer;color:var(--text);font-weight:400;}
+.mv-check:hover{background:var(--bg-soft);}
+.mv-check input{width:auto;margin:0;}
+.mv-check span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mv-check small{color:var(--muted);font-size:11px;white-space:nowrap;}
+.rc-leads{margin-top:16px;padding-top:14px;border-top:1px solid var(--border-light);}
+.rg-cero{stroke:var(--border);}
 .mv-rank{font-size:11px;font-weight:700;color:var(--text-light);font-variant-numeric:tabular-nums;width:16px;flex-shrink:0;}
 .mv-nombre{flex:1;color:var(--text);}
 .mv-cant{color:var(--muted);white-space:nowrap;font-size:12px;}
@@ -6639,10 +6698,19 @@ function fechaLeadValida(l){
 // LECTURA: reusa exactamente los mismos filtros (pagado + ventaAcreditada) y rentabilidadPorMarca()
 // de antes; no hay fórmula económica nueva. Período anterior: si el rango es un mes (o el mes en
 // curso) se compara con los mismos días del mes anterior; si no, con los N días inmediatamente previos.
+// Clic en cualquiera de los 6 KPIs → el gráfico muestra ese indicador (cada punto del gráfico se
+// calcula con la MISMA metricasReportes() que el KPI, así el gráfico y la tarjeta nunca difieren).
+// El filtro de fechas vive discreto en la tarjeta del gráfico, pero sigue guardándose en los inputs
+// ocultos repDesde/repHasta y sigue filtrando TODO el Resumen.
 function fechaISOLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function sumarDiasISO(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return fechaISOLocal(d);}
 function diasEntreISO(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
 function fechaDiaMes(iso){return new Date(iso+'T12:00:00').toLocaleDateString('es-PE',{day:'numeric',month:'short'}).replace('.','');}
+function rangoTexto(desde,hasta){
+  const anio=hoyStr().slice(0,4);
+  const f=iso=>fechaDiaMes(iso)+(iso.slice(0,4)!==anio?' '+iso.slice(0,4):'');
+  return desde===hasta?f(desde):f(desde)+' – '+f(hasta);
+}
 function periodoAnteriorReportes(desde,hasta){
   if(desde.slice(8)==='01'&&desde.slice(0,7)===hasta.slice(0,7)){
     const d=new Date(desde+'T12:00:00');
@@ -6710,36 +6778,110 @@ function deltaKPI(actual,anterior,tipo){
   if(Math.abs(d)<0.5)return '<span class="rk-igual">= igual</span>';
   return `<span class="${d>0?'rk-sube':'rk-baja'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(0)}%</span>`;
 }
-function tarjetaKPI(lbl,valorHTML,delta,antesTxt,extraNum){
-  return `<div class="stat"><div class="num"${extraNum||''}>${valorHTML}</div><div class="lbl">${lbl}</div><div class="rk-delta">${delta}<span>antes ${antesTxt}</span></div></div>`;
-}
 function pctTxt(v){return v==null?'—':v.toFixed(1)+'%';}
 
-/* ---- Gráfico de ventas (SVG propio, sin librerías) ---- */
+// Indicadores que se pueden graficar (uno por KPI). valor() lee el objeto de metricasReportes().
+// acumulado: los promedios/porcentajes se grafican ACUMULADOS desde el inicio del período hasta cada
+// punto (un % de un solo día con 1-2 clientes salta entre 0 y 100 y no dice nada); así el último
+// punto coincide con el número de la tarjeta. Las sumas (ventas, ganancia, pedidos) van por día/semana/mes.
+const METRICAS_REPORTE={
+  ventas:{lbl:'Ventas',valor:m=>m.ingresos,fmt:money,eje:moneyCorto,minTope:100},
+  ganancia:{lbl:'Ganancia ZB',valor:m=>m.gananciaZB,fmt:money,eje:moneyCorto,minTope:100},
+  pedidos:{lbl:'Pedidos',valor:m=>m.pedidos.length,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
+  ticket:{lbl:'Ticket promedio',valor:m=>m.ticket,fmt:money,eje:moneyCorto,minTope:100,acumulado:true},
+  recompra:{lbl:'Clientes que vuelven',valor:m=>m.recompra,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true},
+  conversion:{lbl:'Conversión de leads',valor:m=>m.conversion,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true}
+};
+let reportesMetrica='ventas';
+function tarjetaKPI(clave,valorHTML,delta,antesTxt,extraNum){
+  const act=reportesMetrica===clave;
+  return `<div class="stat rk-tile${act?' activa':''}" role="button" tabindex="0" aria-pressed="${act}" data-metrica="${clave}" title="Ver ${METRICAS_REPORTE[clave].lbl} en el gráfico"
+    onclick="elegirMetricaReportes('${clave}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();elegirMetricaReportes('${clave}');}">
+    <div class="num"${extraNum||''}>${valorHTML}</div><div class="lbl">${METRICAS_REPORTE[clave].lbl}</div><div class="rk-delta">${delta}<span>antes ${antesTxt}</span></div></div>`;
+}
+function elegirMetricaReportes(clave){
+  reportesMetrica=clave;
+  document.querySelectorAll('.rk-tile').forEach(t=>{const a=t.dataset.metrica===clave;t.classList.toggle('activa',a);t.setAttribute('aria-pressed',a);});
+  pintarGraficoReportes();
+}
+
+/* ---- Filtro de período (discreto, en la tarjeta del gráfico) ---- */
+function rangoPresetReportes(tipo){
+  const hoy=hoyStr();
+  if(tipo==='este_mes')return{desde:hoy.slice(0,8)+'01',hasta:hoy};
+  if(tipo==='mes_anterior'){
+    const d=new Date(hoy+'T12:00:00');
+    const ini=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()-1,1,12));
+    return{desde:ini,hasta:fechaISOLocal(new Date(d.getFullYear(),d.getMonth(),0,12))};
+  }
+  if(tipo==='este_anio')return{desde:hoy.slice(0,4)+'-01-01',hasta:hoy};
+  const n={d7:7,d30:30,d90:90}[tipo];
+  return{desde:sumarDiasISO(hoy,-(n-1)),hasta:hoy};
+}
+const PRESETS_REPORTES=[['este_mes','Este mes'],['mes_anterior','Mes anterior'],['d7','Últimos 7 días'],['d30','Últimos 30 días'],['d90','Últimos 90 días'],['este_anio','Este año']];
+function fijarPeriodoReportes(desde,hasta){
+  if(!desde||!hasta)return;
+  if(desde>hasta){const t=desde;desde=hasta;hasta=t;}
+  document.getElementById('repDesde').value=desde;
+  document.getElementById('repHasta').value=hasta;
+  pintarReportes();
+}
+function aplicarPresetReportes(tipo){const r=rangoPresetReportes(tipo);fijarPeriodoReportes(r.desde,r.hasta);}
+function aplicarPeriodoPersonalReportes(){
+  fijarPeriodoReportes(document.getElementById('rpDesdeIn').value,document.getElementById('rpHastaIn').value);
+}
+function alternarPopReportes(id,ev){
+  if(ev)ev.stopPropagation();
+  const pop=document.getElementById(id);
+  const abrir=pop.classList.contains('oculto');
+  document.querySelectorAll('.rp-pop').forEach(p=>p.classList.add('oculto'));
+  if(abrir){pop.classList.remove('oculto');if(id==='mvPop')pintarChecklistMV();}
+}
+document.addEventListener('click',ev=>{
+  if(ev.target.closest&&ev.target.closest('.rp-ancla'))return;
+  document.querySelectorAll('.rp-pop').forEach(p=>p.classList.add('oculto'));
+});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape')document.querySelectorAll('.rp-pop').forEach(p=>p.classList.add('oculto'));});
+function htmlFiltroPeriodo(desde,hasta){
+  const icono='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+  return `<div class="rp-ancla">
+    <button type="button" class="rp-boton" aria-haspopup="true" onclick="alternarPopReportes('rpPop',event)">${icono}<span>${rangoTexto(desde,hasta)}</span><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    <div class="rp-pop oculto" id="rpPop" role="menu">
+      ${PRESETS_REPORTES.map(([k,lbl])=>{const r=rangoPresetReportes(k);const sel=r.desde===desde&&r.hasta===hasta;
+        return `<button type="button" class="rp-op${sel?' sel':''}" role="menuitemradio" aria-checked="${sel}" onclick="aplicarPresetReportes('${k}')"><span class="rp-check">${sel?'✓':''}</span>${lbl}</button>`;}).join('')}
+      <div class="rp-personal">
+        <div class="rp-personal-lbl">Personalizado</div>
+        <label>Desde<input type="date" id="rpDesdeIn" value="${desde}"></label>
+        <label>Hasta<input type="date" id="rpHastaIn" value="${hasta}"></label>
+        <button type="button" class="btn btn-chico" onclick="aplicarPeriodoPersonalReportes()">Aplicar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---- Gráfico del indicador elegido (SVG propio, sin librerías) ---- */
 function granularidadReportes(dias){return dias<=31?'dia':dias<=120?'semana':'mes';}
-function serieVentasReportes(pedidos,desde,hasta,gran){
+function bucketsReportes(desde,hasta,gran){
   const buckets=[];
   if(gran==='mes'){
     let cur=desde.slice(0,8)+'01';
     while(cur<=hasta&&buckets.length<240){
       const d=new Date(cur+'T12:00:00');
       const fin=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()+1,0,12));
-      buckets.push({desde:cur<desde?desde:cur,hasta:fin>hasta?hasta:fin,total:0,pedidos:0});
+      buckets.push({desde:cur<desde?desde:cur,hasta:fin>hasta?hasta:fin});
       cur=fechaISOLocal(new Date(d.getFullYear(),d.getMonth()+1,1,12));
     }
   }else{
     const paso=gran==='dia'?1:7;
     for(let cur=desde;cur<=hasta&&buckets.length<400;cur=sumarDiasISO(cur,paso)){
       const fin=sumarDiasISO(cur,paso-1);
-      buckets.push({desde:cur,hasta:fin>hasta?hasta:fin,total:0,pedidos:0});
+      buckets.push({desde:cur,hasta:fin>hasta?hasta:fin});
     }
   }
-  pedidos.forEach(p=>{
-    const f=String(p.fecha).slice(0,10);
-    const b=buckets.find(b=>f>=b.desde&&f<=b.hasta);
-    if(b){b.total=round2(b.total+p.total);b.pedidos++;}
-  });
   return buckets;
+}
+function serieMetricasReportes(desde,hasta,gran,primeraCompra){
+  return bucketsReportes(desde,hasta,gran).map(b=>Object.assign(b,{m:metricasReportes(b.desde,b.hasta,primeraCompra),mAcum:metricasReportes(desde,b.hasta,primeraCompra)}));
 }
 function etiquetaBucket(b,gran){
   if(gran==='dia')return fechaDiaMes(b.desde);
@@ -6751,8 +6893,9 @@ function pasoEje(max){
   return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*mag;
 }
 function moneyCorto(v){
-  if(v>=1000)return 'S/ '+(v/1000).toFixed(v%1000===0?0:1)+'k';
-  return 'S/ '+Math.round(v);
+  const s=v<0?'-':'';v=Math.abs(v);
+  if(v>=1000)return s+'S/ '+(v/1000).toFixed(v%1000===0?0:1)+'k';
+  return s+'S/ '+Math.round(v);
 }
 // Curva monótona (Fritsch–Carlson): suaviza sin inventar picos ni bajar de cero entre puntos.
 function trazoSuave(pts){
@@ -6771,24 +6914,42 @@ function trazoSuave(pts){
   }
   return d;
 }
-let graficoVentasDatos=null; // {actual,anterior,gran} — se guarda para redibujar al cambiar el ancho
-function pintarGraficoVentas(){
+// Tramos continuos de puntos con valor (ticket/%, sin pedidos o sin leads = sin dato, no cero).
+function tramosConValor(pts){
+  const tramos=[];let cur=[];
+  pts.forEach(p=>{if(p[1]==null){if(cur.length)tramos.push(cur);cur=[];}else cur.push(p);});
+  if(cur.length)tramos.push(cur);
+  return tramos;
+}
+let graficoReportesDatos=null; // {actual,anterior,gran} — se guarda para redibujar al cambiar KPI o ancho
+function pintarGraficoReportes(){
   const cont=document.getElementById('rgLienzo');
-  if(!cont||!graficoVentasDatos||!cont.offsetParent)return;
-  const{actual,anterior,gran}=graficoVentasDatos;
+  if(!cont||!graficoReportesDatos||!cont.offsetParent)return;
+  const{actual,anterior,gran}=graficoReportesDatos;
+  const def=METRICAS_REPORTE[reportesMetrica];
+  const nombreGran={dia:'por día',semana:'por semana',mes:'por mes'}[gran];
+  document.getElementById('rgTitulo').textContent=def.lbl+(def.acumulado?' acumulado en el período':' '+nombreGran);
+  const leer=b=>def.valor(def.acumulado?b.mAcum:b.m);
+  const vAct=actual.map(leer),vAnt=anterior.map(leer);
+  const vals=vAct.concat(vAnt).filter(v=>v!=null);
+
   const W=Math.max(280,cont.clientWidth),H=cont.clientWidth<520?190:230;
   const m={t:14,r:14,b:26,l:52};
   const iw=W-m.l-m.r,ih=H-m.t-m.b;
   const n=Math.max(actual.length,anterior.length,1);
-  const maxV=Math.max(100,...actual.map(b=>b.total),...anterior.map(b=>b.total));
-  const paso=pasoEje(maxV),tope=Math.ceil(maxV/paso)*paso;
+  const maxV=Math.max(def.minTope,...vals),minV=Math.min(0,...vals);
+  let paso=pasoEje(maxV-minV);
+  if(def.entero)paso=Math.max(1,Math.ceil(paso));
+  let tope=Math.ceil(maxV/paso)*paso;
+  if(def.maxTope&&tope>def.maxTope)tope=def.maxTope;
+  const piso=Math.floor(minV/paso)*paso;
   const x=i=>m.l+(n<=1?iw/2:i*iw/(n-1));
-  const y=v=>m.t+ih-(v/tope)*ih;
+  const y=v=>m.t+ih-((v-piso)/(tope-piso))*ih;
   const base=y(0);
-  let svg=`<svg viewBox="0 0 ${W} ${H}" height="${H}" tabindex="0" role="img" aria-label="Ventas del período comparadas con el período anterior">`;
-  for(let v=0;v<=tope+1e-9;v+=paso){
-    svg+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="rg-grid"/>`;
-    svg+=`<text x="${m.l-10}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" class="rg-eje">${moneyCorto(v)}</text>`;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" height="${H}" tabindex="0" role="img" aria-label="${def.lbl} del período comparado con el período anterior. Usa las flechas para recorrerlo.">`;
+  for(let v=piso;v<=tope+1e-9;v+=paso){
+    svg+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="rg-grid${Math.abs(v)<1e-9&&piso<0?' rg-cero':''}"/>`;
+    svg+=`<text x="${m.l-10}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" class="rg-eje">${def.eje(v)}</text>`;
   }
   const idxEtiquetas=[...new Set([0,Math.floor((actual.length-1)/2),actual.length-1])].filter(i=>i>=0);
   idxEtiquetas.forEach((i,k)=>{
@@ -6796,19 +6957,22 @@ function pintarGraficoVentas(){
     const lbl=gran==='semana'?fechaDiaMes(actual[i].desde):etiquetaBucket(actual[i],gran);
     svg+=`<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="${anchor}" class="rg-eje">${lbl}</text>`;
   });
-  const ptsAnt=anterior.map((b,i)=>[x(i),y(b.total)]);
-  const ptsAct=actual.map((b,i)=>[x(i),y(b.total)]);
-  if(ptsAnt.length)svg+=`<path d="${trazoSuave(ptsAnt)}" class="rg-linea-ant"/>`;
-  if(ptsAct.length){
-    const linea=trazoSuave(ptsAct);
-    svg+=`<path d="${linea}L${ptsAct[ptsAct.length-1][0].toFixed(1)},${base.toFixed(1)}L${ptsAct[0][0].toFixed(1)},${base.toFixed(1)}Z" class="rg-area"/>`;
+  tramosConValor(vAnt.map((v,i)=>[x(i),v==null?null:y(v)])).forEach(t=>{svg+=`<path d="${trazoSuave(t)}" class="rg-linea-ant"/>`;});
+  const tramosAct=tramosConValor(vAct.map((v,i)=>[x(i),v==null?null:y(v)]));
+  tramosAct.forEach(t=>{
+    const linea=trazoSuave(t);
+    if(t.length>1)svg+=`<path d="${linea}L${t[t.length-1][0].toFixed(1)},${base.toFixed(1)}L${t[0][0].toFixed(1)},${base.toFixed(1)}Z" class="rg-area"/>`;
     svg+=`<path d="${linea}" class="rg-linea"/>`;
-    const u=ptsAct[ptsAct.length-1];
-    svg+=`<circle cx="${u[0].toFixed(1)}" cy="${u[1].toFixed(1)}" r="4" class="rg-punto"/>`;
-  }
-  svg+=`<g class="rg-cruz" style="display:none;"><line y1="${m.t}" y2="${base.toFixed(1)}" class="rg-cruz-linea"/><circle r="4" class="rg-punto-ant"/><circle r="4" class="rg-punto"/></g>`;
+    if(t.length===1)svg+=`<circle cx="${t[0][0].toFixed(1)}" cy="${t[0][1].toFixed(1)}" r="4" class="rg-punto"/>`;
+  });
+  if(tramosAct.length){const ult=tramosAct[tramosAct.length-1],u=ult[ult.length-1];svg+=`<circle cx="${u[0].toFixed(1)}" cy="${u[1].toFixed(1)}" r="4" class="rg-punto"/>`;}
+  svg+=`<g class="rg-cruz" style="display:none;"><line y1="${m.t}" y2="${m.t+ih}" class="rg-cruz-linea"/><circle r="4" class="rg-punto-ant"/><circle r="4" class="rg-punto"/></g>`;
   svg+=`<rect x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent" class="rg-captura"/></svg><div class="rg-tip" role="status"></div>`;
   cont.innerHTML=svg;
+
+  document.getElementById('rgTablaCab').textContent=def.lbl;
+  document.getElementById('rgTablaCuerpo').innerHTML=actual.map((b,i)=>{const p=anterior[i];
+    return `<tr><td>${etiquetaBucket(b,gran)}</td><td>${b.m.pedidos.length}</td><td>${vAct[i]==null?'—':def.fmt(vAct[i])}</td><td>${p?(vAnt[i]==null?'—':def.fmt(vAnt[i])):'—'}</td></tr>`;}).join('');
 
   const el=cont.querySelector('svg'),cruz=el.querySelector('.rg-cruz'),tip=cont.querySelector('.rg-tip');
   const [lineaCruz,puntoAnt,puntoAct]=cruz.children;
@@ -6825,14 +6989,15 @@ function pintarGraficoVentas(){
     const cx=x(idx);
     cruz.style.display='';
     lineaCruz.setAttribute('x1',cx);lineaCruz.setAttribute('x2',cx);
-    if(a){puntoAct.style.display='';puntoAct.setAttribute('cx',cx);puntoAct.setAttribute('cy',y(a.total));}else puntoAct.style.display='none';
-    if(p){puntoAnt.style.display='';puntoAnt.setAttribute('cx',cx);puntoAnt.setAttribute('cy',y(p.total));}else puntoAnt.style.display='none';
+    if(a&&vAct[idx]!=null){puntoAct.style.display='';puntoAct.setAttribute('cx',cx);puntoAct.setAttribute('cy',y(vAct[idx]));}else puntoAct.style.display='none';
+    if(p&&vAnt[idx]!=null){puntoAnt.style.display='';puntoAnt.setAttribute('cx',cx);puntoAnt.setAttribute('cy',y(vAnt[idx]));}else puntoAnt.style.display='none';
     tip.textContent='';
     const cab=document.createElement('div');cab.className='rg-tip-fecha';
-    cab.textContent=a?etiquetaBucket(a,gran)+(a.pedidos?' · '+a.pedidos+(a.pedidos===1?' pedido':' pedidos'):''):'—';
+    const np=a?a.m.pedidos.length:0;
+    cab.textContent=a?etiquetaBucket(a,gran)+' · '+np+(np===1?' pedido':' pedidos'):'—';
     tip.appendChild(cab);
-    if(a)tip.appendChild(fila('rg-key-act','Este período',money(a.total)));
-    if(p)tip.appendChild(fila('rg-key-ant',etiquetaBucket(p,gran),money(p.total)));
+    if(a)tip.appendChild(fila('rg-key-act','Este período',vAct[idx]==null?'—':def.fmt(vAct[idx])));
+    if(p)tip.appendChild(fila('rg-key-ant',etiquetaBucket(p,gran),vAnt[idx]==null?'—':def.fmt(vAnt[idx])));
     tip.classList.add('visible');
     const escala=cont.clientWidth/W,tw=tip.offsetWidth;
     let left=cx*escala+14;
@@ -6856,9 +7021,97 @@ function pintarGraficoVentas(){
   });
 }
 let rgTimerAncho=null;
-window.addEventListener('resize',()=>{clearTimeout(rgTimerAncho);rgTimerAncho=setTimeout(pintarGraficoVentas,150);});
+window.addEventListener('resize',()=>{clearTimeout(rgTimerAncho);rgTimerAncho=setTimeout(pintarGraficoReportes,150);});
+
+/* ---- Productos vendidos: TODOS los productos, con filtros (marca, búsqueda, elegir cuáles) ----
+   Los filtros se guardan acá y sobreviven al cambio de período. Solo se repinta la lista (no los
+   controles), así escribir en el buscador no pierde el foco. */
+let mvDatos=[];            // [{producto,marca,und,soles,undAnt,solesAnt}] del período actual
+let mvMedida='und';        // 'und' | 'soles'
+let mvMarcaSel='';         // '' = todas
+let mvTexto='';
+let mvElegidos=null;       // null = todos; Set de nombres de producto = solo esos
+function productosVendidosPeriodo(pedidos,pedidosAnt){
+  const m={};
+  const fila=it=>m[it.producto]||(m[it.producto]={producto:it.producto,marca:it.marca,und:0,soles:0,undAnt:0,solesAnt:0});
+  pedidos.forEach(p=>(p.items||[]).forEach(it=>{const f=fila(it);f.und+=it.cantidad;f.soles=round2(f.soles+it.cantidad*it.precioUnit);}));
+  pedidosAnt.forEach(p=>(p.items||[]).forEach(it=>{if(!m[it.producto])return;const f=m[it.producto];f.undAnt+=it.cantidad;f.solesAnt=round2(f.solesAnt+it.cantidad*it.precioUnit);}));
+  return Object.values(m);
+}
+function mvFiltrados(){
+  const txt=mvTexto.trim().toLowerCase();
+  return mvDatos.filter(f=>(!mvMarcaSel||f.marca===mvMarcaSel)&&(!txt||String(f.producto).toLowerCase().includes(txt))&&(!mvElegidos||mvElegidos.has(f.producto)));
+}
+function pintarMasVendidos(){
+  const cuerpo=document.getElementById('mvCuerpo');if(!cuerpo)return;
+  document.querySelectorAll('.rp-seg button').forEach(b=>{const a=b.dataset.medida===mvMedida;b.classList.toggle('activo',a);b.setAttribute('aria-pressed',a);});
+  const btnElegir=document.getElementById('mvBtnElegir');
+  if(btnElegir)btnElegir.textContent=mvElegidos?`Elegidos (${mvElegidos.size})`:'Elegir productos';
+  const soles=mvMedida==='soles';
+  const val=f=>soles?f.soles:f.und,ant=f=>soles?f.solesAnt:f.undAnt;
+  const filas=mvFiltrados().sort((a,b)=>val(b)-val(a)||String(a.producto).localeCompare(String(b.producto)));
+  const total=filas.reduce((s,f)=>s+val(f),0);
+  document.getElementById('mvResumen').textContent=mvDatos.length===0?'':
+    `Mostrando ${filas.length} de ${mvDatos.length} productos · ${soles?money(total):total+' und.'} en total`;
+  if(mvDatos.length===0){cuerpo.innerHTML='<div class="vacio">Sin ventas en el periodo.</div>';return;}
+  if(filas.length===0){cuerpo.innerHTML='<div class="vacio">Ningún producto coincide con el filtro.</div>';return;}
+  const max=Math.max(1,...filas.map(val));
+  cuerpo.innerHTML=filas.map((f,i)=>`<div class="mv-fila">
+      <span class="mv-rank">${String(i+1).padStart(2,'0')}</span>
+      <span class="mv-prod"><span class="mv-nombre" title="${esc(f.producto)}">${esc(f.producto)}</span><span class="mv-marca">${esc(f.marca||'')}</span></span>
+      <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 96px) * ${(val(f)/max).toFixed(4)});"></span><span class="rb-valor">${soles?money(f.soles):f.und+' und.'}</span></span>
+      <span class="mv-delta" title="vs. período anterior">${deltaKPI(val(f),ant(f))}</span>
+    </div>`).join('');
+}
+function pintarChecklistMV(){
+  const lista=document.getElementById('mvChecklist');if(!lista)return;
+  const orden=mvDatos.map((f,i)=>i).sort((a,b)=>String(mvDatos[a].producto).localeCompare(String(mvDatos[b].producto)));
+  lista.innerHTML=orden.length===0?'<div class="vacio">Sin productos en el periodo.</div>':orden.map(i=>{const f=mvDatos[i];
+    return `<label class="mv-check"><input type="checkbox" data-i="${i}" ${!mvElegidos||mvElegidos.has(f.producto)?'checked':''} onchange="marcarProductoMV(this)"><span>${esc(f.producto)}</span><small>${esc(f.marca||'')}</small></label>`;}).join('');
+}
+function marcarProductoMV(chk){
+  const f=mvDatos[+chk.dataset.i];if(!f)return;
+  if(!mvElegidos)mvElegidos=new Set(mvDatos.map(d=>d.producto));
+  if(chk.checked)mvElegidos.add(f.producto);else mvElegidos.delete(f.producto);
+  if(mvDatos.every(d=>mvElegidos.has(d.producto)))mvElegidos=null;
+  pintarMasVendidos();
+}
+function elegirTodosMV(todos){
+  mvElegidos=todos?null:new Set();
+  pintarChecklistMV();pintarMasVendidos();
+}
+function cambiarMedidaMV(medida){mvMedida=medida;pintarMasVendidos();}
+function htmlProductosVendidos(){
+  const marcas=[...new Set(mvDatos.map(f=>f.marca).filter(Boolean))].sort();
+  if(mvMarcaSel&&!marcas.includes(mvMarcaSel))marcas.push(mvMarcaSel);
+  return `<div class="reportes-bloque mv-card">
+    <div class="mv-cab">
+      <div><h3 class="reportes-subtitulo">Productos vendidos</h3><div class="mv-resumen" id="mvResumen"></div></div>
+      <div class="mv-controles">
+        <div class="rp-seg" role="group" aria-label="Medir en">
+          <button type="button" data-medida="und" onclick="cambiarMedidaMV('und')">Unidades</button>
+          <button type="button" data-medida="soles" onclick="cambiarMedidaMV('soles')">Soles</button>
+        </div>
+        <select id="mvMarca" onchange="mvMarcaSel=this.value;pintarMasVendidos();" aria-label="Filtrar por marca">
+          <option value="">Todas las marcas</option>
+          ${marcas.map(mc=>`<option value="${esc(mc)}"${mc===mvMarcaSel?' selected':''}>${esc(mc)}</option>`).join('')}
+        </select>
+        <input type="search" id="mvBuscar" placeholder="Buscar producto" value="${esc(mvTexto)}" oninput="mvTexto=this.value;pintarMasVendidos();" aria-label="Buscar producto">
+        <div class="rp-ancla">
+          <button type="button" class="btn-secundario btn-chico" id="mvBtnElegir" aria-haspopup="true" onclick="alternarPopReportes('mvPop',event)">Elegir productos</button>
+          <div class="rp-pop rp-pop-der mv-pop oculto" id="mvPop">
+            <div class="mv-pop-acciones"><button type="button" class="btn-link" onclick="elegirTodosMV(true)">Todos</button><button type="button" class="btn-link" onclick="elegirTodosMV(false)">Ninguno</button></div>
+            <div id="mvChecklist" class="mv-checklist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mv-lista" id="mvCuerpo"></div>
+  </div>`;
+}
 
 function pintarReportes(){
+  document.querySelector('#repVistaResumen .filtro-periodo').classList.add('oculto');
   if(!document.getElementById('repDesde').value)document.getElementById('repDesde').value=primerDiaMes();
   if(!document.getElementById('repHasta').value)document.getElementById('repHasta').value=hoyStr();
   const desde=document.getElementById('repDesde').value;
@@ -6887,44 +7140,42 @@ function pintarReportes(){
   const gananciaNetaZB=round2(gananciaZBTotal-pautaPeriodo);
   const tituloParcial=hayMarcaSinHistoria?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:'';
 
-  const productos={};
-  pedidosFacturables.forEach(p=>p.items.forEach(it=>{productos[it.producto]=(productos[it.producto]||0)+it.cantidad;}));
-  const topProductos=Object.entries(productos).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  mvDatos=productosVendidosPeriodo(pedidosFacturables,A.pedidos);
 
   const dias=Math.max(1,diasEntreISO(desde,hasta)+1);
   const gran=granularidadReportes(dias);
-  graficoVentasDatos={
-    actual:serieVentasReportes(pedidosFacturables,desde,hasta,gran),
-    anterior:serieVentasReportes(A.pedidos,ant.desde,ant.hasta,gran),
+  graficoReportesDatos={
+    actual:serieMetricasReportes(desde,hasta,gran,primeraCompra),
+    anterior:serieMetricasReportes(ant.desde,ant.hasta,gran,primeraCompra),
     gran
   };
-  const nombreGran={dia:'por día',semana:'por semana',mes:'por mes'}[gran];
+  const unidadGran={dia:'día',semana:'semana',mes:'mes'}[gran];
 
   const maxMarca=Math.max(1,...rentab.map(f=>f.ventas));
   const totalCli=M.clientesNuevos+M.clientesVuelven;
   const pctNuevos=totalCli?M.clientesNuevos/totalCli*100:0;
 
   document.getElementById('repContenido').innerHTML=`
-    <p class="rep-comparado">Comparado con ${fechaDiaMes(ant.desde)} – ${fechaDiaMes(ant.hasta)}</p>
     <div class="reportes-kpis rk-dash">
-      ${tarjetaKPI('Ventas',money(M.ingresos),deltaKPI(M.ingresos,A.ingresos),money(A.ingresos))}
-      ${tarjetaKPI('Ganancia ZB',money(gananciaZBTotal)+(hayMarcaSinHistoria?' *':''),deltaKPI(gananciaZBTotal,A.gananciaZB),money(A.gananciaZB),` style="color:var(--success);"${tituloParcial}`)}
-      ${tarjetaKPI('Pedidos',String(pedidosFacturables.length),deltaKPI(pedidosFacturables.length,A.pedidos.length),String(A.pedidos.length))}
-      ${tarjetaKPI('Ticket promedio',M.ticket==null?'—':money(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':money(A.ticket))}
-      ${tarjetaKPI('Clientes que vuelven',pctTxt(M.recompra),deltaKPI(M.recompra,A.recompra,'pts'),pctTxt(A.recompra))}
-      ${tarjetaKPI('Conversión de leads',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion),' style="color:var(--primary);"')}
+      ${tarjetaKPI('ventas',money(M.ingresos),deltaKPI(M.ingresos,A.ingresos),money(A.ingresos))}
+      ${tarjetaKPI('ganancia',money(gananciaZBTotal)+(hayMarcaSinHistoria?' *':''),deltaKPI(gananciaZBTotal,A.gananciaZB),money(A.gananciaZB),` style="color:var(--success);"${tituloParcial}`)}
+      ${tarjetaKPI('pedidos',String(pedidosFacturables.length),deltaKPI(pedidosFacturables.length,A.pedidos.length),String(A.pedidos.length))}
+      ${tarjetaKPI('ticket',M.ticket==null?'—':money(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':money(A.ticket))}
+      ${tarjetaKPI('recompra',pctTxt(M.recompra),deltaKPI(M.recompra,A.recompra,'pts'),pctTxt(A.recompra))}
+      ${tarjetaKPI('conversion',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion),' style="color:var(--primary);"')}
     </div>
 
     <div class="rg-card">
       <div class="rg-cabecera">
-        <div><h3 class="rg-titulo">Ventas ${nombreGran}</h3><div class="rg-sub">Pasa el cursor o toca el gráfico para ver cada ${gran==='dia'?'día':gran==='semana'?'semana':'mes'}</div></div>
-        <div class="rg-leyenda"><span><i class="rg-key rg-key-act"></i>Este período</span><span><i class="rg-key rg-key-ant"></i>Período anterior</span></div>
+        <div><h3 class="rg-titulo" id="rgTitulo"></h3><div class="rg-sub">Toca un indicador de arriba para verlo aquí · pasa el cursor para ver cada ${unidadGran}</div></div>
+        <div class="rg-derecha">
+          ${htmlFiltroPeriodo(desde,hasta)}
+          <div class="rg-leyenda"><span><i class="rg-key rg-key-act"></i>Este período</span><span><i class="rg-key rg-key-ant"></i>${rangoTexto(ant.desde,ant.hasta)}</span></div>
+        </div>
       </div>
       <div class="rg-lienzo" id="rgLienzo"></div>
       <details class="rg-tabla"><summary>Ver datos en tabla</summary>
-        <table><thead><tr><th>Período</th><th>Pedidos</th><th>Ventas</th><th>Período anterior</th></tr></thead><tbody>
-        ${graficoVentasDatos.actual.map((b,i)=>{const p=graficoVentasDatos.anterior[i];return `<tr><td>${etiquetaBucket(b,gran)}</td><td>${b.pedidos}</td><td>${money(b.total)}</td><td>${p?money(p.total):'—'}</td></tr>`;}).join('')}
-        </tbody></table>
+        <table><thead><tr><th>Período</th><th>Pedidos</th><th id="rgTablaCab"></th><th>Período anterior</th></tr></thead><tbody id="rgTablaCuerpo"></tbody></table>
       </details>
     </div>
 
@@ -6949,7 +7200,7 @@ function pintarReportes(){
         </div>`}
       </div>
       <div class="reportes-bloque">
-        <h3 class="reportes-subtitulo">Clientes del período</h3>
+        <h3 class="reportes-subtitulo">Clientes y leads</h3>
         ${totalCli===0?'<div class="vacio">Sin ventas en el periodo.</div>':`
         <div class="rc-total"><b>${totalCli}</b> ${totalCli===1?'cliente compró':'clientes compraron'}</div>
         <div class="rc-barra" role="img" aria-label="${M.clientesNuevos} nuevos y ${M.clientesVuelven} que vuelven">
@@ -6961,26 +7212,21 @@ function pintarReportes(){
           <div class="rc-item"><i class="rc-sw rc-vuelve"></i>Volvieron a comprar<b>${M.clientesVuelven}</b><span>${(100-pctNuevos).toFixed(0)}%</span></div>
         </div>
         ${M.pedidosSinCliente?`<p class="rc-nota">${M.pedidosSinCliente} ${M.pedidosSinCliente===1?'venta no tiene':'ventas no tienen'} cliente asignado y no ${M.pedidosSinCliente===1?'entra':'entran'} en este conteo.</p>`:''}`}
+        <div class="rc-leads">
+          <div class="reportes-leads-viz">
+            <div class="viz-paso"><div class="viz-num">${totalLeads}</div><div class="viz-lbl">Leads</div></div>
+            <div class="viz-flecha">→</div>
+            <div class="viz-paso"><div class="viz-num">${convertidos}</div><div class="viz-lbl">Compraron</div></div>
+            <div class="viz-flecha">→</div>
+            <div class="viz-paso"><div class="viz-num" style="color:var(--primary);">${tasaConv}%</div><div class="viz-lbl">Conversión</div></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="reportes-fila-bloques">
-      <div class="reportes-bloque">
-        <h3 class="reportes-subtitulo">Leads</h3>
-        <div class="reportes-leads-viz">
-          <div class="viz-paso"><div class="viz-num">${totalLeads}</div><div class="viz-lbl">Recibidos</div></div>
-          <div class="viz-flecha">→</div>
-          <div class="viz-paso"><div class="viz-num">${convertidos}</div><div class="viz-lbl">Compraron</div></div>
-          <div class="viz-flecha">→</div>
-          <div class="viz-paso"><div class="viz-num" style="color:var(--primary);">${tasaConv}%</div><div class="viz-lbl">Conversión</div></div>
-        </div>
-      </div>
-      <div class="reportes-bloque">
-        <h3 class="reportes-subtitulo">Más vendidos</h3>
-        ${topProductos.length===0?'<div class="vacio">Sin ventas en el periodo.</div>':`<ol class="reportes-mas-vendidos">${topProductos.map(([p,q],i)=>`<li><span class="mv-rank">${String(i+1).padStart(2,'0')}</span><span class="mv-nombre">${esc(p)}</span><span class="mv-cant">${q} und.</span></li>`).join('')}</ol>`}
-      </div>
-    </div>`;
-  pintarGraficoVentas();
+    <div class="reportes-fila-bloques mv-fila-bloque">${htmlProductosVendidos()}</div>`;
+  pintarGraficoReportes();
+  pintarMasVendidos();
 }
 function repRangoRapido(tipo){
   const hoy=hoyStr();
