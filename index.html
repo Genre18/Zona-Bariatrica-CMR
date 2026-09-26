@@ -831,6 +831,9 @@ table.leads-tabla td:nth-child(3) .link-lead{text-align:left;}
 .stock-tabla-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
 .stock-tabla-wrap::-webkit-scrollbar-track{background:transparent;}
 table.stock-tabla th{position:sticky;top:0;z-index:2;}
+/* Sin flechitas de subir/bajar en los campos numéricos */
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 </style>
 </head>
 <body>
@@ -1145,7 +1148,7 @@ table.stock-tabla th{position:sticky;top:0;z-index:2;}
       <details class="config-block">
         <summary>Envío</summary>
         <label>Embalaje por defecto (S/) — se cobra en pedidos por Shalom</label>
-        <input type="number" id="cfgEmbalaje" step="0.5" onchange="guardarCfgNumero('embalajeDefault', this.value)">
+        <input type="number" id="cfgEmbalaje" step="any" onchange="guardarCfgNumero('embalajeDefault', this.value)">
       </details>
 
       <details class="config-block">
@@ -2678,11 +2681,11 @@ function abrirFormCotizacion(leadId){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="0.01" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="0.01" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento (S/, opcional)</label><input type="number" id="pd-descuento" step="any" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery estimado (S/, opcional)</label><input type="number" id="pd-delivery" step="any" value="0" min="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <label>Método de pago (opcional, si ya se sabe)</label>
       <select id="pd-metodopago" onchange="pedidoActualizarTotales()">
@@ -3204,15 +3207,15 @@ function abrirFormCliente(leadId){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago${lead&&lead.metodoPagoPreferido?' <span style="font-weight:400;color:var(--muted);">(preferido del lead)</span>':''}</label>
@@ -3670,15 +3673,15 @@ function abrirFormPedido(clienteIdPre){
             <option value="indrive">InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
@@ -4105,15 +4108,15 @@ function abrirEditarPedido(id){
             <option value="indrive" ${p.metodoEnvio==='indrive'?'selected':''}>InDrive (local)</option>
           </select>
         </div>
-        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="0.01" value="${p.embalaje}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="${p.embalaje}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2 ${p.metodoEnvio!=='shalom'?'oculto':''}" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden" value="${esc(p.numeroOrden||'')}"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
       </div>
       <div class="fila-2">
-        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="0.01" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)-(p.descuentoPromocionalFusion||0)))}" oninput="pedidoActualizarTotales()"></div>
-        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="0.01" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="any" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)-(p.descuentoPromocionalFusion||0)))}" oninput="pedidoActualizarTotales()"></div>
+        <div><label>Delivery (S/)</label><input type="number" id="pd-delivery" step="any" value="${p.delivery||0}" oninput="pedidoActualizarTotales()"></div>
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
@@ -4509,8 +4512,8 @@ function abrirFormStock(){
 
       <div class="form-grupo-titulo">Economía</div>
       <div class="fila-precios">
-        <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="0.5" value="0"></div>
-        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="0"></div>
+        <div id="st-fila-costo"><label>Precio de compra (S/)</label><input type="number" id="st-costo" step="any" value="0"></div>
+        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="any" value="0"></div>
       </div>
       <div class="form-divisor"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 2px;">
@@ -4543,7 +4546,7 @@ function stockRenderPreciosVolumen(){
   cont.innerHTML=`<div class="tabla-wrap" style="margin-top:6px;"><table><thead><tr><th>Desde</th><th>Precio unitario (S/)</th><th>Activo</th><th></th></tr></thead><tbody>
     ${stockPreciosVolumenTmp.map((t,i)=>`<tr>
       <td><input type="number" min="2" value="${t.desde}" style="width:70px;" onchange="stockCambiarTramoVolumen(${i},'desde',this.value)"></td>
-      <td><input type="number" step="0.5" min="0" value="${t.precioUnit}" style="width:90px;" onchange="stockCambiarTramoVolumen(${i},'precioUnit',this.value)"></td>
+      <td><input type="number" step="any" min="0" value="${t.precioUnit}" style="width:90px;" onchange="stockCambiarTramoVolumen(${i},'precioUnit',this.value)"></td>
       <td><input type="checkbox" ${t.activo!==false?'checked':''} style="width:auto;" onchange="stockCambiarTramoVolumen(${i},'activo',this.checked)"></td>
       <td><button type="button" class="btn-icono" onclick="stockQuitarTramoVolumen(${i})" title="Eliminar tramo">✕</button></td>
     </tr>`).join('')}
@@ -4714,7 +4717,7 @@ function abrirEditarStock(id){
           <input type="number" id="st-costo" value="${s.costoPromedio}" disabled style="background:var(--bg-soft);color:var(--muted);">
           <button type="button" class="link-historial" style="margin-top:4px;" onclick="cerrarModal();abrirFormCorregirCosto('${id}')">Corregir costo actual</button>
         </div>
-        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="0.5" value="${s.precioVenta}"></div>
+        <div><label>Precio de venta (S/)</label><input type="number" id="st-venta" step="any" value="${s.precioVenta}"></div>
       </div>
       <div class="form-divisor"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 2px;">
@@ -4924,7 +4927,7 @@ function abrirFormCorregirCosto(stockId){
     <p class="vacio" style="text-align:left;padding:0 0 8px;">Esto solo cambia el costo de referencia para operaciones futuras (nuevas ventas). No altera ventas ni obligaciones ya congeladas en el historial.</p>
     <form onsubmit="return guardarCorregirCosto(event,'${stockId}')">
       <label>Nuevo costo (S/) *</label>
-      <input type="number" id="cc-nuevocosto" step="0.01" required value="${s.costoPromedio}" min="0">
+      <input type="number" id="cc-nuevocosto" step="any" required value="${s.costoPromedio}" min="0">
       <label>Motivo / nota *</label>
       <input id="cc-motivo" required placeholder="Ej. error al registrar la última compra">
       <div class="acciones-modal">
@@ -5010,7 +5013,7 @@ function abrirFormCompra(){
       <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(s.producto)}</option>`).join('')}</select>
       <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="1" min="1"></div>
-        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="0"></div>
+        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="any" value="0"></div>
       </div>
       <div class="fila-proveedor-fecha">
         <div><label>Proveedor / doctor</label><input id="cp-proveedor" list="cp-lista-proveedores"></div>
@@ -5146,7 +5149,7 @@ function abrirEditarCompra(id){
     <form class="compra-form" onsubmit="return guardarEditarCompra(event,'${id}')">
       <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="${mov.cantidad}" min="1"></div>
-        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="0.5" value="${costoUnitActual}"></div>
+        <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="any" value="${costoUnitActual}"></div>
       </div>
       <div class="fila-proveedor-fecha">
         <div><label>Proveedor / doctor</label><input id="cp-proveedor" value="${esc(mov.proveedor||'')}" list="cp-lista-proveedores"></div>
@@ -5369,7 +5372,7 @@ function bloqueAsignacionesPago(lineas,idMonto){
     <input type="checkbox" class="pa-chk" data-idx="${idx}" data-pend="${l.pendiente}" onchange="pagoAsigToggle(${idx},'${idMonto}')">
     <span style="flex:1;">${fechaBonita(l.fecha)} · ${correlativoVenta(l.pedidoId)} · ${esc(l.producto)} ×${l.cantidad}${l.asignado>0?` · ya asignado ${money(l.asignado)}`:''}</span>
     <span style="white-space:nowrap;color:var(--muted);">pend. ${money(l.pendiente)}</span>
-    <input type="number" class="pa-monto" data-idx="${idx}" step="0.01" min="0" max="${l.pendiente}" value="" disabled style="width:82px;" oninput="pagoAsigActualizar('${idMonto}')">
+    <input type="number" class="pa-monto" data-idx="${idx}" step="any" min="0" max="${l.pendiente}" value="" disabled style="width:82px;" oninput="pagoAsigActualizar('${idMonto}')">
   </label>`).join('');
   return `<details style="margin-top:10px;">
     <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">¿A qué ventas corresponde este pago? (opcional)</summary>
@@ -7966,7 +7969,7 @@ function abrirFormGastoPauta(){
     <form onsubmit="return guardarGastoPauta(event)">
       <div class="fila-2">
         <div><label>Fecha *</label><input type="date" id="gp-fecha" value="${hoyStr()}" required></div>
-        <div><label>Monto (S/) *</label><input type="number" id="gp-monto" step="0.01" min="0.01" required></div>
+        <div><label>Monto (S/) *</label><input type="number" id="gp-monto" step="any" min="0.01" required></div>
       </div>
       <label>Canal (opcional)</label>
       <input id="gp-canal" list="gp-lista-canales" placeholder="Ej. Meta, Instagram, TikTok...">
@@ -8286,6 +8289,10 @@ function restaurarDeFabrica(){
     document.getElementById('pantallaLoginNube').classList.remove('oculto');
   }
 })();
+</script>
+<script>
+// Evita que la rueda del mouse cambie sin querer los montos de un campo numérico
+document.addEventListener('wheel',function(e){if(document.activeElement&&document.activeElement.type==='number'&&e.target===document.activeElement)document.activeElement.blur();},{passive:true});
 </script>
 </body>
 </html>
