@@ -3446,9 +3446,14 @@ function precioUnitarioParaCantidad(stockItem,cantidad){
    tocarse). El descuento manual sigue existiendo aparte, para excepciones reales. */
 const VIGENCIA_PROMO_BN='2026-08-26';
 const TRAMOS_PROMO_BN=[{desde:4,monto:40},{desde:3,monto:25},{desde:2,monto:15},{desde:1,monto:0}];
-const MONTO_PACK_BN=40; // descuento total por cada par de unidades de una misma categoría de proteína B&N
+const MONTO_PACK_BN=40;
+// B&N OBSEQUIO (2026-09-27, pedido por Roberto): stock de B&N que el Dr. le regaló a Zona va en
+// una marca aparte en Compra directa y costo 0 (ganancia pura, sin deuda con el Dr.), pero para el
+// cliente es el mismo producto: entra a las MISMAS promos B&N (tramos y packs).
+const MARCA_BN_OBSEQUIO='Bari&Nutrition Obsequio';
+function esMarcaPromoBN(marca){return marca==='Bari&Nutrition'||marca===MARCA_BN_OBSEQUIO;} // descuento total por cada par de unidades de una misma categoría de proteína B&N
 function unidadesBNEnItems(items){
-  return (items||[]).filter(it=>it.marca==='Bari&Nutrition').reduce((s,it)=>s+(it.cantidad||0),0);
+  return (items||[]).filter(it=>esMarcaPromoBN(it.marca)).reduce((s,it)=>s+(it.cantidad||0),0);
 }
 function tramoGeneralPromoBN(unidades){
   if(unidades<=0)return 0;
@@ -3458,7 +3463,7 @@ function tramoGeneralPromoBN(unidades){
 // Categoría de pack especial B&N de un ítem, o null. Prioriza el SKU (codigo) del producto de
 // Stock — identificador estable — y cae a 'presentacion' solo si no hay código disponible.
 function categoriaPackBN(item){
-  if(!item||item.marca!=='Bari&Nutrition')return null;
+  if(!item||!esMarcaPromoBN(item.marca))return null;
   const st=((db&&db.stock)||[]).find(s=>s.id===item.stockId);
   const codigo=((st&&st.codigo)||'').toUpperCase();
   if(codigo.indexOf('BN-PP-')===0)return 'polvo';
@@ -3474,7 +3479,7 @@ function calcularDescuentoPromocionalBN(items){
   if(totalBN<=0)return 0;
   let nPolvo=0,nLiquida=0;
   (items||[]).forEach(it=>{
-    if(it.marca!=='Bari&Nutrition')return;
+    if(!esMarcaPromoBN(it.marca))return;
     const cat=categoriaPackBN(it);
     if(cat==='polvo')nPolvo+=(it.cantidad||0);
     else if(cat==='liquida')nLiquida+=(it.cantidad||0);
@@ -6670,7 +6675,7 @@ function gananciaZBPedido(p){
     ganancia+=g;
   });
   const promoBN=p.descuentoPromocionalBN||0;
-  if(promoBN&&marcasPedido.has('Bari&Nutrition'))ganancia-=promoBN;
+  if(promoBN&&(marcasPedido.has('Bari&Nutrition')||marcasPedido.has(MARCA_BN_OBSEQUIO)))ganancia-=promoBN;
   // PROMO FUSION (2026-09-19, confirmado por Genesis): Zona Bariátrica absorbe 100% este
   // descuento — igual que la de B&N. gananciaZBItem ya calculó la participación del socio
   // (Dr. Mariano, reparto_ingresos) sobre el precio SIN descuento (usa it.precioUnit tal cual),
@@ -6718,7 +6723,9 @@ function rentabilidadPorMarca(pedidos){
       fila.gananciaZB+=g;
     });
     const promoBN=p.descuentoPromocionalBN||0;
-    if(promoBN&&porMarca['Bari&Nutrition'])porMarca['Bari&Nutrition'].gananciaZB=round2(porMarca['Bari&Nutrition'].gananciaZB-promoBN);
+    // Si la venta solo tiene B&N Obsequio, la promo se resta de esa fila.
+    const filaPromoBN=marcasPedido.has('Bari&Nutrition')?porMarca['Bari&Nutrition']:(marcasPedido.has(MARCA_BN_OBSEQUIO)?porMarca[MARCA_BN_OBSEQUIO]:null);
+    if(promoBN&&filaPromoBN)filaPromoBN.gananciaZB=round2(filaPromoBN.gananciaZB-promoBN);
     // PROMO FUSION (2026-09-19, confirmado por Genesis): mismo tratamiento que B&N arriba — la
     // absorbe 100% Zona Bariátrica, resta directo de la fila de Fusion sin tocar la
     // participación del socio (ver gananciaZBPedido, misma regla).
