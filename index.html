@@ -5611,21 +5611,10 @@ function marcarObligacionPagada(pedidoId,stockId,libro){
   if(o.pagado){return;} // ya pagada: marcado y fijo, NO se revierte ningún pago (ver §13)
   const monto=o.montoAlMarcar;
   if(monto<=0.005){pintarProveedores();refrescarDetalleAbierto();return;}
-  const p=porId(db.pedidos,pedidoId);
-  const fechaVenta=(p&&p.fecha)||hoyStr();
-  abrirModal(`
-    <button class="cerrar-x" onclick="cancelarMarcarObligacion()">✕</button>
-    <h3>Marcar como pagado al proveedor</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;">${esc(o.marca||'—')} · ${esc(o.producto||'—')} · ${money(monto)}</p>
-    <form onsubmit="return confirmarMarcarObligacion(event,'${pedidoId}','${stockId}','${libro}')">
-      <label style="margin-top:0;">Fecha del pago al proveedor</label>
-      <input type="date" id="mo-fecha" value="${fechaVenta}">
-      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Viene con la fecha de la venta (${fechaBonita(fechaVenta)}) porque al proveedor se le paga el mismo día. Cambiala solo si este pago puntual fue otro día.</p>
-      <div class="acciones-modal">
-        <button type="button" class="btn-secundario" onclick="cancelarMarcarObligacion()">Volver</button>
-        <button class="btn">Confirmar pago</button>
-      </div>
-    </form>`);
+  // MARCADO INMEDIATO (2026-09-27): pedido por Roberto — con varios productos en una venta quiere
+  // tildarlos seguidos sin una ventanita de fecha en cada uno. Se registra directo con la fecha
+  // de la venta (lo mismo que venía pre-cargado en el mini-modal anterior).
+  confirmarMarcarObligacion(null,pedidoId,stockId,libro);
 }
 function cancelarMarcarObligacion(){
   if(abonoModalPedido||detalleVentaAbierta||detalleProveedorAbierto)refrescarDetalleAbierto();
