@@ -6145,7 +6145,8 @@ function toggleDetalleVenta(id){
 function lineaCheckboxProductoPago(o,seleccionable){
   if(!o)return '';
   if(o.pagado){
-    return `<span class="pago-oblig">${money(o.obligacion)} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span></span>`;
+    const deshacer=seleccionable?` <button type="button" class="pago-oblig-check pago-oblig-no" style="font-weight:500;" onclick="deshacerPagoObligacion('${o.pedidoId}','${o.stockId}','${o.libro}')">Deshacer</button>`:'';
+    return `<span class="pago-oblig">${money(o.obligacion)} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span>${deshacer}</span>`;
   }
   // Parcialmente cubierta (por asignación o por el reparto de pagos de la cuenta): se muestra el
   // SALDO que falta, no la obligación original.
@@ -6213,6 +6214,24 @@ function actualizarBotonPagarAbono(){
 function marcarTodosAbono(v){
   document.querySelectorAll('.abono-sel').forEach(c=>{c.checked=v;});
   actualizarBotonPagarAbono();
+}
+// DESHACER (2026-09-27): pedido por Roberto para corregir un producto marcado como pagado por
+// error. Solo borra pagos creados por la casilla para ESE producto (una sola asignación, a esta
+// venta+producto). Un pago hecho con "Registrar pago" que cubre varias ventas NO se toca.
+function deshacerPagoObligacion(pedidoId,stockId,libro){
+  const lista=libro==='liquidacionesSocio'?(db.liquidacionesSocio||[]):(db.pagosProveedor||[]);
+  const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
+  const propios=lista.filter(pg=>(pg.asignaciones||[]).length===1&&String(pg.asignaciones[0].pedidoId)===String(pedidoId)
+    &&String(pg.asignaciones[0].stockId)===String(stockId)&&(!o||pg.proveedor===o.proveedor));
+  if(propios.length===0){alert('Este producto figura pagado por un pago general (hecho con "Registrar pago" para varias ventas), no por la casilla. Ese pago no se puede deshacer desde acá.');return;}
+  const total=round2(propios.reduce((t,pg)=>t+(pg.monto||0),0));
+  if(!confirm(`¿Quitar el pago de `+money(total)+` de "`+((o&&o.producto)||'este producto')+`"? Volverá a figurar como pendiente.`))return;
+  const ids=new Set(propios.map(pg=>pg.id));
+  if(libro==='liquidacionesSocio')db.liquidacionesSocio=lista.filter(pg=>!ids.has(pg.id));
+  else db.pagosProveedor=lista.filter(pg=>!ids.has(pg.id));
+  guardar();
+  pintarProveedores();
+  refrescarDetalleAbierto();
 }
 function pagarSeleccionAbono(){
   const marcados=[...document.querySelectorAll('.abono-sel')].filter(c=>c.checked);
