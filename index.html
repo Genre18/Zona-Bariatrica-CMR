@@ -5627,6 +5627,15 @@ function confirmarMarcarObligacion(ev,pedidoId,stockId,libro){
   if(o.pagado){cancelarMarcarObligacion();return false;} // otra sesión la pagó con el modal abierto
   const monto=o.montoAlMarcar;
   if(monto<=0.005){cancelarMarcarObligacion();return false;}
+  registrarPagoObligacion(o,pedidoId,stockId,monto);
+  guardar();
+  pintarProveedores();
+  if(abonoModalPedido||detalleVentaAbierta||detalleProveedorAbierto)refrescarDetalleAbierto();
+  else cerrarModal();
+  return false;
+}
+// Crea el pago de UNA obligación (sin guardar ni repintar) — lo usan el marcado suelto y PAGAR del modal Abono.
+function registrarPagoObligacion(o,pedidoId,stockId,monto){
   const p=porId(db.pedidos,pedidoId);
   const campoFecha=document.getElementById('mo-fecha');
   const fecha=(campoFecha&&campoFecha.value)||(p&&p.fecha)||hoyStr();
@@ -5639,11 +5648,6 @@ function confirmarMarcarObligacion(ev,pedidoId,stockId,libro){
     db.liquidacionesSocio=db.liquidacionesSocio||[];
     db.liquidacionesSocio.push(Object.assign(base,{marca:o.marca,modalidad:'reparto_ingresos',tipoPago:'credito_reparto'}));
   }
-  guardar();
-  pintarProveedores();
-  if(abonoModalPedido||detalleVentaAbierta||detalleProveedorAbierto)refrescarDetalleAbierto();
-  else cerrarModal();
-  return false;
 }
 /* ================= VISTA SOCIO (acceso de proveedor/doctor a su propia cuenta) ================= */
 function pintarVistaSocio(){
@@ -6138,7 +6142,7 @@ function toggleDetalleVenta(id){
 }
 // Línea "producto  importe  ☐/☑ Pagado" reutilizada por el modal Abono y por Historial → Ver
 // detalle. Estado derivado de los pagos reales; misma función marcarObligacionPagada.
-function lineaCheckboxProductoPago(o){
+function lineaCheckboxProductoPago(o,seleccionable){
   if(!o)return '';
   if(o.pagado){
     return `<span class="pago-oblig">${money(o.obligacion)} <span class="pago-oblig-check pago-oblig-si">☑ Pagado</span></span>`;
@@ -6146,7 +6150,9 @@ function lineaCheckboxProductoPago(o){
   // Parcialmente cubierta (por asignación o por el reparto de pagos de la cuenta): se muestra el
   // SALDO que falta, no la obligación original.
   const parcial=o.pendiente>0.005&&o.pendiente<round2(o.obligacion)-0.005;
-  return `<span class="pago-oblig">${parcial?'Pendiente: ':''}${money(o.pendiente)}${parcial?` <span style="color:var(--muted);font-size:11px;">(de ${money(o.obligacion)})</span>`:''} <button type="button" class="pago-oblig-check pago-oblig-no" onclick="marcarObligacionPagada('${o.pedidoId}','${o.stockId}','${o.libro}')">☐ Pagado</button></span>`;
+  return `<span class="pago-oblig">${parcial?'Pendiente: ':''}${money(o.pendiente)}${parcial?` <span style="color:var(--muted);font-size:11px;">(de ${money(o.obligacion)})</span>`:''} ${seleccionable
+    ?`<label class="pago-oblig-check pago-oblig-no" style="display:inline-flex;align-items:center;gap:5px;margin:0;"><input type="checkbox" class="abono-sel" data-pedido="${o.pedidoId}" data-stock="${o.stockId}" data-libro="${o.libro}" onchange="actualizarBotonPagarAbono()" style="margin:0;width:auto;"> Pagar</label>`
+    :`<button type="button" class="pago-oblig-check pago-oblig-no" onclick="marcarObligacionPagada('${o.pedidoId}','${o.stockId}','${o.libro}')">☐ Pagado</button>`}</span>`;
 }
 // ¿Todas las obligaciones de esta venta con este proveedor/modelo están cubiertas? — deriva de
 // obligacionesDeVentaProveedor (que a su vez viene de estadoCuentaProveedor).
@@ -6161,6 +6167,7 @@ function abrirModalAbono(pedidoId){
   if(!p){alert('Venta no encontrada.');return;}
   abonoModalPedido=pedidoId;
   const obls=obligacionesDeVentaProveedor(pedidoId);
+  const pendientes=obls.filter(o=>!o.pagado).length;
   const cantPorStock={};
   (p.items||[]).forEach(it=>{cantPorStock[it.stockId]=(cantPorStock[it.stockId]||0)+(it.cantidad||0);});
   const cuerpo=obls.length===0
@@ -6170,7 +6177,7 @@ function abrirModalAbono(pedidoId){
         return `<div style="padding:8px 0;border-bottom:1px solid var(--border-light);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
             <span>${esc(o.producto||'—')} ×${cant}</span>
-            ${lineaCheckboxProductoPago(o)}
+            ${lineaCheckboxProductoPago(o,true)}
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">Monto correspondiente: ${money(o.obligacion)}</div>
         </div>`;
@@ -6182,12 +6189,45 @@ function abrirModalAbono(pedidoId){
       <div class="drawer-subtexto">${fechaBonita(p.fecha)}</div>
     </div>
     <div class="drawer-seccion drawer-seccion-final">
-      <div class="drawer-seccion-titulo">Productos de esta venta</div>
+      <div class="drawer-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">Productos de esta venta
+        ${pendientes>1?`<label style="display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:500;cursor:pointer;"><input type="checkbox" id="abono-todos" onchange="marcarTodosAbono(this.checked)" style="margin:0;width:auto;"> Marcar todos</label>`:''}
+      </div>
       ${cuerpo}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModalAbono()">Cerrar</button>
+      ${pendientes>0?`<button type="button" class="btn" id="abono-pagar" onclick="pagarSeleccionAbono()" disabled>PAGAR</button>`:''}
     </div>`,'modal-centrado');
+}
+// SELECCIÓN + PAGAR (2026-09-27): pedido por Roberto — en Abono las casillas solo seleccionan
+// (se marcan/desmarcan libremente, o todas con "Marcar todos") y el pago se registra recién al
+// presionar PAGAR, uno por producto, con la fecha de la venta.
+function actualizarBotonPagarAbono(){
+  const sel=[...document.querySelectorAll('.abono-sel')];
+  const marcados=sel.filter(c=>c.checked);
+  const btn=document.getElementById('abono-pagar');
+  if(btn){btn.disabled=marcados.length===0;btn.textContent=marcados.length>0?'PAGAR ('+marcados.length+')':'PAGAR';}
+  const todos=document.getElementById('abono-todos');
+  if(todos)todos.checked=sel.length>0&&marcados.length===sel.length;
+}
+function marcarTodosAbono(v){
+  document.querySelectorAll('.abono-sel').forEach(c=>{c.checked=v;});
+  actualizarBotonPagarAbono();
+}
+function pagarSeleccionAbono(){
+  const marcados=[...document.querySelectorAll('.abono-sel')].filter(c=>c.checked);
+  if(marcados.length===0)return;
+  let hechos=0;
+  marcados.forEach(c=>{
+    const pedidoId=c.dataset.pedido,stockId=c.dataset.stock,libro=c.dataset.libro;
+    const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
+    if(!o||o.pagado||o.montoAlMarcar<=0.005)return;
+    registrarPagoObligacion(o,pedidoId,stockId,o.montoAlMarcar);
+    hechos++;
+  });
+  if(hechos>0)guardar();
+  pintarProveedores();
+  refrescarDetalleAbierto();
 }
 function cerrarModalAbono(){
   abonoModalPedido=null;
