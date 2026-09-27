@@ -4292,6 +4292,38 @@ const SABORES_STOCK=['Arándano','Bayas','Chocolate','Durazno','Fresa','Limón',
 // catálogo, se agrega como opción extra ya seleccionada — así no se pierde ni se reescribe sola
 // al abrir el formulario. "— Sin definir —" guarda '' (mismo comportamiento que el input vacío
 // que reemplaza).
+// TEXTO LIBRE + SUGERENCIAS (2026-09-27, pedido por Roberto): presentación y sabor se escriben
+// libremente; el catálogo queda solo como lista de sugerencias (datalist) más los valores que ya
+// existen en Stock, para no escribir lo mismo de mil formas.
+function datalistStock(id,catalogo,campo){
+  const usados=(db.stock||[]).map(x=>(x[campo]||'').trim()).filter(Boolean);
+  const todos=[...new Set([...catalogo,...usados])].sort((a,b)=>a.localeCompare(b,'es'));
+  return `<datalist id="`+id+`">`+todos.map(o=>`<option value="`+esc(o)+`">`).join('')+`</datalist>`;
+}
+// CÓDIGO AUTOMÁTICO (2026-09-27): mismo esquema que los códigos que ya existen (BN-PP-VA):
+// iniciales de la marca - inicial de producto + inicial de presentación - 2 letras del sabor.
+// Si ya existe, se le agrega -2, -3... Así "Proteína" + "Polvo" de B&N da BN-PP-, que es lo que
+// usa la promo B&N para reconocer los packs.
+function letrasCodigo(txt){return String(txt||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]+/g,' ').trim();}
+function generarCodigoStock(marca,producto,presentacion,sabor,excluirId){
+  const m=letrasCodigo(marca).split(/\s+/).filter(Boolean);
+  const pm=m.length===1?m[0].slice(0,3):m.map(w=>w[0]).join('').slice(0,3);
+  const pp=(letrasCodigo(producto)[0]||'')+(letrasCodigo(presentacion)[0]||'');
+  const ps=letrasCodigo(sabor).replace(/ /g,'').slice(0,2);
+  const base=[pm,pp,ps].filter(Boolean).join('-');
+  if(!base)return '';
+  const existentes=new Set((db.stock||[]).filter(x=>x.id!==excluirId).map(x=>(x.codigo||'').toUpperCase()));
+  let cod=base,n=2;
+  while(existentes.has(cod)){cod=base+'-'+n;n++;}
+  return cod;
+}
+let codigoStockManual=false; // true si el usuario escribió el código a mano (ya no se autocompleta)
+function autoCodigoStock(){
+  if(codigoStockManual)return;
+  const el=document.getElementById('st-codigo'); if(!el)return;
+  const v=id=>(document.getElementById(id)||{}).value||'';
+  el.value=generarCodigoStock(v('st-marca'),v('st-producto'),v('st-presentacion'),v('st-sabor'));
+}
 function opcionesCatalogoStock(catalogo,valorActual){
   const val=(valorActual||'').trim();
   const extra=(val&&!catalogo.includes(val))?`<option value="${esc(val)}" selected>${esc(val)} (valor histórico)</option>`:'';
@@ -4472,6 +4504,7 @@ function valorProveedorForm(){
 }
 function abrirFormStock(){
   const marcas=db.config.marcas||[];
+  codigoStockManual=false;
   stockPreciosVolumenTmp=[];
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
@@ -4479,18 +4512,18 @@ function abrirFormStock(){
     <form class="stock-form" onsubmit="return guardarStock(event)">
       <div class="form-grupo-titulo">Identificación</div>
       <div class="fila-marca-producto">
-        <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
-        <div><label>Producto *</label><input id="st-producto" required></div>
+        <div><label>Marca *</label><select id="st-marca" required onchange="actualizarCamposMarcaStock();autoCodigoStock()">${marcas.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+        <div><label>Producto *</label><input id="st-producto" required oninput="autoCodigoStock()"></div>
       </div>
       <p id="st-info-reparto" class="vacio oculto" style="text-align:left;padding:0 0 8px;"></p>
 
       <div class="form-grupo-titulo">Presentación</div>
       <div class="fila-codigo-presentacion">
-        <div><label>Código (opcional)</label><input id="st-codigo" placeholder="Ej. BN-PP-VA-15"></div>
-        <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,'')}</select></div>
+        <div><label>Código (automático)</label><input id="st-codigo" placeholder="Se genera solo" oninput="codigoStockManual=this.value.trim()!=='';if(!codigoStockManual)autoCodigoStock()"></div>
+        <div><label>Presentación (opcional)</label><input id="st-presentacion" list="dl-presentacion" placeholder="Escribe o elige" oninput="autoCodigoStock()">${datalistStock('dl-presentacion',PRESENTACIONES_STOCK,'presentacion')}</div>
       </div>
       <div class="fila-sabor-unidad">
-        <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,'')}</select></div>
+        <div><label>Sabor (opcional)</label><input id="st-sabor" list="dl-sabor" placeholder="Escribe o elige" oninput="autoCodigoStock()">${datalistStock('dl-sabor',SABORES_STOCK,'sabor')}</div>
         <div><label>Unidad</label><input id="st-unidad" value="unidades"></div>
       </div>
 
@@ -4637,7 +4670,7 @@ function guardarStock(ev){
   const nuevo={
     id:nuevoId(),
     marca,
-    codigo:document.getElementById('st-codigo').value.trim(),
+    codigo:document.getElementById('st-codigo').value.trim()||generarCodigoStock(marca,document.getElementById('st-producto').value,document.getElementById('st-presentacion').value,document.getElementById('st-sabor').value),
     producto:document.getElementById('st-producto').value.trim(),
     presentacion:document.getElementById('st-presentacion').value.trim(),
     sabor:document.getElementById('st-sabor').value.trim(),
@@ -4685,10 +4718,10 @@ function abrirEditarStock(id){
       <div class="form-grupo-titulo">Presentación</div>
       <div class="fila-codigo-presentacion">
         <div><label>Código (opcional)</label><input id="st-codigo" value="${esc(s.codigo||'')}" placeholder="Ej. BN-PP-VA-15"></div>
-        <div><label>Presentación (opcional)</label><select id="st-presentacion">${opcionesCatalogoStock(PRESENTACIONES_STOCK,s.presentacion)}</select></div>
+        <div><label>Presentación (opcional)</label><input id="st-presentacion" list="dl-presentacion" value="${esc(s.presentacion||'')}" placeholder="Escribe o elige">${datalistStock('dl-presentacion',PRESENTACIONES_STOCK,'presentacion')}</div>
       </div>
       <div class="fila-sabor-unidad">
-        <div><label>Sabor (opcional)</label><select id="st-sabor">${opcionesCatalogoStock(SABORES_STOCK,s.sabor)}</select></div>
+        <div><label>Sabor (opcional)</label><input id="st-sabor" list="dl-sabor" value="${esc(s.sabor||'')}" placeholder="Escribe o elige">${datalistStock('dl-sabor',SABORES_STOCK,'sabor')}</div>
         <div><label>Unidad</label><input id="st-unidad" value="${esc(s.unidad||'')}"></div>
       </div>
 
