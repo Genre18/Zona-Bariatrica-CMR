@@ -1266,6 +1266,9 @@ function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'
 function escJs(t){return esc(t).replace(/'/g,"\\'");}
 // Para incrustar texto dentro de un atributo title="..." (tooltip) sin romper el HTML.
 function escAttr(t){return esc(t).replace(/"/g,'&quot;');}
+// Nombre del producto + sabor (si no está ya en el nombre): con dos productos que se llaman
+// igual y solo cambian de sabor, sin esto el selector y el ticket muestran dos líneas idénticas.
+function nombreConSabor(x){if(!x)return "";const sab=(x.sabor||"").trim();return sab&&!(x.producto||"").toLowerCase().includes(sab.toLowerCase())?`${x.producto} — ${sab}`:(x.producto||"");}
 function money(n){return 'S/ '+Number(n||0).toFixed(2);}
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
@@ -2951,7 +2954,7 @@ function abrirFichaCliente(clienteId){
       ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><colgroup><col style="width:58px;"><col><col style="width:62px;"><col style="width:96px;"><col style="width:28px;"></colgroup><thead><tr>
         <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
         </tr></thead><tbody>${pedidos.map(p=>{
-          const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(it.producto)}`).join(', ');
+          const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(nombreConSabor(it))}`).join(', ');
           const chipEstado=p.estadoPago==='cancelado'?'chip-rojo':(p.estadoPago==='pagado'?'chip-verde':'chip-violeta');
           const celdaEstado=p.estadoPago==='pendiente pago'
             ?`<button type="button" class="chip chip-violeta" title="Registrar que el cliente ya pagó" onclick="marcarPedidoPagado('${p.id}')">Pendiente de pago</button>`
@@ -3354,7 +3357,7 @@ function guardarCliente(ev,leadId){
 function mostrarTicket(pedido,cliente){
   const filas=pedido.items.map(it=>`
     <div class="item-linea">
-      <span>${it.cantidad}x ${esc(it.producto)} <span class="q">(${esc(it.marca)})</span></span>
+      <span>${it.cantidad}x ${esc(nombreConSabor(it))} <span class="q">(${esc(it.marca)})</span></span>
       <span>${money(it.cantidad*it.precioUnit)}</span>
     </div>`).join('');
   abrirModal(`
@@ -3389,7 +3392,7 @@ function mostrarTicket(pedido,cliente){
 function imprimirTicket(pedidoId){
   const pedido=porId(db.pedidos,pedidoId);
   const cliente=porId(db.clientes,pedido.clienteId);
-  const filas=pedido.items.map(it=>`<tr><td>${it.cantidad}x ${esc(it.producto)}</td><td style="text-align:right;">${money(it.cantidad*it.precioUnit)}</td></tr>`).join('');
+  const filas=pedido.items.map(it=>`<tr><td>${it.cantidad}x ${esc(nombreConSabor(it))}</td><td style="text-align:right;">${money(it.cantidad*it.precioUnit)}</td></tr>`).join('');
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket</title>
     <style>body{font-family:system-ui,sans-serif;font-size:13px;width:280px;margin:10px auto;}
     table{width:100%;border-collapse:collapse;} td{padding:3px 0;} .tot{font-weight:700;border-top:1px dashed #999;padding-top:6px;}
@@ -3711,7 +3714,7 @@ function pedidoLlenarProductos(){
   const sel=document.getElementById('pi-producto');
   const opciones=db.stock.filter(s=>s.marca===marca&&s.activo!==false);
   sel.innerHTML=opciones.length
-    ?opciones.map(s=>`<option value="${s.id}">${esc(s.producto)} (stock: ${s.cantidad})</option>`).join('')
+    ?opciones.map(s=>`<option value="${s.id}">${esc(nombreConSabor(s))} (stock: ${s.cantidad})</option>`).join('')
     :'<option value="">Sin productos en esta marca</option>';
 }
 function pedidoActualizarEnvio(){
@@ -3855,7 +3858,7 @@ function pedidoRenderItems(){
   }
   cont.innerHTML=pedidoItemsTmp.map((it,i)=>`
     <div class="item-linea">
-      <span>${esc(it.producto)} <span class="q">(${esc(it.marca)} · ${money(it.precioUnit)} c/u)</span></span>
+      <span>${esc(nombreConSabor(it))} <span class="q">(${esc(it.marca)} · ${money(it.precioUnit)} c/u)</span></span>
       <span style="display:flex;align-items:center;gap:6px;">
         <input type="number" min="1" value="${it.cantidad}" style="width:56px;padding:4px 6px;" onchange="pedidoCambiarCantidadItem(${i},this.value)">
         <strong>${money(it.cantidad*it.precioUnit)}</strong>
@@ -5043,7 +5046,7 @@ function abrirFormCompra(){
     <h3>Registrar entrega o compra</h3>
     <form class="compra-form" onsubmit="return guardarCompra(event)">
       <label>Producto *</label>
-      <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(s.producto)}</option>`).join('')}</select>
+      <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(nombreConSabor(s))}</option>`).join('')}</select>
       <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="1" min="1"></div>
         <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="any" value="0"></div>
