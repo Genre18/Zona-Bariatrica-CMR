@@ -989,7 +989,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       </div>
       <div class="filtros toolbar-modulo">
         <input id="enviosBuscar" placeholder="Buscar por cliente, ciudad o N° de orden..." oninput="pintarEnvios()">
-        <select id="enviosFiltro" onchange="pintarEnvios()">
+        <select id="enviosFiltro" onchange="enviosMarcadosAhora.clear();pintarEnvios()">
           <option value="en_camino">En camino</option>
           <option value="atrasados">Atrasados</option>
           <option value="entregados">Entregados</option>
@@ -1276,6 +1276,16 @@ let selloDisco=null;
 let ultimoEnviadoNube=null; // último JSON que este dispositivo INTENTÓ mandar a la nube — solo para no reprocesar su propio eco de Realtime, no implica éxito (ver ultimoErrorNube)
 let ultimoErrorNube=null; // FIX D3: null si la última sincronización con Supabase fue exitosa; si no, el error real (de Supabase o una excepción de red) — la copia local nunca depende de esto
 let guardarNubeTimeout=null;
+// FIX ECO REALTIME (2026-10-01): Supabase guarda el blob como JSONB, que REORDENA las claves de
+// los objetos — así que el eco de Realtime de un guardado propio casi nunca era texto-idéntico a
+// ultimoEnviadoNube y se procesaba como cambio remoto: re-render completo (la pantalla 'saltaba')
+// y, con dos guardados seguidos, el eco del primero podía pisar en memoria el segundo. Se compara
+// también en forma canónica (claves ordenadas) contra los últimos envíos propios.
+let enviadosRecientesCanon=[];
+function jsonCanonico(v){
+  const c=x=>Array.isArray(x)?x.map(c):(x&&typeof x==='object')?Object.keys(x).sort().reduce((o,k)=>(o[k]=c(x[k]),o),{}):x;
+  return JSON.stringify(c(v));
+}
 let sesion=null;          // usuario actual {id,nombre,pin,color}
 let seccionActual='leads';
 let pedidoItemsTmp=[];
@@ -1750,6 +1760,10 @@ function guardarEnNube(raw,autor){
     // re-render innecesario. Por eso el éxito/fracaso real del envío se rastrea aparte, en
     // ultimoErrorNube (ver abajo), sin tocar el momento en que se marca ultimoEnviadoNube.
     ultimoEnviadoNube=raw;
+    const canonEnviado=jsonCanonico(JSON.parse(raw));
+    enviadosRecientesCanon.push(canonEnviado);
+    if(enviadosRecientesCanon.length>5)enviadosRecientesCanon.shift();
+    const olvidarEnvio=()=>{enviadosRecientesCanon=enviadosRecientesCanon.filter(x=>x!==canonEnviado);};
     try{
       // FIX D3 (PRE-P3, cierre ETAPA D, 2026-08-20): Supabase puede devolver {error} SIN
       // lanzar excepción — antes eso NUNCA se inspeccionaba, así que un fallo de escritura
@@ -1767,6 +1781,7 @@ function guardarEnNube(raw,autor){
         // SU PROPIO marcador — si mientras tanto un guardado más nuevo ya lo reemplazó (dos
         // guardarEnNube en vuelo a la vez), ese marcador más nuevo no se toca.
         if(ultimoEnviadoNube===raw)ultimoEnviadoNube=null;
+        olvidarEnvio();
       }else{
         ultimoErrorNube=null;
         ocultarAvisoSyncError();
@@ -1776,6 +1791,7 @@ function guardarEnNube(raw,autor){
       ultimoErrorNube=e;
       mostrarAvisoSyncError();
       if(ultimoEnviadoNube===raw)ultimoEnviadoNube=null; // FIX D3.1: misma invalidación ante una excepción real
+      olvidarEnvio();
     }
   },400);
 }
@@ -1855,6 +1871,16 @@ function suscribirCambiosNube(){
         ultimoEnviadoNube=null;
         return;
       }
+      // Eco propio con claves reordenadas por JSONB (ver FIX ECO REALTIME). Si coincide con un
+      // envío anterior al último, se descartan también los más viejos que él (ya no pueden llegar
+      // después de forma válida).
+      const idxPropio=enviadosRecientesCanon.indexOf(jsonCanonico(nuevo));
+      if(idxPropio!==-1){
+        const eraElUltimo=idxPropio===enviadosRecientesCanon.length-1;
+        enviadosRecientesCanon.splice(0,idxPropio+1);
+        if(eraElUltimo)ultimoEnviadoNube=null;
+        return;
+      }
       const tareasAntesDelCambio=db.tareas;
       db=nuevo;
       selloDisco=raw;
@@ -1893,7 +1919,9 @@ async function resincronizarSiHayCambios(){
 function rerenderizarSeccionActual(){
   if(!sesion)return;
   if(sesion.rol==='socio'){pintarVistaSocio();return;}
+  const y=window.scrollY; // que un cambio que llega de otro dispositivo no mueva la pantalla
   irA(seccionActual);
+  window.scrollTo(0,y);
 }
 
 /* ---------- modal genérico ---------- */
@@ -2078,6 +2106,7 @@ function intentarAutoLogin(){
 /* ================= NAVEGACIÓN ================= */
 const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','reportes','config'];
 function irA(sec){
+  if(sec!=='envios'&&typeof enviosMarcadosAhora!=='undefined')enviosMarcadosAhora.clear();
   seccionActual=sec;
   SECCIONES.forEach(s=>{
     document.getElementById('sec-'+s).classList.toggle('activa',s===sec);
@@ -3123,6 +3152,10 @@ function chipPasoEnvio(p,estilo){
   const sig=PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)+1];
   return `<button type="button" class="chip ${envioAtrasado(p)?'chip-rojo':paso.chip}"${estilo?` style="${estilo}"`:''} title="Pasar a: ${esc(sig.label)}" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">${esc(paso.label)} →</button>`;
 }
+// Recién marcados como entregados en ESTA visita a la pestaña (2026-10-01, pedido de Roberto): la
+// fila se queda en su lugar (en verde) en vez de desaparecer al instante, para que la lista no
+// se corra. Solo memoria de pantalla — se limpia al salir de Envíos o cambiar el filtro.
+let enviosMarcadosAhora=new Set();
 function pedidosEnvioShalom(){
   return db.pedidos.filter(p=>p.metodoEnvio==='shalom'&&p.estadoPago!=='cancelado');
 }
@@ -3133,12 +3166,13 @@ function pintarEnvios(){
   const buscar=((document.getElementById('enviosBuscar')||{}).value||'').toLowerCase();
   const todos=pedidosEnvioShalom();
   const enCamino=todos.filter(p=>p.estadoEnvio!=='entregado');
+  const enCaminoVista=todos.filter(p=>p.estadoEnvio!=='entregado'||enviosMarcadosAhora.has(p.id));
   const cuenta=i=>enCamino.filter(p=>pasoEnvioShalom(p)===i).length;
   const atrasados=enCamino.filter(envioAtrasado).length;
   let lista=filtro==='entregados'?todos.filter(p=>p.estadoEnvio==='entregado')
     :filtro==='todos'?todos.slice()
     :filtro==='atrasados'?enCamino.filter(envioAtrasado)
-    :enCamino.slice();
+    :enCaminoVista.slice();
   if(buscar)lista=lista.filter(p=>{
     const c=porId(db.clientes,p.clienteId);
     return [c?c.nombre:'',c?c.apellido:'',c?c.ciudad:'',c?c.departamento:'',p.numeroOrden,p.codigoEnvio].join(' ').toLowerCase().includes(buscar);
@@ -3221,7 +3255,7 @@ function confirmarPasoEnvio(ev,pedidoId,estado){
   p.estadoEnvio=estado;
   p.envioPasos=p.envioPasos||{};
   p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
-  if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';}
+  if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';enviosMarcadosAhora.add(p.id);}
   guardar();
   // Al dejarlo en Shalom, ofrecer de una vez mandarle al cliente sus datos de rastreo.
   const cli=porId(db.clientes,p.clienteId);
@@ -3243,7 +3277,7 @@ function confirmarPasoEnvio(ev,pedidoId,estado){
 function volverDePasoEnvio(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(detalleVentaAbierta===pedidoId){refrescarDetalleAbierto();}
-  else if(seccionActual==='envios'){cerrarModal();pintarEnvios();}
+  else if(seccionActual==='envios'){const y=window.scrollY;cerrarModal();pintarEnvios();window.scrollTo(0,y);}
   else{cerrarModal();if(p)abrirFichaCliente(p.clienteId);}
 }
 function mensajeWhatsAppEnvio(p,cli){
