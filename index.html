@@ -1030,6 +1030,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
             <h2 class="page-title">Proveedores</h2>
             <p class="page-description">Control financiero de inventario y obligaciones.</p>
           </div>
+          <div class="page-actions"><button class="btn-secundario" onclick="abrirPdfPagosProveedor()">⬇ Pagos en PDF</button></div>
         </div>
       </div>
       <div id="resumenProveedores"></div>
@@ -5881,6 +5882,91 @@ function registrarPagoObligacion(o,pedidoId,stockId,monto){
     db.liquidacionesSocio=db.liquidacionesSocio||[];
     db.liquidacionesSocio.push(Object.assign(base,{marca:o.marca,modalidad:'reparto_ingresos',tipoPago:'credito_reparto'}));
   }
+}
+/* ================= PDF DE PAGOS A PROVEEDOR/SOCIO (2026-10-01, pedido de Roberto) ================= */
+// Reporte imprimible de TODOS los pagos hechos a un proveedor/socio (ej. Dr. Mariano), juntando
+// los dos libros donde viven: pagosProveedor (consignación/bajo pedido) y liquidacionesSocio
+// (reparto). Solo LEE — no toca saldos ni pagos. Se abre en una ventana nueva y se usa
+// "Guardar como PDF" del navegador (mismo mecanismo que imprimirTicket, sin librerías externas).
+function pagosDetalladosDeProveedor(proveedor){
+  const concepto=pg=>{
+    if(pg.entregaId){
+      const m=porId(db.movimientosStock||[],pg.entregaId);
+      const s=m&&porId(db.stock,m.stockId);
+      return{marca:s?s.marca:'',texto:'Entrega de stock'+(s?' · '+nombreConSabor(s):'')};
+    }
+    const lineas=(pg.asignaciones||[]).map(a=>{
+      const p=porId(db.pedidos,a.pedidoId);
+      const s=porId(db.stock,a.stockId);
+      const it=p&&(p.items||[]).find(i=>i.stockId===a.stockId);
+      const c=p&&porId(db.clientes,p.clienteId);
+      return{marca:(it&&it.marca)||(s&&s.marca)||'',
+        texto:[p?correlativoVenta(p.id):'',it?nombreConSabor(it):(s?nombreConSabor(s):''),c?(c.nombre+' '+(c.apellido||'')).trim():''].filter(Boolean).join(' · ')};
+    });
+    return{marca:[...new Set(lineas.map(l=>l.marca).filter(Boolean))].join(', '),texto:lineas.map(l=>l.texto).join(' / ')};
+  };
+  const pp=(db.pagosProveedor||[]).filter(pg=>pg.proveedor===proveedor).map(pg=>{const c=concepto(pg);return{fecha:pg.fecha,monto:pg.monto||0,nota:pg.nota||'',marca:c.marca,concepto:c.texto,por:pg.confirmadoPor||pg.usuario||''};});
+  const ls=(db.liquidacionesSocio||[]).filter(l=>l.proveedor===proveedor).map(l=>{const c=concepto(l);return{fecha:l.fecha,monto:l.monto||0,nota:l.nota||'',marca:l.marca||c.marca,concepto:c.texto,por:l.confirmadoPor||l.usuario||''};});
+  return[...pp,...ls].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+}
+function abrirPdfPagosProveedor(){
+  const conPagos=listaProveedoresUnicos().filter(pr=>pagosDetalladosDeProveedor(pr).length);
+  if(conPagos.length===0){alert('Todavía no hay pagos registrados a ningún proveedor.');return;}
+  // Por defecto, el que más pagos tiene (en la práctica, el Dr.).
+  const pordefecto=conPagos.slice().sort((a,b)=>pagosDetalladosDeProveedor(b).length-pagosDetalladosDeProveedor(a).length)[0];
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Descargar pagos en PDF</h3>
+    <form onsubmit="return generarPdfPagosProveedor(event)">
+      <label style="margin-top:0;">Proveedor / socio</label>
+      <select id="pdfp-proveedor">${conPagos.map(pr=>`<option ${pr===pordefecto?'selected':''}>${esc(pr)}</option>`).join('')}</select>
+      <div class="fila-2">
+        <div><label>Desde (opcional)</label><input type="date" id="pdfp-desde"></div>
+        <div><label>Hasta (opcional)</label><input type="date" id="pdfp-hasta"></div>
+      </div>
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Sin fechas, salen todos los pagos. En la ventana que se abre elige <strong>"Guardar como PDF"</strong> como impresora.</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Generar PDF</button>
+      </div>
+    </form>`);
+}
+function generarPdfPagosProveedor(ev){
+  ev.preventDefault();
+  const proveedor=document.getElementById('pdfp-proveedor').value;
+  const desde=document.getElementById('pdfp-desde').value;
+  const hasta=document.getElementById('pdfp-hasta').value;
+  const pagos=pagosDetalladosDeProveedor(proveedor).filter(p=>(!desde||p.fecha>=desde)&&(!hasta||p.fecha<=hasta));
+  if(pagos.length===0){alert('No hay pagos en ese rango de fechas.');return false;}
+  const total=round2(pagos.reduce((s,p)=>s+p.monto,0));
+  const porMarca={};
+  pagos.forEach(p=>{const k=p.marca||'Sin marca identificada (pagos generales)';porMarca[k]=round2((porMarca[k]||0)+p.monto);});
+  const rango=desde||hasta?`Del ${desde?fechaBonita(desde):'inicio'} al ${hasta?fechaBonita(hasta):'hoy'}`:`Del ${fechaBonita(pagos[0].fecha)} al ${fechaBonita(pagos[pagos.length-1].fecha)}`;
+  const filas=pagos.map((p,i)=>`<tr><td>${i+1}</td><td style="white-space:nowrap;">${fechaBonita(p.fecha)}</td><td>${esc(p.marca||'—')}</td><td>${esc(p.concepto||'Pago general (sin detalle de ventas)')}${p.nota?`<div class="nota">${esc(p.nota)}</div>`:''}</td><td class="r">${money(p.monto)}</td></tr>`).join('');
+  const resumen=Object.keys(porMarca).sort().map(k=>`<tr><td>${esc(k)}</td><td class="r">${money(porMarca[k])}</td></tr>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pagos a ${esc(proveedor)} - Zona Bariatrica</title>
+    <style>body{font-family:system-ui,sans-serif;font-size:12px;color:#222;margin:24px;}
+    h1{font-size:18px;margin:0;} .sub{color:#555;margin:2px 0 16px;}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px;} th,td{border-bottom:1px solid #ddd;padding:5px 6px;text-align:left;vertical-align:top;}
+    th{background:#f2f4f7;font-size:11px;text-transform:uppercase;} .r{text-align:right;white-space:nowrap;}
+    .nota{color:#666;font-size:10.5px;margin-top:2px;} .tot td{font-weight:700;border-top:2px solid #222;}
+    .resumen{width:auto;min-width:300px;} h2{font-size:13px;margin:18px 0 6px;}
+    @media print{body{margin:10mm;} tr{page-break-inside:avoid;}}</style>
+    </head><body>
+    <h1>Pagos a ${esc(proveedor)}</h1>
+    <div class="sub">Zona Bariátrica · ${esc(rango)} · ${pagos.length} pago${pagos.length===1?'':'s'} · generado el ${fechaBonita(hoyStr())}</div>
+    <h2>Resumen por marca</h2>
+    <table class="resumen"><tbody>${resumen}<tr class="tot"><td>Total pagado</td><td class="r">${money(total)}</td></tr></tbody></table>
+    <h2>Detalle de pagos</h2>
+    <table><thead><tr><th>#</th><th>Fecha</th><th>Marca</th><th>Concepto</th><th class="r">Monto</th></tr></thead>
+    <tbody>${filas}<tr class="tot"><td colspan="4">Total pagado</td><td class="r">${money(total)}</td></tr></tbody></table>
+    <script>window.onload=()=>setTimeout(()=>window.print(),300);<\/script>
+    </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){alert('El navegador bloqueó la ventana. Permite las ventanas emergentes para este sitio e intenta de nuevo.');return false;}
+  w.document.write(html);w.document.close();
+  cerrarModal();
+  return false;
 }
 /* ================= VISTA SOCIO (acceso de proveedor/doctor a su propia cuenta) ================= */
 function pintarVistaSocio(){
