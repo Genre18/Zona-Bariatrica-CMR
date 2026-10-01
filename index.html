@@ -899,6 +899,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
     <nav class="tabs" id="navTabs">
       <button id="tab-leads" onclick="irA('leads')">Leads</button>
       <button id="tab-clientes" onclick="irA('clientes')">Clientes</button>
+      <button id="tab-envios" onclick="irA('envios')">Envíos</button>
       <button id="tab-stock" onclick="irA('stock')">Stock</button>
       <button id="tab-proveedores" onclick="irA('proveedores')">Proveedores</button>
       <button id="tab-tareas" onclick="irA('tareas')">Tareas</button>
@@ -974,6 +975,28 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
         </select>
       </div>
       <div id="listaClientes"></div>
+    </section>
+
+    <!-- ===== ENVÍOS ===== -->
+    <section class="sec" id="sec-envios">
+      <div class="page-header">
+        <div class="page-title-row">
+          <div>
+            <h2 class="page-title">Envíos</h2>
+            <p class="page-description">Seguimiento de pedidos a provincia (Shalom), desde la venta hasta que el cliente lo recoge.</p>
+          </div>
+        </div>
+      </div>
+      <div class="filtros toolbar-modulo">
+        <input id="enviosBuscar" placeholder="Buscar por cliente, ciudad o N° de orden..." oninput="pintarEnvios()">
+        <select id="enviosFiltro" onchange="pintarEnvios()">
+          <option value="en_camino">En camino</option>
+          <option value="atrasados">Atrasados</option>
+          <option value="entregados">Entregados</option>
+          <option value="todos">Todos</option>
+        </select>
+      </div>
+      <div id="listaEnvios"></div>
     </section>
 
     <!-- ===== STOCK ===== -->
@@ -2052,7 +2075,7 @@ function intentarAutoLogin(){
 }
 
 /* ================= NAVEGACIÓN ================= */
-const SECCIONES=['leads','clientes','stock','proveedores','tareas','reportes','config'];
+const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','reportes','config'];
 function irA(sec){
   seccionActual=sec;
   SECCIONES.forEach(s=>{
@@ -2061,6 +2084,7 @@ function irA(sec){
   });
   if(sec==='leads')pintarLeads();
   if(sec==='clientes')pintarClientes();
+  if(sec==='envios')pintarEnvios();
   if(sec==='stock')pintarStock();
   if(sec==='proveedores')pintarProveedores();
   if(sec==='tareas')pintarTareas();
@@ -2961,9 +2985,8 @@ function abrirFichaCliente(clienteId){
             :`<span class="chip ${chipEstado}">${p.estadoPago==='pagado'?'Pagado por cliente':(p.estadoPago==='cancelado'?'Cancelado':esc(p.estadoPago||'—'))}</span>`;
           // ENTREGA (2026-09-17, pedido de Roberto): igual patrón que "Pendiente de pago" pero
           // para provincia — solo aplica a pedidos por Shalom, no a InDrive/local.
-          const celdaEntrega=p.metodoEnvio!=='shalom'||p.estadoPago==='cancelado'?'':(p.estadoEnvio==='entregado'
-            ?`<br><span class="chip chip-verde" style="margin-top:4px;display:inline-block;">Entregado</span>`
-            :`<br><button type="button" class="chip chip-naranja" style="margin-top:4px;" title="Registrar que el pedido llegó al cliente" onclick="marcarPedidoEntregado('${p.id}')">Pendiente de entrega</button>`);
+          // ENVÍOS (2026-10-01): muestra el paso actual del envío; al tocarlo se pasa al siguiente.
+          const celdaEntrega=p.metodoEnvio!=='shalom'||p.estadoPago==='cancelado'?'':'<br>'+chipPasoEnvio(p,'margin-top:4px;display:inline-block;');
           return `<tr${p.estadoPago==='cancelado'?' style="opacity:.55;"':''}>
             <td>${fechaBonita(p.fecha)}</td>
             <td style="text-align:left;">${productosTxt}</td>
@@ -2971,7 +2994,7 @@ function abrirFichaCliente(clienteId){
             <td>${celdaEstado}${celdaEntrega}</td>
             <td style="text-align:center;">${p.estadoPago!=='cancelado'?`<button type="button" class="btn-icono" style="font-size:14px;padding:2px 4px;" title="Eliminar esta compra" onclick="eliminarPedido('${p.id}')">⋮</button>`:''}</td>
           </tr>`;
-        }).join('')}</tbody></table></div>${pedidos.some(p=>p.estadoPago==='pendiente pago')||pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?`<p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">${pedidos.some(p=>p.estadoPago==='pendiente pago')?'Toca el estado <span style="color:var(--violeta);font-weight:600;">Pendiente de pago</span> cuando el cliente pague. ':''}${pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?'Toca <span style="color:var(--warning);font-weight:600;">Pendiente de entrega</span> cuando el pedido de provincia llegue al cliente.':''}</p>`:''}`}
+        }).join('')}</tbody></table></div>${pedidos.some(p=>p.estadoPago==='pendiente pago')||pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?`<p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">${pedidos.some(p=>p.estadoPago==='pendiente pago')?'Toca el estado <span style="color:var(--violeta);font-weight:600;">Pendiente de pago</span> cuando el cliente pague. ':''}${pedidos.some(p=>p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&p.estadoPago!=='cancelado')?'Toca el estado del envío de provincia para pasarlo al siguiente paso.':''}</p>`:''}`}
     </div>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
@@ -3060,6 +3083,180 @@ function confirmarPedidoEntregado(ev,pedidoId){
     abrirFichaCliente(p.clienteId);
   }
   return false;
+}
+/* ================= ENVÍOS (2026-10-01, pedido de Roberto) ================= */
+// Seguimiento de pedidos de provincia (Shalom) entre la venta y la entrega. En la vida real el
+// paquete se deja en la agencia (sale en la tarde), viaja y el cliente lo recoge días después;
+// antes el CRM solo sabía "pendiente" o "entregado". Ahora son 4 pasos sobre p.estadoEnvio:
+//   'pendiente preparación' (Por despachar) → 'enviado' (En agencia Shalom, con N° de orden y
+//   código) → 'en destino' (Llegó a la agencia del cliente) → 'entregado'.
+// Cada paso deja huella en p.envioPasos[estado]={fecha,hora,por}; 'entregado' además sigue
+// usando p.fechaEntrega/entregaConfirmadaPor (igual que marcarPedidoEntregado). Ventas
+// anteriores NO se migran: Roberto las marca a mano desde esta pestaña (puede saltar directo a
+// Entregado). Hora de corte de la agencia: todavía no está mapeada, por eso no se usa.
+const ENVIO_DIAS_ALERTA=5; // días desde la venta sin entregarse → se pinta en rojo (Roberto, 2026-10-01)
+const PASOS_ENVIO_SHALOM=[
+  {estado:'pendiente preparación',label:'Por despachar',chip:'chip-violeta'},
+  {estado:'enviado',label:'En agencia Shalom',chip:'chip-azul'},
+  {estado:'en destino',label:'Llegó a destino',chip:'chip-naranja'},
+  {estado:'entregado',label:'Entregado',chip:'chip-verde'}
+];
+// 'preparado' (estado viejo que en la práctica nadie usaba) cuenta como Por despachar.
+function pasoEnvioShalom(p){
+  const i=PASOS_ENVIO_SHALOM.findIndex(x=>x.estado===p.estadoEnvio);
+  return i<0?0:i;
+}
+function diasDesdeFecha(fecha){
+  if(!fecha)return 0;
+  const d=Math.round((new Date(hoyStr()+'T12:00:00')-new Date(fecha+'T12:00:00'))/86400000);
+  return d<0?0:d;
+}
+function envioAtrasado(p){
+  return p.estadoEnvio!=='entregado'&&diasDesdeFecha(p.fecha)>ENVIO_DIAS_ALERTA;
+}
+// Chip clickeable con el paso actual: abre el formulario del SIGUIENTE paso. Se usa en la
+// pestaña Envíos, en la ficha del cliente y en Historial → Ver detalle.
+function chipPasoEnvio(p,estilo){
+  const paso=PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)];
+  if(p.estadoEnvio==='entregado')return `<span class="chip chip-verde"${estilo?` style="${estilo}"`:''}>Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`;
+  const sig=PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)+1];
+  return `<button type="button" class="chip ${envioAtrasado(p)?'chip-rojo':paso.chip}"${estilo?` style="${estilo}"`:''} title="Pasar a: ${esc(sig.label)}" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">${esc(paso.label)} →</button>`;
+}
+function pedidosEnvioShalom(){
+  return db.pedidos.filter(p=>p.metodoEnvio==='shalom'&&p.estadoPago!=='cancelado');
+}
+function pintarEnvios(){
+  const cont=document.getElementById('listaEnvios');
+  if(!cont)return;
+  const filtro=(document.getElementById('enviosFiltro')||{}).value||'en_camino';
+  const buscar=((document.getElementById('enviosBuscar')||{}).value||'').toLowerCase();
+  const todos=pedidosEnvioShalom();
+  const enCamino=todos.filter(p=>p.estadoEnvio!=='entregado');
+  const cuenta=i=>enCamino.filter(p=>pasoEnvioShalom(p)===i).length;
+  const atrasados=enCamino.filter(envioAtrasado).length;
+  let lista=filtro==='entregados'?todos.filter(p=>p.estadoEnvio==='entregado')
+    :filtro==='todos'?todos.slice()
+    :filtro==='atrasados'?enCamino.filter(envioAtrasado)
+    :enCamino.slice();
+  if(buscar)lista=lista.filter(p=>{
+    const c=porId(db.clientes,p.clienteId);
+    return [c?c.nombre:'',c?c.apellido:'',c?c.ciudad:'',c?c.departamento:'',p.numeroOrden,p.codigoEnvio].join(' ').toLowerCase().includes(buscar);
+  });
+  // En camino: lo más viejo primero (lo más urgente arriba). Entregados/todos: lo más nuevo primero.
+  lista.sort((a,b)=>filtro==='en_camino'||filtro==='atrasados'?(a.fecha||'').localeCompare(b.fecha||''):(b.fecha||'').localeCompare(a.fecha||''));
+  const kpis=`<div class="grid-cards chico">
+    <div class="stat"><div class="num">${cuenta(0)}</div><div class="lbl">Por despachar</div></div>
+    <div class="stat"><div class="num">${cuenta(1)}</div><div class="lbl">En agencia Shalom</div></div>
+    <div class="stat"><div class="num">${cuenta(2)}</div><div class="lbl">Llegó a destino</div></div>
+    <div class="stat"><div class="num" style="${atrasados?'color:var(--danger);':''}">${atrasados}</div><div class="lbl">Más de ${ENVIO_DIAS_ALERTA} días sin entregar</div></div>
+  </div>`;
+  if(lista.length===0){
+    cont.innerHTML=kpis+`<div class="vacio">${filtro==='en_camino'?'No hay envíos a provincia en camino.':'Ningún envío coincide con el filtro.'}</div>`;
+    return;
+  }
+  const pad='padding:7px 10px;';
+  cont.innerHTML=kpis+`<div class="tabla-excel"><table><thead><tr>
+    <th>Venta</th><th>Cliente</th><th>Productos</th><th>Shalom</th><th>Estado</th><th></th>
+    </tr></thead><tbody>${lista.map(p=>{
+      const c=porId(db.clientes,p.clienteId);
+      const lugar=c?[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — '):'';
+      const dias=diasDesdeFecha(p.fecha);
+      const atrasado=envioAtrasado(p);
+      const productos=(p.items||[]).map(it=>`${it.cantidad}x ${esc(nombreConSabor(it))}`).join(', ');
+      const wa=c&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&telefonoWhatsApp(c.telefono);
+      return `<tr>
+        <td style="${pad}">${fechaBonita(p.fecha)}${p.estadoEnvio!=='entregado'?`<div style="font-size:10.5px;margin-top:2px;${atrasado?'color:var(--danger);font-weight:600;':'color:var(--muted);'}">hace ${dias} día${dias===1?'':'s'}</div>`:''}</td>
+        <td style="${pad}text-align:left;cursor:pointer;" onclick="abrirFichaCliente('${p.clienteId}')"><strong>${c?esc(c.nombre+' '+c.apellido):'—'}</strong><div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(lugar||'—')}</div></td>
+        <td style="${pad}text-align:left;font-size:12px;">${productos||'—'}</td>
+        <td style="${pad}font-size:12px;">${p.numeroOrden?'N° '+esc(p.numeroOrden):'<span style="color:var(--muted);">—</span>'}${p.codigoEnvio?`<div style="color:var(--muted);">Cód. ${esc(p.codigoEnvio)}</div>`:''}</td>
+        <td style="${pad}">${chipPasoEnvio(p)}</td>
+        <td style="${pad}white-space:nowrap;">
+          ${wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:''}
+          ${p.estadoEnvio!=='entregado'&&pasoEnvioShalom(p)<2?`<button type="button" class="btn-secundario btn-chico" title="Si ya sabes que el cliente lo recogió, márcalo directo" onclick="abrirPasoEnvio('${p.id}','entregado')">Ya se entregó</button>`:''}
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table></div>
+    <p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">Toca el estado para pasar el envío al siguiente paso. Se pinta en rojo si pasan más de ${ENVIO_DIAS_ALERTA} días desde la venta sin entregarse.</p>`;
+}
+// Formulario de un paso. destino opcional: por defecto, el siguiente paso al actual.
+function abrirPasoEnvio(pedidoId,destino){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='shalom'||p.estadoPago==='cancelado'||p.estadoEnvio==='entregado'){alert('Este envío ya no está en camino.');return;}
+  const estado=destino||PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)+1].estado;
+  const paso=PASOS_ENVIO_SHALOM.find(x=>x.estado===estado);
+  const cli=porId(db.clientes,p.clienteId);
+  const titulo={'enviado':'Dejé el paquete en Shalom','en destino':'Llegó a la agencia de destino','entregado':'El cliente ya lo recogió'}[estado];
+  const camposShalom=estado==='enviado'?`
+      <div class="fila-2">
+        <div><label style="margin-top:0;">N° de orden *</label><input id="pe-orden" required value="${escAttr(p.numeroOrden||'')}"></div>
+        <div><label style="margin-top:0;">Código *</label><input id="pe-codigo" required value="${escAttr(p.codigoEnvio||'')}"></div>
+      </div>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Están en el ticket que te da Shalom. El cliente los necesita para rastrear y recoger su paquete.</p>`:'';
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${esc(titulo)}</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc(cli.nombre+' '+cli.apellido):'Cliente'} · venta del ${fechaBonita(p.fecha)} · pasa a <strong>${esc(paso.label)}</strong></p>
+    <form onsubmit="return confirmarPasoEnvio(event,'${p.id}','${estado}')">
+      ${camposShalom}
+      <label${estado==='enviado'?'':' style="margin-top:0;"'}>Fecha</label>
+      <input type="date" id="pe-fecha" value="${hoyStr()}">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Confirmar</button>
+      </div>
+    </form>`);
+}
+function confirmarPasoEnvio(ev,pedidoId,estado){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='shalom'||p.estadoEnvio==='entregado')return false;
+  const fecha=document.getElementById('pe-fecha').value||hoyStr();
+  if(estado==='enviado'){
+    const orden=document.getElementById('pe-orden').value.trim();
+    const codigo=document.getElementById('pe-codigo').value.trim();
+    if(!orden||!codigo){alert('Falta el N° de orden o el código de Shalom.');return false;}
+    p.numeroOrden=orden;p.codigoEnvio=codigo;
+  }
+  p.estadoEnvio=estado;
+  p.envioPasos=p.envioPasos||{};
+  p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
+  if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';}
+  guardar();
+  // Al dejarlo en Shalom, ofrecer de una vez mandarle al cliente sus datos de rastreo.
+  const cli=porId(db.clientes,p.clienteId);
+  if(estado==='enviado'&&cli&&telefonoWhatsApp(cli.telefono)){
+    abrirModal(`
+      <button class="cerrar-x" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">✕</button>
+      <h3>Listo, quedó en agencia Shalom</h3>
+      <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le mandas a ${esc(cli.nombre)} su N° de orden y código por WhatsApp?</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">Ahora no</button>
+        <button type="button" class="btn" onclick="enviarWhatsAppEnvio('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
+      </div>`);
+    return false;
+  }
+  volverDePasoEnvio(p.id);
+  return false;
+}
+// Reachable desde Envíos, ficha de cliente e Historial → Ver detalle: vuelve a donde estaba.
+function volverDePasoEnvio(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(detalleVentaAbierta===pedidoId){refrescarDetalleAbierto();}
+  else if(seccionActual==='envios'){cerrarModal();pintarEnvios();}
+  else{cerrarModal();if(p)abrirFichaCliente(p.clienteId);}
+}
+function mensajeWhatsAppEnvio(p,cli){
+  return `Hola ${cli.nombre||''}, tu pedido de Zona Bariátrica ya está en camino por Shalom.\n\n`+
+    `N° de orden: ${p.numeroOrden||'—'}\nCódigo: ${p.codigoEnvio||'—'}\n\n`+
+    `Puedes seguir tu envío aquí: https://rastrea.shalom.pe\n`+
+    `Para recogerlo en la agencia lleva tu DNI y estos datos. Cualquier duda, nos escribes.`;
+}
+function enviarWhatsAppEnvio(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  const cli=p&&porId(db.clientes,p.clienteId);
+  const url=cli&&telefonoWhatsApp(cli.telefono);
+  if(!url){alert('Este cliente no tiene un teléfono válido para WhatsApp.');return;}
+  window.open(url+'?text='+encodeURIComponent(mensajeWhatsAppEnvio(p,cli)),'_blank');
 }
 // ACREDITACIÓN DE TARJETA (2026-09-19): única puerta para confirmar que el banco ya acreditó una
 // venta pagada con tarjeta (ver ventaAcreditada() y VIGENCIA_ACREDITACION_TARJETA). Solo vive en
@@ -3610,7 +3807,7 @@ function validarImportesPedido(items,descuento,embalaje,delivery){
 
 /* ================= PEDIDOS ================= */
 const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
-const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','entregado'];
+const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','en destino','entregado']; // 'en destino': ver ENVÍOS (2026-10-01)
 let edicionPedidoBackup=null; // respaldo de stock/movimientos mientras se edita un pedido, para poder deshacer si se cancela la edición
 function stockInsuficienteEnPedidoTmp(){
   const necesarios={};
@@ -7935,7 +8132,7 @@ function contenidoDetalleVenta(pedidoId){
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Envío</div>
       <div>${esc(envioTxt)}${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&!anulada
-        ?` · <button type="button" class="chip chip-naranja" title="Registrar que el pedido llegó al cliente" onclick="marcarPedidoEntregado('${p.id}')">Pendiente de entrega</button>`
+        ?` · ${chipPasoEnvio(p)}`
         :` · ${esc(p.estadoEnvio||'—')}`}</div>
       ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
     </div>
