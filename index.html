@@ -170,6 +170,38 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip-naranja{background:var(--warning-suave);color:var(--warning);}
 .chip-rojo{background:var(--danger-suave);color:var(--danger);}
 .chip-violeta{background:var(--violeta-suave);color:var(--violeta);}
+/* ENVÍOS — tablero (2026-10-17): 3 columnas en pantalla grande; en celular, una columna a la vez con pestañas. */
+.env-tabs{display:none;gap:6px;margin-bottom:10px;}
+.env-tabs button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;font-size:12.5px;font-weight:600;color:var(--muted);}
+.env-tabs button.activo{border-color:var(--primary);color:var(--primary);background:var(--primary-suave);}
+.env-tabs button span{font-weight:700;}
+.env-tablero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;}
+.env-col{background:var(--bg-soft);border-radius:var(--r-md);padding:10px;min-height:120px;}
+.env-col-titulo{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.env-col-num{font-weight:700;font-size:14px;color:var(--muted);}
+.env-vacio{padding:18px 6px;font-size:12px;}
+.env-card{background:var(--card);border:1px solid var(--border-light);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
+.env-card-alerta{border-color:var(--danger-br);}
+.env-card-top{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;}
+.env-cliente{font-weight:700;font-size:14.5px;cursor:pointer;}
+.env-lugar{font-size:12px;color:var(--muted);}
+.env-chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+.env-items{margin:0;padding-left:18px;font-size:12.5px;}
+.env-shalom{font-size:12px;color:var(--muted);margin-top:4px;}
+.env-acciones{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;}
+.env-acciones .btn{flex:1;padding:10px 12px;}
+.env-etiqueta{border:2px dashed var(--border);border-radius:var(--r-sm);padding:12px;font-size:13px;line-height:1.5;}
+.env-etq-top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
+.env-etq-nombre{font-size:16px;font-weight:700;}
+.env-checklist label{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:400;font-size:13.5px;}
+.env-checklist input{width:20px;height:20px;}
+@media(max-width:760px){
+  .env-tabs{display:flex;}
+  .env-tablero{grid-template-columns:1fr;}
+  .env-col{display:none;}
+  .env-col.activa{display:block;}
+  .env-col-titulo{display:none;}
+}
 
 /* BLOQUE UX (2026-08-21): tabla Stock más densa/compacta — clase propia (no toca .tabla-excel
    base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
@@ -983,18 +1015,12 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
         <div class="page-title-row">
           <div>
             <h2 class="page-title">Envíos</h2>
-            <p class="page-description">Seguimiento de pedidos a provincia (Shalom), desde la venta hasta que el cliente lo recoge.</p>
+            <p class="page-description">Pedidos recibidos, empaquetados y despachados (Shalom e InDrive).</p>
           </div>
         </div>
       </div>
       <div class="filtros toolbar-modulo">
-        <input id="enviosBuscar" placeholder="Buscar por cliente, ciudad o N° de orden..." oninput="pintarEnvios()">
-        <select id="enviosFiltro" onchange="enviosMarcadosAhora.clear();pintarEnvios()">
-          <option value="en_camino">En camino</option>
-          <option value="atrasados">Atrasados</option>
-          <option value="entregados">Entregados</option>
-          <option value="todos">Todos</option>
-        </select>
+        <input id="enviosBuscar" placeholder="Buscar por cliente, ciudad, N° de venta o N° de orden..." oninput="pintarEnvios()">
       </div>
       <div id="listaEnvios"></div>
     </section>
@@ -2106,7 +2132,6 @@ function intentarAutoLogin(){
 /* ================= NAVEGACIÓN ================= */
 const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','reportes','config'];
 function irA(sec){
-  if(sec!=='envios'&&typeof enviosMarcadosAhora!=='undefined')enviosMarcadosAhora.clear();
   seccionActual=sec;
   SECCIONES.forEach(s=>{
     document.getElementById('sec-'+s).classList.toggle('activa',s===sec);
@@ -3114,166 +3139,292 @@ function confirmarPedidoEntregado(ev,pedidoId){
   }
   return false;
 }
-/* ================= ENVÍOS (2026-10-01, pedido de Roberto) ================= */
-// Seguimiento de pedidos de provincia (Shalom) entre la venta y la entrega. En la vida real el
-// paquete se deja en la agencia (sale en la tarde), viaja y el cliente lo recoge días después;
-// antes el CRM solo sabía "pendiente" o "entregado". Ahora son 4 pasos sobre p.estadoEnvio:
-//   'pendiente preparación' (Por despachar) → 'enviado' (En agencia Shalom, con N° de orden y
-//   código) → 'en destino' (Llegó a la agencia del cliente) → 'entregado'.
-// Cada paso deja huella en p.envioPasos[estado]={fecha,hora,por}; 'entregado' además sigue
-// usando p.fechaEntrega/entregaConfirmadaPor (igual que marcarPedidoEntregado). Ventas
-// anteriores NO se migran: Roberto las marca a mano desde esta pestaña (puede saltar directo a
-// Entregado). Hora de corte de la agencia: todavía no está mapeada, por eso no se usa.
-const ENVIO_DIAS_ALERTA=5; // días desde la venta sin entregarse → se pinta en rojo (Roberto, 2026-10-01)
-const PASOS_ENVIO_SHALOM=[
-  {estado:'pendiente preparación',label:'Por despachar',chip:'chip-violeta'},
-  {estado:'enviado',label:'En agencia Shalom',chip:'chip-azul'},
-  {estado:'en destino',label:'Llegó a destino',chip:'chip-naranja'},
-  {estado:'entregado',label:'Entregado',chip:'chip-verde'}
+/* ================= ENVÍOS — TABLERO (2026-10-17, pedido de Genesis) ================= */
+// Reemplaza el seguimiento de 4 pasos solo-Shalom (2026-10-01). Ahora TODOS los pedidos (Shalom
+// e InDrive) pasan por 3 columnas: Recibidos → Empaquetados → Despachados. Se guarda sobre el
+// mismo campo de siempre, p.estadoEnvio, sin migrar nada:
+//   'pendiente preparación' = Recibido · 'preparado' = Empaquetado ·
+//   'enviado' = Despachado ('en destino' viejo también cuenta como Despachado) · 'entregado'.
+// 'entregado' solo se usa en Shalom (el cliente recogió en la agencia, pedido de Roberto
+// 2026-09-17) y se ve como Despachado con chip verde. Cada paso deja huella en
+// p.envioPasos[estado]={fecha,hora,por}. Al Despachar un Shalom, el N° de orden y el código
+// son opcionales: en la vida real se dejan en la agencia y se anotan después desde el celular —
+// mientras falten, la tarjeta se queda visible con "Falta N° de orden".
+// Futuro (todavía NO): al pasar a Empaquetado se imprimirá un sticker en la etiquetera, y los
+// productos se verificarán con lector de código de barras (verificar, NO descontar: el stock ya
+// se descuenta al crear la venta).
+const ENVIOS_DESDE='2026-10-17'; // el tablero arranca acá: los pedidos creados antes se toman como ya despachados
+const ENVIOS_DIAS_DESPACHADOS=7; // días que un despachado sigue visible en su columna (con búsqueda se ven todos)
+const ETAPAS_ENVIO=[
+  {id:'recibido',label:'Recibidos',estado:'pendiente preparación',chip:'chip-violeta'},
+  {id:'empaquetado',label:'Empaquetados',estado:'preparado',chip:'chip-naranja'},
+  {id:'despachado',label:'Despachados',estado:'enviado',chip:'chip-azul'}
 ];
-// 'preparado' (estado viejo que en la práctica nadie usaba) cuenta como Por despachar.
-function pasoEnvioShalom(p){
-  const i=PASOS_ENVIO_SHALOM.findIndex(x=>x.estado===p.estadoEnvio);
-  return i<0?0:i;
+function etapaEnvio(p){
+  if(p.estadoEnvio==='preparado')return 1;
+  if(['enviado','en destino','entregado'].includes(p.estadoEnvio))return 2;
+  return 0;
 }
-function diasDesdeFecha(fecha){
-  if(!fecha)return 0;
-  const d=Math.round((new Date(hoyStr()+'T12:00:00')-new Date(fecha+'T12:00:00'))/86400000);
-  return d<0?0:d;
+// Momento real de creación: el prefijo base36 del id es Date.now() al crear (ver nuevoId). No se
+// usa p.fecha porque es editable y a veces se carga con fechas viejas.
+function creadoMsPedido(p){
+  const ms=parseInt(String(p.id||'').slice(0,8),36);
+  return isNaN(ms)?0:ms;
 }
-function envioAtrasado(p){
-  return p.estadoEnvio!=='entregado'&&diasDesdeFecha(p.fecha)>ENVIO_DIAS_ALERTA;
+function pedidosTablero(){
+  const desde=new Date(ENVIOS_DESDE+'T00:00:00-05:00').getTime();
+  return db.pedidos.filter(p=>p.estadoPago!=='cancelado'&&creadoMsPedido(p)>=desde);
 }
-// Chip clickeable con el paso actual: abre el formulario del SIGUIENTE paso. Se usa en la
-// pestaña Envíos, en la ficha del cliente y en Historial → Ver detalle.
+function fechaDespacho(p){
+  const pasos=p.envioPasos||{};
+  return (pasos.enviado&&pasos.enviado.fecha)||(pasos['en destino']&&pasos['en destino'].fecha)||p.fechaEntrega||p.fecha||'';
+}
+function faltaDatosShalom(p){
+  return p.metodoEnvio==='shalom'&&etapaEnvio(p)===2&&p.estadoEnvio!=='entregado'&&(!p.numeroOrden||!p.codigoEnvio);
+}
+function haceCuanto(ms){
+  if(!ms)return '';
+  const min=Math.floor((Date.now()-ms)/60000);
+  if(min<60)return 'hace '+Math.max(min,1)+' min';
+  const h=Math.floor(min/60);
+  if(h<24)return 'hace '+h+' h';
+  const d=Math.floor(h/24);
+  return 'hace '+d+' día'+(d===1?'':'s');
+}
+function nombreMetodoEnvio(m){
+  return m==='shalom'?'Shalom':(m==='indrive'?'InDrive':'');
+}
+// Chip clickeable con la etapa actual: abre la acción de la SIGUIENTE. Se usa en la ficha del
+// cliente y en Historial → Ver detalle (solo para Shalom, igual que antes).
 function chipPasoEnvio(p,estilo){
-  const paso=PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)];
-  if(p.estadoEnvio==='entregado')return `<span class="chip chip-verde"${estilo?` style="${estilo}"`:''}>Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`;
-  const sig=PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)+1];
-  return `<button type="button" class="chip ${envioAtrasado(p)?'chip-rojo':paso.chip}"${estilo?` style="${estilo}"`:''} title="Pasar a: ${esc(sig.label)}" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">${esc(paso.label)} →</button>`;
+  const st=estilo?` style="${estilo}"`:'';
+  if(p.estadoEnvio==='entregado')return `<span class="chip chip-verde"${st}>Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`;
+  const i=etapaEnvio(p);
+  if(i===2){
+    if(faltaDatosShalom(p))return `<button type="button" class="chip chip-rojo"${st} title="Anotar el N° de orden y el código del ticket de Shalom" onclick="event.stopPropagation();abrirDatosShalom('${p.id}')">Despachado · falta N° de orden</button>`;
+    return p.metodoEnvio==='shalom'
+      ?`<button type="button" class="chip chip-azul"${st} title="Marcar que el cliente ya lo recogió" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">Despachado →</button>`
+      :`<span class="chip chip-azul"${st}>Despachado</span>`;
+  }
+  const label=i===0?'Recibido':'Empaquetado';
+  return `<button type="button" class="chip ${ETAPAS_ENVIO[i].chip}"${st} title="Pasar a: ${ETAPAS_ENVIO[i+1].label}" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">${label} →</button>`;
 }
-// Recién marcados como entregados en ESTA visita a la pestaña (2026-10-01, pedido de Roberto): la
-// fila se queda en su lugar (en verde) en vez de desaparecer al instante, para que la lista no
-// se corra. Solo memoria de pantalla — se limpia al salir de Envíos o cambiar el filtro.
-let enviosMarcadosAhora=new Set();
-function pedidosEnvioShalom(){
-  return db.pedidos.filter(p=>p.metodoEnvio==='shalom'&&p.estadoPago!=='cancelado');
-}
+let enviosColMovil=0; // columna visible en celular (en pantalla grande se ven las 3)
+function verColumnaEnvios(i){enviosColMovil=i;pintarEnvios();}
 function pintarEnvios(){
   const cont=document.getElementById('listaEnvios');
   if(!cont)return;
-  const filtro=(document.getElementById('enviosFiltro')||{}).value||'en_camino';
-  const buscar=((document.getElementById('enviosBuscar')||{}).value||'').toLowerCase();
-  const todos=pedidosEnvioShalom();
-  const enCamino=todos.filter(p=>p.estadoEnvio!=='entregado');
-  const enCaminoVista=todos.filter(p=>p.estadoEnvio!=='entregado'||enviosMarcadosAhora.has(p.id));
-  const cuenta=i=>enCamino.filter(p=>pasoEnvioShalom(p)===i).length;
-  const atrasados=enCamino.filter(envioAtrasado).length;
-  let lista=filtro==='entregados'?todos.filter(p=>p.estadoEnvio==='entregado')
-    :filtro==='todos'?todos.slice()
-    :filtro==='atrasados'?enCamino.filter(envioAtrasado)
-    :enCaminoVista.slice();
+  const buscar=((document.getElementById('enviosBuscar')||{}).value||'').toLowerCase().trim();
+  let lista=pedidosTablero();
   if(buscar)lista=lista.filter(p=>{
     const c=porId(db.clientes,p.clienteId);
-    return [c?c.nombre:'',c?c.apellido:'',c?c.ciudad:'',c?c.departamento:'',p.numeroOrden,p.codigoEnvio].join(' ').toLowerCase().includes(buscar);
+    return [c?c.nombre:'',c?c.apellido:'',c?c.ciudad:'',c?c.distrito:'',c?c.departamento:'',p.numeroOrden,p.codigoEnvio,correlativoVenta(p.id)].join(' ').toLowerCase().includes(buscar);
   });
-  // En camino: lo más viejo primero (lo más urgente arriba). Entregados/todos: lo más nuevo primero.
-  lista.sort((a,b)=>filtro==='en_camino'||filtro==='atrasados'?(a.fecha||'').localeCompare(b.fecha||''):(b.fecha||'').localeCompare(a.fecha||''));
-  const kpis=`<div class="grid-cards chico">
-    <div class="stat"><div class="num">${cuenta(0)}</div><div class="lbl">Por despachar</div></div>
-    <div class="stat"><div class="num">${cuenta(1)}</div><div class="lbl">En agencia Shalom</div></div>
-    <div class="stat"><div class="num">${cuenta(2)}</div><div class="lbl">Llegó a destino</div></div>
-    <div class="stat"><div class="num" style="${atrasados?'color:var(--danger);':''}">${atrasados}</div><div class="lbl">Más de ${ENVIO_DIAS_ALERTA} días sin entregar</div></div>
-  </div>`;
-  if(lista.length===0){
-    cont.innerHTML=kpis+`<div class="vacio">${filtro==='en_camino'?'No hay envíos a provincia en camino.':'Ningún envío coincide con el filtro.'}</div>`;
-    return;
-  }
-  const pad='padding:7px 10px;';
-  cont.innerHTML=kpis+`<div class="tabla-excel"><table><thead><tr>
-    <th>Venta</th><th>Cliente</th><th>Productos</th><th>Shalom</th><th>Estado</th><th></th>
-    </tr></thead><tbody>${lista.map(p=>{
-      const c=porId(db.clientes,p.clienteId);
-      const lugar=c?[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — '):'';
-      const dias=diasDesdeFecha(p.fecha);
-      const atrasado=envioAtrasado(p);
-      const productos=(p.items||[]).map(it=>`${it.cantidad}x ${esc(nombreConSabor(it))}`).join(', ');
-      const wa=c&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&telefonoWhatsApp(c.telefono);
-      return `<tr>
-        <td style="${pad}">${fechaBonita(p.fecha)}${p.estadoEnvio!=='entregado'?`<div style="font-size:10.5px;margin-top:2px;${atrasado?'color:var(--danger);font-weight:600;':'color:var(--muted);'}">hace ${dias} día${dias===1?'':'s'}</div>`:''}</td>
-        <td style="${pad}text-align:left;cursor:pointer;" onclick="abrirFichaCliente('${p.clienteId}')"><strong>${c?esc(c.nombre+' '+c.apellido):'—'}</strong><div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(lugar||'—')}</div></td>
-        <td style="${pad}text-align:left;font-size:12px;">${productos||'—'}</td>
-        <td style="${pad}font-size:12px;">${p.numeroOrden?'N° '+esc(p.numeroOrden):'<span style="color:var(--muted);">—</span>'}${p.codigoEnvio?`<div style="color:var(--muted);">Cód. ${esc(p.codigoEnvio)}</div>`:''}</td>
-        <td style="${pad}">${chipPasoEnvio(p)}</td>
-        <td style="${pad}white-space:nowrap;">
-          ${wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:''}
-          ${p.estadoEnvio!=='entregado'&&pasoEnvioShalom(p)<2?`<button type="button" class="btn-secundario btn-chico" title="Si ya sabes que el cliente lo recogió, márcalo directo" onclick="abrirPasoEnvio('${p.id}','entregado')">Ya se entregó</button>`:''}
-        </td>
-      </tr>`;
-    }).join('')}</tbody></table></div>
-    <p class="vacio" style="text-align:left;padding:6px 2px 0;font-size:11px;">Toca el estado para pasar el envío al siguiente paso. Se pinta en rojo si pasan más de ${ENVIO_DIAS_ALERTA} días desde la venta sin entregarse.</p>`;
+  const limite=new Date(Date.now()-ENVIOS_DIAS_DESPACHADOS*86400000).toISOString().slice(0,10);
+  const cols=[[],[],[]];
+  lista.forEach(p=>{
+    const i=etapaEnvio(p);
+    if(i===2&&!buscar&&!faltaDatosShalom(p)&&fechaDespacho(p)<limite)return;
+    cols[i].push(p);
+  });
+  // Recibidos/Empaquetados: lo más antiguo arriba (lo más urgente). Despachados: lo más nuevo arriba.
+  cols[0].sort((a,b)=>creadoMsPedido(a)-creadoMsPedido(b));
+  cols[1].sort((a,b)=>creadoMsPedido(a)-creadoMsPedido(b));
+  cols[2].sort((a,b)=>fechaDespacho(b).localeCompare(fechaDespacho(a))||creadoMsPedido(b)-creadoMsPedido(a));
+  const tabs=`<div class="env-tabs">${ETAPAS_ENVIO.map((e,i)=>`<button type="button" class="${i===enviosColMovil?'activo':''}" onclick="verColumnaEnvios(${i})">${e.label} <span>${cols[i].length}</span></button>`).join('')}</div>`;
+  const vacios=['No hay pedidos nuevos por preparar.','Nada empaquetado esperando despacho.',buscar?'Ningún despachado coincide.':`Nada despachado en los últimos ${ENVIOS_DIAS_DESPACHADOS} días.`];
+  cont.innerHTML=tabs+`<div class="env-tablero">${ETAPAS_ENVIO.map((e,i)=>`
+    <div class="env-col${i===enviosColMovil?' activa':''}">
+      <div class="env-col-titulo"><span class="chip ${e.chip}">${e.label}</span><span class="env-col-num">${cols[i].length}</span></div>
+      ${cols[i].length?cols[i].map(tarjetaEnvio).join(''):`<div class="vacio env-vacio">${vacios[i]}</div>`}
+    </div>`).join('')}</div>
+    <p class="vacio" style="text-align:left;padding:8px 2px 0;font-size:11px;">El tablero muestra los pedidos registrados desde el ${fechaBonita(ENVIOS_DESDE)}. Los despachados se quedan ${ENVIOS_DIAS_DESPACHADOS} días a la vista; para uno más antiguo, búscalo arriba.</p>`;
 }
-// Formulario de un paso. destino opcional: por defecto, el siguiente paso al actual.
-function abrirPasoEnvio(pedidoId,destino){
+function tarjetaEnvio(p){
+  const c=porId(db.clientes,p.clienteId);
+  const i=etapaEnvio(p);
+  const lugar=c?[c.distrito||c.ciudad,c.departamento].filter(Boolean).join(' — '):'';
+  const metodo=nombreMetodoEnvio(p.metodoEnvio);
+  const chips=[
+    metodo?`<span class="chip chip-gris">${metodo}</span>`:'<span class="chip chip-naranja" title="Se elige al despachar">Envío sin definir</span>',
+    p.estadoPago==='pendiente pago'?'<span class="chip chip-violeta">Pendiente de pago</span>':'',
+    p.estadoEnvio==='entregado'?`<span class="chip chip-verde">Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`:''
+  ].join('');
+  const cuando=i===2?'Despachado '+fechaCorta(fechaDespacho(p)):haceCuanto(creadoMsPedido(p));
+  const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
+  const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div class="env-shalom">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:'';
+  let acciones='';
+  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>`;
+  else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
+    <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>`;
+  else{
+    const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
+    acciones=[
+      faltaDatosShalom(p)?`<button type="button" class="btn" onclick="abrirDatosShalom('${p.id}')">Anotar N° de orden</button>`:'',
+      wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:'',
+      p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El cliente ya lo recogió en la agencia" onclick="abrirPasoEnvio('${p.id}')">Ya lo recogió</button>`:'',
+      p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="Regresar a Empaquetados" onclick="regresarPasoEnvio('${p.id}')">↩</button>`:''
+    ].join('');
+  }
+  return `<div class="env-card${faltaDatosShalom(p)?' env-card-alerta':''}">
+    <div class="env-card-top"><span>${esc(correlativoVenta(p.id))}</span><span>${esc(cuando)}</span></div>
+    <div class="env-cliente" onclick="abrirFichaCliente('${p.clienteId}')">${c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—'}</div>
+    ${lugar?`<div class="env-lugar">${esc(lugar)}</div>`:''}
+    <div class="env-chips">${chips}</div>
+    <ul class="env-items">${productos}</ul>
+    ${shalomDatos}
+    <div class="env-acciones">${acciones}</div>
+  </div>`;
+}
+// Ficha de preparación: hoy es la "etiqueta digital" (datos del cliente + productos a meter en la
+// caja). Cuando llegue la etiquetera, este mismo contenido es el que se imprimirá como sticker.
+function etiquetaEnvioHTML(p){
+  const c=porId(db.clientes,p.clienteId);
+  const metodo=nombreMetodoEnvio(p.metodoEnvio)||'Envío sin definir';
+  return `<div class="env-etiqueta">
+    <div class="env-etq-top"><strong>${esc(correlativoVenta(p.id))}</strong><span>${esc(metodo)}</span></div>
+    <div class="env-etq-nombre">${c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—'}</div>
+    ${c&&c.dni?`<div>DNI ${esc(c.dni)}</div>`:''}
+    ${c&&c.telefono?`<div>Cel. ${esc(c.telefono)}</div>`:''}
+    <div>${c?esc(direccionCompleta(c)):'—'}</div>
+  </div>`;
+}
+// Acción de la siguiente etapa. Reachable desde el tablero, la ficha del cliente e Historial → Ver detalle.
+function abrirPasoEnvio(pedidoId){
   const p=porId(db.pedidos,pedidoId);
-  if(!p||p.metodoEnvio!=='shalom'||p.estadoPago==='cancelado'||p.estadoEnvio==='entregado'){alert('Este envío ya no está en camino.');return;}
-  const estado=destino||PASOS_ENVIO_SHALOM[pasoEnvioShalom(p)+1].estado;
-  const paso=PASOS_ENVIO_SHALOM.find(x=>x.estado===estado);
+  if(!p||p.estadoPago==='cancelado'||p.estadoEnvio==='entregado'){alert('Este pedido ya no tiene un paso pendiente.');return;}
+  const i=etapaEnvio(p);
+  if(i===2&&p.metodoEnvio!=='shalom'){alert('Este pedido ya fue despachado.');return;}
   const cli=porId(db.clientes,p.clienteId);
-  const titulo={'enviado':'Dejé el paquete en Shalom','en destino':'Llegó a la agencia de destino','entregado':'El cliente ya lo recogió'}[estado];
-  const camposShalom=estado==='enviado'?`
+  const sub=`${cli?esc((cli.nombre+' '+(cli.apellido||'')).trim()):'Cliente'} · ${esc(correlativoVenta(p.id))} · venta del ${fechaBonita(p.fecha)}`;
+  let cuerpo='',titulo='',boton='';
+  if(i===0){
+    titulo='Preparar pedido';boton='Ya está empaquetado';
+    cuerpo=`${etiquetaEnvioHTML(p)}
+      <label>Meter en la caja</label>
+      <div class="env-checklist">${(p.items||[]).map(it=>`<label><input type="checkbox"> ${esc(it.cantidad)}x ${esc(nombreConSabor(it))}${it.marca?` <span style="color:var(--muted);">· ${esc(it.marca)}</span>`:''}</label>`).join('')}</div>
+      ${p.notas?`<p class="vacio" style="text-align:left;padding:8px 0 0;">Nota: ${esc(p.notas)}</p>`:''}`;
+  }else if(i===1){
+    titulo='Despachar pedido';boton='Despachado';
+    cuerpo=`${p.metodoEnvio?'':`<label style="margin-top:0;">¿Cómo se envía? *</label>
+      <select id="pe-metodo" onchange="document.getElementById('pe-shalom').style.display=this.value==='shalom'?'':'none'">
+        <option value="">Elegir...</option><option value="shalom">Shalom (provincia)</option><option value="indrive">InDrive (local)</option>
+      </select>`}
+      <div id="pe-shalom" style="${p.metodoEnvio==='shalom'?'':'display:none;'}">
+        <div class="fila-2">
+          <div><label>N° de orden</label><input id="pe-orden" value="${escAttr(p.numeroOrden||'')}"></div>
+          <div><label>Código</label><input id="pe-codigo" value="${escAttr(p.codigoEnvio||'')}"></div>
+        </div>
+        <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no tienes el ticket de Shalom, déjalos vacíos y anótalos después desde la tarjeta.</p>
+      </div>
+      <label>Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
+  }else{
+    titulo='El cliente ya lo recogió';boton='Confirmar entrega';
+    cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
+  }
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${titulo}</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${sub}</p>
+    <form onsubmit="return confirmarPasoEnvio(event,'${p.id}',${i})">
+      ${cuerpo}
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">${boton}</button>
+      </div>
+    </form>`);
+}
+function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  // Si otro dispositivo ya lo movió mientras el modal estaba abierto, no se pisa.
+  if(!p||p.estadoEnvio==='entregado'||etapaEnvio(p)!==etapaAntes){alert('Este pedido ya cambió de estado en otro dispositivo.');volverDePasoEnvio(pedidoId);return false;}
+  const fechaInput=document.getElementById('pe-fecha');
+  const fecha=(fechaInput&&fechaInput.value)||hoyStr();
+  let estado;
+  if(etapaAntes===0)estado='preparado';
+  else if(etapaAntes===1){
+    const sel=document.getElementById('pe-metodo');
+    if(sel){
+      if(!sel.value){alert('Elige cómo se envía el pedido.');return false;}
+      p.metodoEnvio=sel.value;
+    }
+    if(p.metodoEnvio==='shalom'){
+      p.numeroOrden=document.getElementById('pe-orden').value.trim();
+      p.codigoEnvio=document.getElementById('pe-codigo').value.trim();
+    }
+    estado='enviado';
+  }else estado='entregado';
+  p.estadoEnvio=estado;
+  p.envioPasos=p.envioPasos||{};
+  p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
+  if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';}
+  guardar();
+  if(estado==='enviado'&&p.metodoEnvio==='shalom'&&p.numeroOrden&&ofrecerWhatsAppEnvio(p))return false;
+  volverDePasoEnvio(p.id);
+  return false;
+}
+// N° de orden y código de Shalom anotados después de despachar (cuando ya se tiene el ticket).
+function abrirDatosShalom(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='shalom')return;
+  const cli=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Datos del ticket de Shalom</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc((cli.nombre+' '+(cli.apellido||'')).trim()):'Cliente'} · ${esc(correlativoVenta(p.id))}</p>
+    <form onsubmit="return confirmarDatosShalom(event,'${p.id}')">
       <div class="fila-2">
         <div><label style="margin-top:0;">N° de orden *</label><input id="pe-orden" required value="${escAttr(p.numeroOrden||'')}"></div>
         <div><label style="margin-top:0;">Código *</label><input id="pe-codigo" required value="${escAttr(p.codigoEnvio||'')}"></div>
       </div>
-      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Están en el ticket que te da Shalom. El cliente los necesita para rastrear y recoger su paquete.</p>`:'';
-  abrirModal(`
-    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>${esc(titulo)}</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc(cli.nombre+' '+cli.apellido):'Cliente'} · venta del ${fechaBonita(p.fecha)} · pasa a <strong>${esc(paso.label)}</strong></p>
-    <form onsubmit="return confirmarPasoEnvio(event,'${p.id}','${estado}')">
-      ${camposShalom}
-      <label${estado==='enviado'?'':' style="margin-top:0;"'}>Fecha</label>
-      <input type="date" id="pe-fecha" value="${hoyStr()}">
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">El cliente los necesita para rastrear y recoger su paquete.</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
-        <button class="btn">Confirmar</button>
+        <button class="btn">Guardar</button>
       </div>
     </form>`);
 }
-function confirmarPasoEnvio(ev,pedidoId,estado){
+function confirmarDatosShalom(ev,pedidoId){
   ev.preventDefault();
   const p=porId(db.pedidos,pedidoId);
-  if(!p||p.metodoEnvio!=='shalom'||p.estadoEnvio==='entregado')return false;
-  const fecha=document.getElementById('pe-fecha').value||hoyStr();
-  if(estado==='enviado'){
-    const orden=document.getElementById('pe-orden').value.trim();
-    const codigo=document.getElementById('pe-codigo').value.trim();
-    if(!orden||!codigo){alert('Falta el N° de orden o el código de Shalom.');return false;}
-    p.numeroOrden=orden;p.codigoEnvio=codigo;
-  }
-  p.estadoEnvio=estado;
-  p.envioPasos=p.envioPasos||{};
-  p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
-  if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';enviosMarcadosAhora.add(p.id);}
+  if(!p)return false;
+  const orden=document.getElementById('pe-orden').value.trim();
+  const codigo=document.getElementById('pe-codigo').value.trim();
+  if(!orden||!codigo){alert('Falta el N° de orden o el código de Shalom.');return false;}
+  p.numeroOrden=orden;p.codigoEnvio=codigo;
   guardar();
-  // Al dejarlo en Shalom, ofrecer de una vez mandarle al cliente sus datos de rastreo.
-  const cli=porId(db.clientes,p.clienteId);
-  if(estado==='enviado'&&cli&&telefonoWhatsApp(cli.telefono)){
-    abrirModal(`
-      <button class="cerrar-x" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">✕</button>
-      <h3>Listo, quedó en agencia Shalom</h3>
-      <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le mandas a ${esc(cli.nombre)} su N° de orden y código por WhatsApp?</p>
-      <div class="acciones-modal">
-        <button type="button" class="btn-secundario" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">Ahora no</button>
-        <button type="button" class="btn" onclick="enviarWhatsAppEnvio('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
-      </div>`);
-    return false;
-  }
-  volverDePasoEnvio(p.id);
+  if(!ofrecerWhatsAppEnvio(p))volverDePasoEnvio(p.id);
   return false;
 }
-// Reachable desde Envíos, ficha de cliente e Historial → Ver detalle: vuelve a donde estaba.
+// Al tener los datos de Shalom, ofrecer de una vez mandárselos al cliente. Devuelve false si el
+// cliente no tiene WhatsApp válido (el que llama sigue su camino normal).
+function ofrecerWhatsAppEnvio(p){
+  const cli=porId(db.clientes,p.clienteId);
+  if(!cli||!telefonoWhatsApp(cli.telefono))return false;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">✕</button>
+    <h3>Listo, quedó en Shalom</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le mandas a ${esc(cli.nombre)} su N° de orden y código por WhatsApp?</p>
+    <div class="acciones-modal">
+      <button type="button" class="btn-secundario" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">Ahora no</button>
+      <button type="button" class="btn" onclick="enviarWhatsAppEnvio('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
+    </div>`);
+  return true;
+}
+// Por si se tocó por error (pasa en tablet/celular): regresa una etapa y borra su huella.
+function regresarPasoEnvio(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoEnvio==='entregado')return;
+  const i=etapaEnvio(p);
+  if(i===0)return;
+  if(!confirm(`¿Regresar este pedido a ${ETAPAS_ENVIO[i-1].label}?`))return;
+  if(p.envioPasos){delete p.envioPasos[p.estadoEnvio];}
+  p.estadoEnvio=ETAPAS_ENVIO[i-1].estado;
+  guardar();
+  volverDePasoEnvio(p.id);
+}
+// Vuelve a donde estaba: Historial → Ver detalle, tablero de Envíos o ficha del cliente.
 function volverDePasoEnvio(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(detalleVentaAbierta===pedidoId){refrescarDetalleAbierto();}
