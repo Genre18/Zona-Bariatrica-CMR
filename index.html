@@ -195,6 +195,12 @@ table tbody tr:hover{background:var(--bg-soft);}
 .env-etq-nombre{font-size:16px;font-weight:700;}
 .env-checklist label{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:400;font-size:13.5px;}
 .env-checklist input{width:20px;height:20px;}
+.env-web{background:var(--success-suave);border:1px solid var(--border-light);border-radius:var(--r-md);padding:10px;margin-bottom:12px;}
+.env-web-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
+.env-web .env-card{margin-bottom:0;}
+.env-web-total{font-weight:700;font-size:13.5px;margin-top:6px;}
+.env-web-aviso{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:10px;}
+.tab-num{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--success);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;}
 @media(max-width:760px){
   .env-tabs{display:flex;}
   .env-tablero{grid-template-columns:1fr;}
@@ -1982,6 +1988,7 @@ function cerrarModal(){
   document.getElementById('modalOverlay').classList.add('oculto');
   document.getElementById('modalBox').innerHTML='';
   pedidoItemsTmp=[];
+  pedidoWebEnCurso=null;
   stockPreciosVolumenTmp=[];
   notaEditando=null;
   detalleProveedorAbierto=null;
@@ -2087,6 +2094,7 @@ function entrarApp(){
   // se borra si se cierra la pestaña o el navegador, así que un equipo/navegador nuevo sigue
   // pidiendo PIN. cerrarSesionNube()/cerrarSesion() siguen limpiándolo para cerrar de verdad.
   sessionStorage.setItem('zbUltimoUsuario',sesion.id);
+  iniciarPedidosWeb();
   document.getElementById('pantallaLogin').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
   document.documentElement.style.setProperty('--rol',sesion.color);
@@ -2139,7 +2147,7 @@ function irA(sec){
   });
   if(sec==='leads')pintarLeads();
   if(sec==='clientes')pintarClientes();
-  if(sec==='envios')pintarEnvios();
+  if(sec==='envios'){pintarEnvios();cargarPedidosWeb();}
   if(sec==='stock')pintarStock();
   if(sec==='proveedores')pintarProveedores();
   if(sec==='tareas')pintarTareas();
@@ -3233,7 +3241,7 @@ function pintarEnvios(){
   cols[2].sort((a,b)=>fechaDespacho(b).localeCompare(fechaDespacho(a))||creadoMsPedido(b)-creadoMsPedido(a));
   const tabs=`<div class="env-tabs">${ETAPAS_ENVIO.map((e,i)=>`<button type="button" class="${i===enviosColMovil?'activo':''}" onclick="verColumnaEnvios(${i})">${e.label} <span>${cols[i].length}</span></button>`).join('')}</div>`;
   const vacios=['No hay pedidos nuevos por preparar.','Nada empaquetado esperando despacho.',buscar?'Ningún despachado coincide.':`Nada despachado en los últimos ${ENVIOS_DIAS_DESPACHADOS} días.`];
-  cont.innerHTML=tabs+`<div class="env-tablero">${ETAPAS_ENVIO.map((e,i)=>`
+  cont.innerHTML=bandejaPedidosWebHTML()+tabs+`<div class="env-tablero">${ETAPAS_ENVIO.map((e,i)=>`
     <div class="env-col${i===enviosColMovil?' activa':''}">
       <div class="env-col-titulo"><span class="chip ${e.chip}">${e.label}</span><span class="env-col-num">${cols[i].length}</span></div>
       ${cols[i].length?cols[i].map(tarjetaEnvio).join(''):`<div class="vacio env-vacio">${vacios[i]}</div>`}
@@ -3256,10 +3264,12 @@ function tarjetaEnvio(p){
   let acciones='';
   if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>`;
   else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
+    <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
     <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>`;
   else{
     const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
     acciones=[
+      `<button type="button" class="btn-secundario btn-chico" title="Volver a imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>`,
       faltaDatosShalom(p)?`<button type="button" class="btn" onclick="abrirDatosShalom('${p.id}')">Anotar N° de orden</button>`:'',
       wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:'',
       p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El cliente ya lo recogió en la agencia" onclick="abrirPasoEnvio('${p.id}')">Ya lo recogió</button>`:'',
@@ -3275,6 +3285,279 @@ function tarjetaEnvio(p){
     ${shalomDatos}
     <div class="env-acciones">${acciones}</div>
   </div>`;
+}
+/* ================= PEDIDOS WEB (2026-10-22) =================
+   Lo que se compra en zonabariatrica.com (tienda o /catalogo, con tarjeta o "Yape al recibir")
+   se guarda en el Supabase de la TIENDA (tabla pagos_web), no en el de este CRM. Su función
+   "izipay" los entrega con la acción pedidos_crm cuando se le muestra la sesión de un usuario
+   logueado AQUÍ: no hace falta ninguna clave nueva en este repo (que es público).
+   Llegan a una bandeja arriba del tablero de Envíos. "Registrar" abre el MISMO formulario de
+   pedido de siempre, ya lleno (cliente, productos, delivery, pago): pasa por todas las
+   validaciones de stock/marca/promo y se confirma a mano. El pedido guardado lleva
+   pedido.pedidoWeb=<N° de pedido web>, cae en "Recibidos" y sale solo de la bandeja. */
+const PEDIDOS_WEB_URL='https://pcdjuajibqhhlqcllmgr.supabase.co/functions/v1/izipay';
+const PEDIDOS_WEB_CADA_MS=2*60*1000;
+// Producto de la web (id de zb-catalogo.js) → código del producto en Stock.
+const WEB_A_CODIGO={
+  bi1:'BN-PP-VA-15',bi2:'BN-PP-CH-15',bi3:'BN-PL-FR-1L',bi4:'BN-PL-MR-1L',bi5:'BN-MG-BT-90',
+  bi6:'BN-MG-HC-30',bi7:'BN-MG-MV-120',bi8:'BN-MG-B12-90',bi9:'BN-FB-SB-320',bi10:'BN-CP-AR-500',
+  li1:'LVL-PRO-01',li2:'LVL-PRO-01',li3:'LVL-COL-01',li4:'LVL-FIB-01',
+  lp1:'LVL-PACK-PCF',lp2:'LVL-PACK-PC',lp3:'LVL-PACK-PF',lp4:'LVL-PACK-CF',
+  bf1:'BF-MM-TP-120',bf2:'BF-MM-BM-120',sp1:'GEN-PP-NE',nf1:'NUTRIFATH'
+};
+// Ofertas x2 y packs de la web que en Stock son varios productos. '*' = el sabor que eligió el
+// cliente, en el orden en que viene en las notas ("Whey Protein 1: Vainilla · Whey Protein 2: ...").
+const WEB_COMPUESTOS={
+  oferta1:['*','*'],oferta2:['*','*'],oferta3:['*','*'],oferta4:['NUTRIFATH','NUTRIFATH'],oferta5:['GEN-PP-NE','GEN-PP-NE'],
+  bp1:['*','*','BN-MG-MV-120','BN-MG-B12-90','BN-FB-SB-320'],
+  bp2:['*','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
+  bp3:['BN-MG-BT-90','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
+  bp4:['*','*','BN-MG-BT-90','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90','BN-FB-SB-320'],
+  lp5:['LVL-FIB-01','LVL-FIB-01'],lp6:['LVL-COL-01','LVL-COL-01'],
+  lp7:['LVL-PRO-01','LVL-PRO-01'],lp8:['LVL-PRO-01','LVL-PRO-01'],lp9:['LVL-PRO-01','LVL-PRO-01']
+};
+const SABOR_A_CODIGO={'vainilla':'BN-PP-VA-15','chocolate':'BN-PP-CH-15','fresa':'BN-PL-FR-1L','maracumango':'BN-PL-MR-1L','bayas mixtas':'BF-MM-BM-120','tropical':'BF-MM-TP-120'};
+let pedidosWeb=[];          // lo que devolvió la función (pedidos reales desde ENVIOS_DESDE)
+let pedidosWebError='';
+let pedidoWebEnCurso=null;  // pedido web que se está registrando en el formulario abierto
+let pedidosWebTimer=null;
+function iniciarPedidosWeb(){
+  if(pedidosWebTimer)return;
+  cargarPedidosWeb();
+  pedidosWebTimer=setInterval(cargarPedidosWeb,PEDIDOS_WEB_CADA_MS);
+}
+async function cargarPedidosWeb(){
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    const r=await fetch(PEDIDOS_WEB_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accion:'pedidos_crm',token:session.access_token})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||('error '+r.status));
+    pedidosWeb=j.pedidos||[];
+    pedidosWebError='';
+  }catch(e){
+    pedidosWebError='No se pudieron traer los pedidos de la web ('+(e.message||e)+'). Se reintenta solo en 2 minutos.';
+  }
+  pintarAvisoPedidosWeb();
+  if(seccionActual==='envios'){const y=window.scrollY;pintarEnvios();window.scrollTo(0,y);}
+}
+function pedidosWebPendientes(){
+  const registrados=new Set(db.pedidos.map(p=>p.pedidoWeb).filter(Boolean));
+  const descartados=new Set((db.config&&db.config.pedidosWebDescartados)||[]);
+  return pedidosWeb.filter(w=>!registrados.has(w.order_id)&&!descartados.has(w.order_id));
+}
+function pintarAvisoPedidosWeb(){
+  const tab=document.getElementById('tab-envios');
+  if(!tab)return;
+  const n=pedidosWebPendientes().length;
+  tab.innerHTML='Envíos'+(n?`<span class="tab-num" title="Pedidos de la web por registrar">${n}</span>`:'');
+}
+function stockPorCodigo(cod){
+  if(cod==='NUTRIFATH')return db.stock.find(s=>s.activo!==false&&/nutrifath/i.test(s.producto||''));
+  return db.stock.find(s=>s.codigo===cod&&s.activo!==false)||db.stock.find(s=>s.codigo===cod);
+}
+// Líneas del pedido web → productos de Stock [{stockId,cantidad}]. Lo que no se pudo traducir va a
+// "faltan" para agregarlo a mano (nunca se adivina un producto).
+function traducirItemsWeb(items){
+  const porStock={},faltan=[];
+  (items||[]).forEach(it=>{
+    const qty=Number(it.qty)||1;
+    const sabores=String(it.notas||'').split('·').map(s=>(s.split(':')[1]||'').trim().toLowerCase()).filter(Boolean);
+    const partes=WEB_COMPUESTOS[it.id]||(WEB_A_CODIGO[it.id]?[WEB_A_CODIGO[it.id]]:null);
+    const texto=`${qty}x ${it.nombre||it.id}${it.notas?' ('+it.notas+')':''}`;
+    if(!partes){faltan.push(texto);return;}
+    let k=0;
+    const stocks=partes.map(cod=>{
+      if(cod==='*')cod=SABOR_A_CODIGO[sabores[k++]]||'';
+      return cod?stockPorCodigo(cod):null;
+    });
+    if(stocks.some(s=>!s)){faltan.push(texto);return;}
+    stocks.forEach(s=>{porStock[s.id]=(porStock[s.id]||0)+qty;});
+  });
+  return{lineas:Object.keys(porStock).map(stockId=>({stockId,cantidad:porStock[stockId]})),faltan};
+}
+function textoItemWeb(it){
+  return `${it.qty}x ${it.nombre}${it.notas?' ('+it.notas+')':''}`;
+}
+function bandejaPedidosWebHTML(){
+  const lista=pedidosWebPendientes();
+  if(!lista.length&&!pedidosWebError)return '';
+  const tarjetas=lista.map(w=>{
+    const c=w.cliente||{};
+    const lugar=w.zona==='provincia'?'Provincia (Shalom)':(w.distrito||'Lima');
+    const pago=w.metodo==='tarjeta'
+      ?'<span class="chip chip-azul">Tarjeta · pagado</span>'
+      :'<span class="chip chip-violeta">Yape al recibir</span>';
+    return `<div class="env-card">
+      <div class="env-card-top"><span>${esc(w.order_id)}</span><span>${esc(haceCuanto(new Date(w.creado_en).getTime()))}</span></div>
+      <div class="env-cliente">${esc(c.nombre||'—')}</div>
+      <div class="env-lugar">${esc(lugar)}${c.dni?' · DNI '+esc(c.dni):''}</div>
+      <div class="env-chips">${pago}</div>
+      <ul class="env-items">${(w.items||[]).map(it=>`<li>${esc(textoItemWeb(it))}</li>`).join('')}</ul>
+      <div class="env-web-total">${w.metodo==='tarjeta'?'Cobrado':'Por cobrar'}: ${money(w.monto)}</div>
+      <div class="env-acciones">
+        <button type="button" class="btn" onclick="registrarPedidoWeb('${escAttr(w.order_id)}')">Registrar en el CRM</button>
+        <button type="button" class="btn-secundario btn-chico" title="Ya lo cargaste a mano: sacarlo de esta lista" onclick="descartarPedidoWeb('${escAttr(w.order_id)}')">Ya está</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="env-web">
+    <div class="env-col-titulo"><span class="chip chip-verde">Pedidos de la web por registrar</span><span class="env-col-num">${lista.length}</span></div>
+    ${pedidosWebError?`<p class="vacio" style="text-align:left;padding:0 0 8px;color:var(--danger);">${esc(pedidosWebError)}</p>`:''}
+    <div class="env-web-grid">${tarjetas}</div>
+  </div>`;
+}
+function descartarPedidoWeb(orderId){
+  if(!confirm(`¿Sacar el pedido ${orderId} de la bandeja?\nÚsalo solo si ya lo registraste a mano o no se va a despachar.`))return;
+  db.config.pedidosWebDescartados=(db.config.pedidosWebDescartados||[]).concat(orderId);
+  guardar();
+  pintarAvisoPedidosWeb();
+  pintarEnvios();
+}
+function ponerValor(id,valor){const el=document.getElementById(id);if(el)el.value=valor;}
+function registrarPedidoWeb(orderId){
+  const w=pedidosWeb.find(x=>x.order_id===orderId);
+  if(!w)return;
+  const c=w.cliente||{};
+  const d=w.desglose||{};
+  const provincia=w.zona==='provincia';
+  // Mismo criterio de duplicados que guardarCliente: primero DNI, luego celular.
+  const dni=String(c.dni||'').trim();
+  let existente=dni?db.clientes.find(x=>x.dni&&x.dni===dni):null;
+  if(!existente&&c.telefono)existente=db.clientes.find(x=>x.activo!==false&&mismoContactoLead(x.telefono,c.telefono));
+  if(existente){
+    abrirFormPedido(existente.id);
+  }else{
+    abrirFormCliente(null);
+    const partes=String(c.nombre||'').trim().split(/\s+/);
+    ponerValor('cl-nombre',partes[0]||'');
+    ponerValor('cl-apellido',partes.slice(1).join(' '));
+    ponerValor('cl-dni',dni);
+    ponerValor('cl-telefono',c.telefono||'');
+    ponerValor('cl-direccion',c.direccion||'');
+    ponerValor('cl-ciudad',provincia?'':(w.distrito||''));
+    ponerValor('cl-provincianombre',provincia?'':'Lima');
+    ponerValor('cl-departamento',provincia?'':'Lima');
+    ponerValor('cl-provincia',provincia?'1':'0');
+  }
+  pedidoWebEnCurso={order_id:w.order_id,clienteExistenteId:existente?existente.id:null,zona:w.zona,distrito:w.distrito||'',cliente:c};
+  ponerValor('pd-envio',provincia?'shalom':'indrive');
+  pedidoActualizarEnvio();
+  // En la web el cliente pagó productos + envío; no hay embalaje aparte.
+  ponerValor('pd-embalaje',0);
+  // Con tarjeta la web cobra el 4% también sobre el envío (el CRM solo sobre productos): ese
+  // pedacito va dentro del delivery para que el total sea lo que de verdad entró.
+  ponerValor('pd-delivery',w.metodo==='tarjeta'?round2((d.envio||0)*1.04):(d.envio||0));
+  ponerValor('pd-metodopago',w.metodo==='tarjeta'?'Tarjeta de crédito':'Yape');
+  ponerValor('pd-yapago',w.metodo==='tarjeta'?'1':'0');
+  ponerValor('pd-referencia',w.order_id);
+  // Fecha comercial = el día (hora de Lima) en que se hizo la compra en la web.
+  ponerValor('pd-fecha',new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima'}).format(new Date(w.creado_en)));
+  const notasWeb=(w.items||[]).filter(it=>it.notas).map(textoItemWeb);
+  ponerValor('pd-notas',[`Pedido web ${w.order_id}`].concat(notasWeb,c.email?['Correo: '+c.email]:[]).join(' · '));
+  // Productos: se agregan por el mismo botón de siempre, así valen todas sus validaciones.
+  const{lineas,faltan}=traducirItemsWeb(w.items);
+  lineas.forEach(l=>{
+    const s=porId(db.stock,l.stockId);
+    ponerValor('pi-marca',s.marca);
+    if(document.getElementById('pi-marca').value!==s.marca){faltan.push(`${l.cantidad}x ${nombreConSabor(s)} (marca no vendible)`);return;}
+    pedidoLlenarProductos();
+    ponerValor('pi-producto',s.id);
+    for(let n=0;n<l.cantidad;n++){
+      const antes=(pedidoItemsTmp.find(it=>it.stockId===s.id)||{}).cantidad||0;
+      pedidoAgregarItem();
+      const despues=(pedidoItemsTmp.find(it=>it.stockId===s.id)||{}).cantidad||0;
+      if(despues===antes){faltan.push(`${l.cantidad-n}x ${nombreConSabor(s)}`);break;}
+    }
+  });
+  // Que lo de productos cuadre con lo que se cobró en la web (packs y ofertas tienen precio
+  // propio allá): la diferencia entra como descuento manual, a la vista para revisarla.
+  const fecha=(document.getElementById('pd-fecha')||{}).value||hoyStr();
+  const d0=descuentosPedido(pedidoItemsTmp,0,fecha);
+  const netoCrm=round2(calcularTotalesPedido(pedidoItemsTmp,d0.descuentoTotal,0,0,'').subtotal-d0.descuentoTotal);
+  const netoWeb=round2((d.subtotal||0)-(d.descuento||0));
+  if(!faltan.length&&netoCrm>netoWeb)ponerValor('pd-descuento',round2(netoCrm-netoWeb));
+  pedidoRenderItems();
+  const h3=document.querySelector('#modalBox h3');
+  if(h3)h3.insertAdjacentHTML('afterend',`<div class="env-web-aviso">
+    <strong>Pedido web ${esc(w.order_id)}</strong> · ${w.metodo==='tarjeta'?'pagado con tarjeta':'Yape al recibir (queda pendiente de cobro)'}<br>
+    En la web: productos ${money(netoWeb)} + envío ${money(d.envio||0)}${d.recargo?` + recargo ${money(d.recargo)}`:''} = <strong>${money(w.monto)}</strong>. Revisa que el total de abajo cuadre antes de guardar.
+    ${existente?`<br>Cliente ya registrado: se actualizará su dirección con la de este pedido.`:''}
+    ${faltan.length?`<br><span style="color:var(--danger);font-weight:600;">Agrégalo a mano: ${esc(faltan.join(' · '))}</span>`:''}
+  </div>`);
+}
+// Se llama justo antes de guardar un pedido nuevo (guardarCliente / guardarPedido).
+function aplicarPedidoWeb(pedido){
+  const w=pedidoWebEnCurso;
+  if(!w)return;
+  pedidoWebEnCurso=null;
+  pedido.pedidoWeb=w.order_id;
+  // Cliente que ya existía: la etiqueta usa la dirección del cliente, así que se pone la de este pedido.
+  const cli=w.clienteExistenteId&&pedido.clienteId===w.clienteExistenteId?porId(db.clientes,pedido.clienteId):null;
+  if(cli){
+    const c=w.cliente||{};
+    if(c.direccion){
+      cli.direccion=c.direccion;
+      cli.esProvincia=w.zona==='provincia';
+      cli.ciudad=w.zona==='provincia'?'':w.distrito;
+      if(cli.distrito)cli.distrito=cli.ciudad;
+      cli.provincia=w.zona==='provincia'?'':'Lima';
+      cli.departamento=w.zona==='provincia'?'':'Lima';
+      cli.referencia='';
+    }
+    if(!cli.telefono&&c.telefono)cli.telefono=c.telefono;
+    if(!cli.dni&&c.dni)cli.dni=c.dni;
+  }
+  setTimeout(()=>{pintarAvisoPedidosWeb();if(seccionActual==='envios')pintarEnvios();},0);
+}
+// Etiqueta del paquete (sticker 10 x 15 cm; en hoja A4 sale igual, arriba a la izquierda).
+function imprimirEtiquetaEnvio(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return;
+  const c=porId(db.clientes,p.clienteId)||{};
+  const logo=(document.querySelector('.header-logo')||{}).src||'';
+  const nombre=((c.nombre||'')+' '+(c.apellido||'')).trim()||'—';
+  const metodo=nombreMetodoEnvio(p.metodoEnvio)||'Envío';
+  const items=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiqueta ${esc(correlativoVenta(p.id))}</title>
+    <style>
+      @page{size:100mm 150mm;margin:4mm;}
+      *{box-sizing:border-box;}
+      body{font-family:system-ui,Arial,sans-serif;margin:0;width:92mm;color:#000;font-size:12.5px;line-height:1.35;}
+      .top{display:flex;align-items:center;gap:8px;border-bottom:2px solid #000;padding-bottom:6px;}
+      .top img{width:42px;height:42px;object-fit:contain;}
+      .marca{font-weight:800;font-size:16px;}
+      .sub{font-size:11px;}
+      .num{margin-left:auto;text-align:right;font-weight:800;font-size:14px;}
+      .lbl{font-size:10px;font-weight:700;letter-spacing:.06em;margin-top:8px;}
+      .nombre{font-size:20px;font-weight:800;line-height:1.15;}
+      .dir{font-size:14px;font-weight:600;}
+      .cobrar{border:2px solid #000;padding:5px 8px;font-weight:800;font-size:14px;margin-top:8px;text-align:center;}
+      ul{margin:4px 0 0;padding-left:18px;}
+      .pie{border-top:1px dashed #000;margin-top:8px;padding-top:4px;font-size:10.5px;}
+    </style></head><body>
+    <div class="top">
+      ${logo?`<img src="${logo}" alt="">`:''}
+      <div><div class="marca">Zona Bariátrica</div><div class="sub">zonabariatrica.com</div></div>
+      <div class="num">${esc(correlativoVenta(p.id))}<div class="sub">${esc(metodo)} · ${esc(fechaCorta(fechaDespacho(p)||p.fecha))}</div></div>
+    </div>
+    <div class="lbl">PARA</div>
+    <div class="nombre">${esc(nombre)}</div>
+    <div>${c.dni?'DNI: <strong>'+esc(c.dni)+'</strong>':''}${c.dni&&c.telefono?' · ':''}${c.telefono?'Cel: <strong>'+esc(c.telefono)+'</strong>':''}</div>
+    <div class="lbl">DIRECCIÓN</div>
+    <div class="dir">${esc(direccionCompleta(c))}</div>
+    ${p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div style="margin-top:4px;">Shalom: ${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:''}
+    ${p.estadoPago==='pendiente pago'?`<div class="cobrar">PAGA AL RECIBIR: ${money(p.total)}</div>`:''}
+    <div class="lbl">PEDIDO</div>
+    <ul>${items}</ul>
+    <div class="pie">${p.pedidoWeb?'Pedido web '+esc(p.pedidoWeb)+' · ':''}¡Gracias por tu compra!</div>
+    </body></html>`;
+  const v=window.open('','_blank','width=420,height=640');
+  if(!v){alert('El navegador bloqueó la ventana de la etiqueta. Habilita las ventanas emergentes para este sitio.');return;}
+  v.document.write(html);
+  v.document.close();
+  v.focus();
+  setTimeout(()=>v.print(),300);
 }
 // Ficha de preparación: hoy es la "etiqueta digital" (datos del cliente + productos a meter en la
 // caja). Cuando llegue la etiquetera, este mismo contenido es el que se imprimirá como sticker.
@@ -3360,6 +3643,8 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
   p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
   if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';}
   guardar();
+  // Al despachar sale sola la etiqueta del paquete (pedido de Roberto, 2026-10-22).
+  if(estado==='enviado')imprimirEtiquetaEnvio(p.id);
   if(estado==='enviado'&&p.metodoEnvio==='shalom'&&p.numeroOrden&&ofrecerWhatsAppEnvio(p))return false;
   volverDePasoEnvio(p.id);
   return false;
@@ -3728,6 +4013,7 @@ function guardarCliente(ev,leadId){
     atendidoPor:sesion.nombre,
     notas:document.getElementById('pd-notas').value.trim()
   };
+  aplicarPedidoWeb(pedido);
   db.pedidos.push(pedido);
   descontarStock(pedido);
   guardar();
@@ -4328,6 +4614,7 @@ function guardarPedido(ev){
     atendidoPor:sesion.nombre,
     notas:document.getElementById('pd-notas').value.trim()
   };
+  aplicarPedidoWeb(pedido);
   db.pedidos.push(pedido);
   descontarStock(pedido);
   guardar();pintarStock();pintarClientes();
