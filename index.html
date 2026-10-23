@@ -3161,7 +3161,7 @@ function confirmarPedidoEntregado(ev,pedidoId){
 // Futuro (todavía NO): al pasar a Empaquetado se imprimirá un sticker en la etiquetera, y los
 // productos se verificarán con lector de código de barras (verificar, NO descontar: el stock ya
 // se descuenta al crear la venta).
-const ENVIOS_DESDE='2026-10-17'; // el tablero arranca acá: los pedidos creados antes se toman como ya despachados
+const ENVIOS_DESDE='2026-10-23'; // el tablero arranca acá: los pedidos creados antes se toman como ya despachados (reinicio en cero pedido por Roberto el 22-10-2026; antes era 2026-10-17)
 const ENVIOS_DIAS_DESPACHADOS=7; // días que un despachado sigue visible en su columna (con búsqueda se ven todos)
 const ETAPAS_ENVIO=[
   {id:'recibido',label:'Recibidos',estado:'pendiente preparación',chip:'chip-violeta'},
@@ -3317,7 +3317,10 @@ const WEB_COMPUESTOS={
   lp7:['LVL-PRO-01','LVL-PRO-01'],lp8:['LVL-PRO-01','LVL-PRO-01'],lp9:['LVL-PRO-01','LVL-PRO-01']
 };
 const SABOR_A_CODIGO={'vainilla':'BN-PP-VA-15','chocolate':'BN-PP-CH-15','fresa':'BN-PL-FR-1L','maracumango':'BN-PL-MR-1L','bayas mixtas':'BF-MM-BM-120','tropical':'BF-MM-TP-120'};
-let pedidosWeb=[];          // lo que devolvió la función (pedidos reales desde ENVIOS_DESDE)
+// Pedidos web anteriores a esta hora ya se atendieron por WhatsApp (Roberto, 22-10-2026): la bandeja
+// arranca con el de Jackeline (22-10, 1:06 pm).
+const PEDIDOS_WEB_DESDE='2026-10-22T13:00:00-05:00';
+let pedidosWeb=[];          // lo que devolvió la función (pedidos reales desde el 17-10)
 let pedidosWebError='';
 let pedidoWebEnCurso=null;  // pedido web que se está registrando en el formulario abierto
 let pedidosWebTimer=null;
@@ -3344,7 +3347,8 @@ async function cargarPedidosWeb(){
 function pedidosWebPendientes(){
   const registrados=new Set(db.pedidos.map(p=>p.pedidoWeb).filter(Boolean));
   const descartados=new Set((db.config&&db.config.pedidosWebDescartados)||[]);
-  return pedidosWeb.filter(w=>!registrados.has(w.order_id)&&!descartados.has(w.order_id));
+  const desde=new Date(PEDIDOS_WEB_DESDE).getTime();
+  return pedidosWeb.filter(w=>new Date(w.creado_en).getTime()>=desde&&!registrados.has(w.order_id)&&!descartados.has(w.order_id));
 }
 function pintarAvisoPedidosWeb(){
   const tab=document.getElementById('tab-envios');
