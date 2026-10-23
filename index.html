@@ -2767,8 +2767,8 @@ function abrirFormCotizacion(leadId){
         <div><label>Envío (opcional, si ya se sabe)</label>
           <select id="pd-envio" onchange="pedidoActualizarEnvio()">
             <option value="">Aún no sé</option>
-            <option value="shalom">Shalom (provincia)</option>
-            <option value="indrive">InDrive (local)</option>
+            <option value="shalom">Provincia (Shalom)</option>
+            <option value="indrive">Lima (InDrive)</option>
           </select>
         </div>
         <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="0" oninput="pedidoActualizarTotales()"></div>
@@ -3507,7 +3507,6 @@ function registrarPedidoWeb(orderId){
     ponerValor('cl-ciudad',provincia?'':(w.distrito||''));
     ponerValor('cl-provincianombre',provincia?'':'Lima');
     ponerValor('cl-departamento',provincia?'':'Lima');
-    ponerValor('cl-provincia',provincia?'1':'0');
   }
   pedidoWebEnCurso={order_id:w.order_id,clienteExistenteId:existente?existente.id:null,zona:w.zona,distrito:w.distrito||'',cliente:c};
   ponerValor('pd-envio',provincia?'shalom':'indrive');
@@ -3823,7 +3822,7 @@ function abrirPasoEnvio(pedidoId){
     titulo='Despachar pedido';boton='Despachado';
     cuerpo=`${p.metodoEnvio?'':`<label style="margin-top:0;">¿Cómo se envía? *</label>
       <select id="pe-metodo" onchange="document.getElementById('pe-shalom').style.display=this.value==='shalom'?'':'none'">
-        <option value="">Elegir...</option><option value="shalom">Shalom (provincia)</option><option value="indrive">InDrive (local)</option>
+        <option value="">Elegir...</option><option value="shalom">Provincia (Shalom)</option><option value="indrive">Lima (InDrive)</option>
       </select>`}
       <div id="pe-shalom" style="${p.metodoEnvio==='shalom'?'':'display:none;'}">
         <div class="fila-2">
@@ -4089,8 +4088,6 @@ function abrirFormCliente(leadId){
         <div><label>Distrito / Ciudad</label><input id="cl-ciudad" value="${lead?esc(lead.distrito||''):''}"></div>
         <div><label>Referencia</label><input id="cl-referencia" placeholder="Ej. frente al parque, casa celeste"></div>
       </div>
-      <label>¿Envío a provincia?</label>
-      <select id="cl-provincia" onchange="document.getElementById('pd-envio').value=this.value==='1'?'shalom':'indrive';pedidoActualizarEnvio();"><option value="1">Sí</option><option value="0">No</option></select>
 
       <div class="form-divisor"></div>
       <div class="form-grupo-titulo">Pedido de este cliente</div>
@@ -4107,8 +4104,8 @@ function abrirFormCliente(leadId){
       <div class="fila-2">
         <div><label>Envío</label>
           <select id="pd-envio" onchange="pedidoActualizarEnvio()">
-            <option value="shalom">Shalom (provincia)</option>
-            <option value="indrive">InDrive (local)</option>
+            <option value="shalom">Provincia (Shalom)</option>
+            <option value="indrive">Lima (InDrive)</option>
           </select>
         </div>
         <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
@@ -4205,7 +4202,8 @@ function guardarCliente(ev,leadId){
     provincia:document.getElementById('cl-provincianombre').value.trim(),
     ciudad:document.getElementById('cl-ciudad').value.trim(),
     referencia:document.getElementById('cl-referencia').value.trim(),
-    esProvincia:document.getElementById('cl-provincia').value==='1',
+    // Lima o provincia sale del tipo de envío del pedido (Shalom = provincia): no se pregunta dos veces.
+    esProvincia:document.getElementById('pd-envio').value==='shalom',
     marcas:[],
     activo:true,
     leadId:leadId||null,
@@ -4553,7 +4551,7 @@ function abrirFormPedido(clienteIdPre){
       <input type="hidden" id="pd-cliente" value="${clientePre.id}">
       `:`
       <label>Cliente *</label>
-      <select id="pd-cliente" required>
+      <select id="pd-cliente" required onchange="pedidoEnvioSegunCliente(this.value)">
         <option value="">Selecciona un cliente...</option>
         ${clientes.map(c=>`<option value="${c.id}">${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.dni||'s/dni')} — ${esc(c.ciudad||'')}</option>`).join('')}
       </select>
@@ -4574,8 +4572,8 @@ function abrirFormPedido(clienteIdPre){
       <div class="fila-2">
         <div><label>Envío</label>
           <select id="pd-envio" onchange="pedidoActualizarEnvio()">
-            <option value="shalom">Shalom (provincia)</option>
-            <option value="indrive">InDrive (local)</option>
+            <option value="shalom">Provincia (Shalom)</option>
+            <option value="indrive">Lima (InDrive)</option>
           </select>
         </div>
         <div><label>Embalaje a cobrar (S/)</label><input type="number" id="pd-embalaje" step="any" value="${db.config.embalajeDefault||0}" oninput="pedidoActualizarTotales()"></div>
@@ -4609,7 +4607,15 @@ function abrirFormPedido(clienteIdPre){
       </div>
     </form>`);
   pedidoLlenarProductos();
+  if(clientePre)pedidoEnvioSegunCliente(clientePre.id);
   pedidoRenderItems();
+}
+// Recompra: el envío (Lima o provincia) sale de la ficha del cliente, no se vuelve a preguntar.
+function pedidoEnvioSegunCliente(clienteId){
+  const c=porId(db.clientes,clienteId);
+  if(!c)return;
+  document.getElementById('pd-envio').value=c.esProvincia?'shalom':'indrive';
+  pedidoActualizarEnvio();
 }
 function pedidoLlenarProductos(){
   const marca=document.getElementById('pi-marca').value;
