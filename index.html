@@ -3262,10 +3262,12 @@ function tarjetaEnvio(p){
   const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
   const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div class="env-shalom">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:'';
   let acciones='';
-  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>`;
+  // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
+  const anular=`<button type="button" class="btn-secundario btn-chico" title="Anular: devuelve el stock y queda como cancelado en el historial" onclick="eliminarPedido('${p.id}')">Anular</button>`;
+  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${anular}`;
   else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
     <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
-    <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>`;
+    <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>${anular}`;
   else{
     const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
     acciones=[
@@ -4953,6 +4955,7 @@ function confirmarCancelarPedido(ev,id){
   p.motivoCancelacion=motivo;
   p.autorizadoPor=autorizadoPor;
   guardar();cerrarModal();pintarStock();
+  if(seccionActual==='envios')pintarEnvios();
   return false;
 }
 /* ================= STOCK ================= */
