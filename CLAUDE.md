@@ -23,7 +23,7 @@ Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribi
 
 ## Reglas del negocio que NO se deben romper
 - **Nunca migrar, recalcular ni "arreglar" datos históricos automáticamente** desde el código. Las reglas nuevas se aplican desde una fecha de vigencia (`VIGENCIA_PROMO_BN`, `VIGENCIA_PROMO_FUSION`, `VIGENCIA_ACREDITACION_TARJETA`) y las ventas anteriores quedan como estaban.
-- Una venta se registra cuando llega el comprobante → nace "pagado" y descuenta stock. Excepción: provincia contra entrega → "pendiente pago" (descuenta stock igual, no cuenta en Reportes hasta marcarla pagada).
+- Una venta se registra cuando llega el comprobante → nace "pagado" y descuenta stock. Excepción: contra entrega → "pendiente pago" (descuenta stock igual, no cuenta en Reportes hasta marcarla pagada). **Desde el 23-10-2026 provincia (Shalom) es solo al contado**: el CRM no deja registrar un envío Shalom como contra entrega.
 - Pago con tarjeta: no cuenta (ni para Ganancia ZB ni para pagar al proveedor/socio) hasta marcarla "acreditada" a mano (`ventaAcreditada()`).
 - Recargo tarjeta 4% se calcula solo sobre productos (subtotal − descuento), no sobre delivery/embalaje.
 - Proveedores/socio: **una sola fuente de verdad `estadoCuentaProveedor()`**. Saldo = obligación total − Σ pagos (las `asignaciones[]` son solo detalle, no cambian el saldo). Lo que se le paga al socio en marcas de reparto = **costo + participación** (`totalDoctorItem`).
