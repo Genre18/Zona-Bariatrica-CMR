@@ -3239,8 +3239,10 @@ function pintarEnvios(){
     cols[i].push(p);
   });
   // Recibidos/Empaquetados: lo más antiguo arriba (lo más urgente). Despachados: lo más nuevo arriba.
-  cols[0].sort((a,b)=>creadoMsPedido(a)-creadoMsPedido(b));
-  cols[1].sort((a,b)=>creadoMsPedido(a)-creadoMsPedido(b));
+  // Un pedido con fecha de entrega programada se ordena por ESA fecha: el que es para el lunes
+  // queda debajo de los que hay que sacar hoy.
+  cols[0].sort((a,b)=>ordenEntregaMs(a)-ordenEntregaMs(b));
+  cols[1].sort((a,b)=>ordenEntregaMs(a)-ordenEntregaMs(b));
   cols[2].sort((a,b)=>fechaDespacho(b).localeCompare(fechaDespacho(a))||creadoMsPedido(b)-creadoMsPedido(a));
   const tabs=`<div class="env-tabs">${ETAPAS_ENVIO.map((e,i)=>`<button type="button" class="${i===enviosColMovil?'activo':''}" onclick="verColumnaEnvios(${i})">${e.label} <span>${cols[i].length}</span></button>`).join('')}</div>`;
   const vacios=['No hay pedidos nuevos por preparar.','Nada empaquetado esperando despacho.',buscar?'Ningún despachado coincide.':`Nada despachado en los últimos ${ENVIOS_DIAS_DESPACHADOS} días.`];
@@ -3259,6 +3261,7 @@ function tarjetaEnvio(p){
   const chips=[
     metodo?`<span class="chip chip-gris">${metodo}</span>`:'<span class="chip chip-naranja" title="Se elige al despachar">Envío sin definir</span>',
     p.estadoPago==='pendiente pago'?'<span class="chip chip-violeta">Pendiente de pago</span>':'',
+    i<2?chipEntregaProgramada(p):'',
     p.estadoEnvio==='entregado'?`<span class="chip chip-verde">Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`:''
   ].join('');
   const cuando=i===2?'Despachado '+fechaCorta(fechaDespacho(p)):haceCuanto(creadoMsPedido(p));
@@ -3267,9 +3270,11 @@ function tarjetaEnvio(p){
   let acciones='';
   // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
   const anular=`<button type="button" class="btn-secundario btn-chico" title="Anular: devuelve el stock y queda como cancelado en el historial" onclick="eliminarPedido('${p.id}')">Anular</button>`;
-  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${anular}`;
+  const fechaBtn=`<button type="button" class="btn-secundario btn-chico" title="Fecha en que el cliente quiere recibirlo" onclick="abrirEntregaProgramada('${p.id}')">Fecha</button>`;
+  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${fechaBtn}${anular}`;
   else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
     <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
+    ${fechaBtn}
     <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>${anular}`;
   else{
     const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
@@ -3290,6 +3295,51 @@ function tarjetaEnvio(p){
     ${shalomDatos}
     <div class="env-acciones">${acciones}</div>
   </div>`;
+}
+/* ================= ENTREGA PROGRAMADA (2026-10-22) =================
+   Cuando el cliente pide recibirlo un día concreto (ej. "para el lunes"): p.entregaProgramada
+   = 'YYYY-MM-DD'. Solo ordena y avisa en el tablero; no cambia ventas, stock ni pagos. */
+function ordenEntregaMs(p){
+  return p.entregaProgramada?new Date(p.entregaProgramada+'T08:00:00-05:00').getTime():creadoMsPedido(p);
+}
+function diaConNombre(str){
+  const d=new Date(str+'T12:00:00-05:00');
+  return d.toLocaleDateString('es-PE',{weekday:'short',timeZone:'America/Lima'}).replace('.','')+' '+fechaCorta(str).slice(0,5);
+}
+function chipEntregaProgramada(p){
+  if(!p.entregaProgramada)return '';
+  const hoy=hoyStr();
+  if(p.entregaProgramada<hoy)return `<span class="chip chip-rojo">Era para el ${esc(diaConNombre(p.entregaProgramada))}</span>`;
+  if(p.entregaProgramada===hoy)return '<span class="chip chip-rojo">Entregar HOY</span>';
+  return `<span class="chip chip-naranja">Para el ${esc(diaConNombre(p.entregaProgramada))}</span>`;
+}
+function abrirEntregaProgramada(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return;
+  const cli=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>¿Para cuándo lo quiere?</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc((cli.nombre+' '+(cli.apellido||'')).trim()):'Cliente'} · ${esc(correlativoVenta(p.id))}</p>
+    <form onsubmit="return guardarEntregaProgramada(event,'${p.id}')">
+      <label style="margin-top:0;">Fecha de entrega</label>
+      <input type="date" id="ep-fecha" min="${hoyStr()}" value="${escAttr(p.entregaProgramada||'')}">
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Déjala vacía para quitarla (se despacha en el siguiente turno, como siempre).</p>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function guardarEntregaProgramada(ev,pedidoId){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return false;
+  const v=document.getElementById('ep-fecha').value;
+  if(v)p.entregaProgramada=v;else delete p.entregaProgramada;
+  guardar();
+  volverDePasoEnvio(p.id);
+  return false;
 }
 /* ================= PEDIDOS WEB (2026-10-22) =================
    Lo que se compra en zonabariatrica.com (tienda o /catalogo, con tarjeta o "Yape al recibir")
@@ -3557,6 +3607,7 @@ function imprimirEtiquetaEnvio(pedidoId){
     <div class="dir">${esc(direccionCompleta(c))}</div>
     ${p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div style="margin-top:4px;">Shalom: ${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:''}
     ${p.estadoPago==='pendiente pago'?`<div class="cobrar">PAGA AL RECIBIR: ${money(p.total)}</div>`:''}
+    ${p.entregaProgramada?`<div class="cobrar">ENTREGAR EL ${esc(diaConNombre(p.entregaProgramada).toUpperCase())}</div>`:''}
     <div class="lbl">PEDIDO</div>
     <ul>${items}</ul>
     <div class="pie">${p.pedidoWeb?'Pedido web '+esc(p.pedidoWeb)+' · ':''}¡Gracias por tu compra!</div>
