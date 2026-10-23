@@ -4185,6 +4185,8 @@ function guardarCliente(ev,leadId){
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
   const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
+  // PROVINCIA AL CONTADO (23-10-2026): a provincia ya no hay contra entrega; solo se despacha pagado (Izipay o Yape).
+  if(!yaPagoCliente&&document.getElementById('pd-envio').value==='shalom'){alert('A provincia (Shalom) ya no hay contra entrega: el cliente paga antes del envío con tarjeta (Izipay) o Yape. Registra el pedido cuando haya pagado.');return false;}
   const fechaPedido=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fechaPedido);
   // FIX B: se valida ANTES de crear el cliente/pedido — si esto fallara después del push,
@@ -4822,6 +4824,8 @@ function guardarPedido(ev){
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
   const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
+  // PROVINCIA AL CONTADO (23-10-2026): a provincia ya no hay contra entrega; solo se despacha pagado (Izipay o Yape).
+  if(!yaPagoCliente&&document.getElementById('pd-envio').value==='shalom'){alert('A provincia (Shalom) ya no hay contra entrega: el cliente paga antes del envío con tarjeta (Izipay) o Yape. Registra el pedido cuando haya pagado.');return false;}
   const fecha=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
   const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
