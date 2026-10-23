@@ -3161,7 +3161,10 @@ function confirmarPedidoEntregado(ev,pedidoId){
 // Futuro (todavía NO): al pasar a Empaquetado se imprimirá un sticker en la etiquetera, y los
 // productos se verificarán con lector de código de barras (verificar, NO descontar: el stock ya
 // se descuenta al crear la venta).
-const ENVIOS_DESDE='2026-10-23'; // el tablero arranca acá: los pedidos creados antes se toman como ya despachados (reinicio en cero pedido por Roberto el 22-10-2026; antes era 2026-10-17)
+const ENVIOS_DESDE='2026-10-22'; // el tablero arranca acá: los pedidos creados antes se toman como ya despachados
+// Reinicio en cero pedido por Roberto el 22-10-2026 (antes arrancaba el 17-10): cuenta desde las 7 pm de
+// Lima de ese día, así el primero es el pedido web de Jackeline y lo anterior se da por entregado.
+const ENVIOS_DESDE_HORA='19:00';
 const ENVIOS_DIAS_DESPACHADOS=7; // días que un despachado sigue visible en su columna (con búsqueda se ven todos)
 const ETAPAS_ENVIO=[
   {id:'recibido',label:'Recibidos',estado:'pendiente preparación',chip:'chip-violeta'},
@@ -3180,7 +3183,7 @@ function creadoMsPedido(p){
   return isNaN(ms)?0:ms;
 }
 function pedidosTablero(){
-  const desde=new Date(ENVIOS_DESDE+'T00:00:00-05:00').getTime();
+  const desde=new Date(ENVIOS_DESDE+'T'+ENVIOS_DESDE_HORA+':00-05:00').getTime();
   return db.pedidos.filter(p=>p.estadoPago!=='cancelado'&&creadoMsPedido(p)>=desde);
 }
 function fechaDespacho(p){
