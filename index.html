@@ -3273,10 +3273,13 @@ function tarjetaEnvio(p){
   const fechaBtn=`<button type="button" class="btn-secundario btn-chico" title="Fecha en que el cliente quiere recibirlo" onclick="abrirEntregaProgramada('${p.id}')">Fecha</button>`;
   const avisar=c&&telefonoWhatsApp(c.telefono)
     ?`<button type="button" class="btn-secundario btn-chico" title="Mandarle por WhatsApp la confirmación de su pedido" onclick="avisarRecibidoWhatsApp('${p.id}')">${p.avisoRecibidoEn?'✓ Avisado':'Avisar'}</button>`:'';
-  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${avisar}${fechaBtn}${anular}`;
+  // Ubicación de Google Maps que dejó el cliente en la web (solo Lima): para pasársela al repartidor.
+  const mapaUrl=p.ubicacion||(c&&c.ubicacion)||'';
+  const mapa=mapaUrl&&p.metodoEnvio!=='shalom'?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(mapaUrl)}" target="_blank" rel="noopener" title="Abrir la ubicación del cliente en Google Maps">📍 Mapa</a>`:'';
+  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${avisar}${mapa}${fechaBtn}${anular}`;
   else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
     <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
-    ${fechaBtn}
+    ${mapa}${fechaBtn}
     <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>${anular}`;
   else{
     const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
@@ -3674,7 +3677,30 @@ function calcularDisponibilidadWeb(){
     });
     if(agotado)agotados.push(id);
   });
-  return{agotados:agotados.sort(),sabores};
+  return{agotados:agotados.sort(),sabores,masVendidos:masVendidosWeb(new Set(agotados))};
+}
+// "Más vendidos" de la portada web = lo que de verdad más se vende (ventas del CRM de los últimos
+// 60 días, en unidades, sin anuladas ni agotados). Solo productos sueltos con un id de la web
+// propio (la proteína LVL tiene dos ids en la web y un solo producto aquí: queda fuera).
+const MAS_VENDIDOS_DIAS=60;
+function masVendidosWeb(agotados){
+  const porStock={};
+  Object.keys(WEB_A_CODIGO).forEach(id=>{
+    const cod=WEB_A_CODIGO[id];
+    if(Object.values(WEB_A_CODIGO).filter(x=>x===cod).length>1)return;
+    const s=stockPorCodigo(cod);
+    if(s)porStock[s.id]=id;
+  });
+  const desde=new Date(Date.now()-MAS_VENDIDOS_DIAS*86400000).toISOString().slice(0,10);
+  const unidades={};
+  db.pedidos.forEach(p=>{
+    if(p.estadoPago==='cancelado'||(p.fecha||'')<desde)return;
+    (p.items||[]).forEach(it=>{
+      const id=porStock[it.stockId];
+      if(id&&!agotados.has(id))unidades[id]=(unidades[id]||0)+(Number(it.cantidad)||0);
+    });
+  });
+  return Object.keys(unidades).sort((a,b)=>unidades[b]-unidades[a]).slice(0,5);
 }
 async function enviarDisponibilidadWeb(token){
   try{
@@ -3691,6 +3717,12 @@ function aplicarPedidoWeb(pedido){
   if(!w)return;
   pedidoWebEnCurso=null;
   pedido.pedidoWeb=w.order_id;
+  const ubic=(w.cliente||{}).ubicacion;
+  if(ubic){
+    pedido.ubicacion=ubic;
+    const cliUbic=porId(db.clientes,pedido.clienteId);
+    if(cliUbic)cliUbic.ubicacion=ubic; // la última ubicación conocida del cliente
+  }
   // Cliente que ya existía: la etiqueta usa la dirección del cliente, así que se pone la de este pedido.
   const cli=w.clienteExistenteId&&pedido.clienteId===w.clienteExistenteId?porId(db.clientes,pedido.clienteId):null;
   if(cli){
