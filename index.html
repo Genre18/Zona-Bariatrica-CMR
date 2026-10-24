@@ -7228,7 +7228,7 @@ function abrirModalAbono(pedidoId){
     <div class="drawer-identidad">
       <h3 style="margin:0;">Abono · ${correlativoVenta(p.id)}${cli?` <span style="font-weight:500;font-size:14px;color:var(--muted);">· ${esc((cli.nombre+' '+(cli.apellido||'')).trim())}</span>`:''}</h3>
       <div class="drawer-subtexto">${fechaBonita(p.fecha)}</div>
-      ${cli?`<div class="drawer-subtexto">DNI: ${esc(cli.dni||'—')} · ${esc(direccionCompleta(cli))}</div>`:'<div class="drawer-subtexto">Venta sin cliente asignado</div>'}
+      ${cli?`<div class="drawer-subtexto">DNI: ${esc(cli.dni||'—')} · Cel: ${esc(cli.telefono||'—')} · ${esc(direccionCompleta(cli))}</div>`:'<div class="drawer-subtexto">Venta sin cliente asignado</div>'}
     </div>
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo" style="display:flex;justify-content:space-between;align-items:center;">Productos de esta venta
