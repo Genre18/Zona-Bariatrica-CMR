@@ -3484,6 +3484,15 @@ function descartarPedidoWeb(orderId){
   pintarEnvios();
 }
 function ponerValor(id,valor){const el=document.getElementById(id);if(el)el.value=valor;}
+// Provincia (web, desde 24-10-2026): la dirección llega como "<agencia> · Ubicación: Distrito, Provincia, Departamento".
+// Pedidos web anteriores no traen la marca: se devuelven tal cual.
+function separarUbicacionWeb(direccion){
+  const txt=String(direccion||'');
+  const m=txt.match(/^(.*?)\s*·\s*Ubicación:\s*(.*)$/);
+  if(!m)return {direccion:txt,distrito:'',provincia:'',departamento:''};
+  const partes=m[2].split(',').map(x=>x.trim());
+  return {direccion:m[1].trim(),distrito:partes[0]||'',provincia:partes[1]||'',departamento:partes.slice(2).join(', ')};
+}
 function registrarPedidoWeb(orderId){
   const w=pedidosWeb.find(x=>x.order_id===orderId);
   if(!w)return;
@@ -3503,10 +3512,11 @@ function registrarPedidoWeb(orderId){
     ponerValor('cl-apellido',partes.slice(1).join(' '));
     ponerValor('cl-dni',dni);
     ponerValor('cl-telefono',c.telefono||'');
-    ponerValor('cl-direccion',c.direccion||'');
-    ponerValor('cl-ciudad',provincia?'':(w.distrito||''));
-    ponerValor('cl-provincianombre',provincia?'':'Lima');
-    ponerValor('cl-departamento',provincia?'':'Lima');
+    const u=separarUbicacionWeb(c.direccion);
+    ponerValor('cl-direccion',u.direccion);
+    ponerValor('cl-ciudad',provincia?u.distrito:(w.distrito||''));
+    ponerValor('cl-provincianombre',provincia?u.provincia:'Lima');
+    ponerValor('cl-departamento',provincia?u.departamento:'Lima');
   }
   pedidoWebEnCurso={order_id:w.order_id,clienteExistenteId:existente?existente.id:null,zona:w.zona,distrito:w.distrito||'',cliente:c};
   ponerValor('pd-envio',provincia?'shalom':'indrive');
@@ -3727,12 +3737,13 @@ function aplicarPedidoWeb(pedido){
   if(cli){
     const c=w.cliente||{};
     if(c.direccion){
-      cli.direccion=c.direccion;
+      const u=separarUbicacionWeb(c.direccion);
+      cli.direccion=u.direccion;
       cli.esProvincia=w.zona==='provincia';
-      cli.ciudad=w.zona==='provincia'?'':w.distrito;
+      cli.ciudad=w.zona==='provincia'?u.distrito:w.distrito;
       if(cli.distrito)cli.distrito=cli.ciudad;
-      cli.provincia=w.zona==='provincia'?'':'Lima';
-      cli.departamento=w.zona==='provincia'?'':'Lima';
+      cli.provincia=w.zona==='provincia'?u.provincia:'Lima';
+      cli.departamento=w.zona==='provincia'?u.departamento:'Lima';
       cli.referencia='';
     }
     if(!cli.telefono&&c.telefono)cli.telefono=c.telefono;
