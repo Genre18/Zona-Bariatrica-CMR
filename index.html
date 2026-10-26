@@ -3215,7 +3215,7 @@ function chipPasoEnvio(p,estilo){
     if(faltaDatosShalom(p))return `<button type="button" class="chip chip-rojo"${st} title="Anotar el N° de orden y el código del ticket de Shalom" onclick="event.stopPropagation();abrirDatosShalom('${p.id}')">Despachado · falta N° de orden</button>`;
     return p.metodoEnvio==='shalom'
       ?`<button type="button" class="chip chip-azul"${st} title="Marcar que el cliente ya lo recogió" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">Despachado →</button>`
-      :`<span class="chip chip-azul"${st}>Despachado</span>`;
+      :`<button type="button" class="chip chip-azul"${st} title="Marcar que el cliente ya lo recibió" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">Despachado →</button>`;
   }
   const label=i===0?'Recibido':'Empaquetado';
   return `<button type="button" class="chip ${ETAPAS_ENVIO[i].chip}"${st} title="Pasar a: ${ETAPAS_ENVIO[i+1].label}" onclick="event.stopPropagation();abrirPasoEnvio('${p.id}')">${label} →</button>`;
@@ -3235,7 +3235,7 @@ function pintarEnvios(){
   const cols=[[],[],[]];
   lista.forEach(p=>{
     const i=etapaEnvio(p);
-    if(i===2&&!buscar&&!faltaDatosShalom(p)&&fechaDespacho(p)<limite)return;
+    if(i===2&&!buscar&&!faltaDatosShalom(p)&&(p.estadoEnvio==='entregado'||fechaDespacho(p)<limite))return;
     cols[i].push(p);
   });
   // Recibidos/Empaquetados: lo más antiguo arriba (lo más urgente). Despachados: lo más nuevo arriba.
@@ -3251,7 +3251,7 @@ function pintarEnvios(){
       <div class="env-col-titulo"><span class="chip ${e.chip}">${e.label}</span><span class="env-col-num">${cols[i].length}</span></div>
       ${cols[i].length?cols[i].map(tarjetaEnvio).join(''):`<div class="vacio env-vacio">${vacios[i]}</div>`}
     </div>`).join('')}</div>
-    <p class="vacio" style="text-align:left;padding:8px 2px 0;font-size:11px;">El tablero muestra los pedidos registrados desde el ${fechaBonita(ENVIOS_DESDE)}. Los despachados se quedan ${ENVIOS_DIAS_DESPACHADOS} días a la vista; para uno más antiguo, búscalo arriba.</p>`;
+    <p class="vacio" style="text-align:left;padding:8px 2px 0;font-size:11px;">El tablero muestra los pedidos registrados desde el ${fechaBonita(ENVIOS_DESDE)}. Lo entregado sale del tablero; un despachado sin marcar se queda ${ENVIOS_DIAS_DESPACHADOS} días a la vista. Para uno que ya no ves, búscalo arriba.</p>`;
 }
 function tarjetaEnvio(p){
   const c=porId(db.clientes,p.clienteId);
@@ -3292,6 +3292,7 @@ function tarjetaEnvio(p){
       p.metodoEnvio==='indrive'&&p.motorizado&&telefonoWhatsApp(p.motorizado.celular)?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(telefonoWhatsApp(p.motorizado.celular))}" target="_blank" rel="noopener" title="Escribirle al motorizado">Motorizado</a>`:'',
       p.metodoEnvio==='indrive'?`<button type="button" class="btn-secundario btn-chico" title="Anotar o corregir nombre, celular o placa del motorizado" onclick="abrirDatosMotorizado('${p.id}')">${p.motorizado?'Editar motorizado':'Anotar motorizado'}</button>`:'',
       p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El cliente ya lo recogió en la agencia" onclick="abrirPasoEnvio('${p.id}')">Ya lo recogió</button>`:'',
+      p.metodoEnvio!=='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn btn-chico" title="El cliente ya recibió su pedido" onclick="abrirPasoEnvio('${p.id}')">Entregado</button>`:'',
       p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El paquete regresó (no lo recibió o no pagó): devuelve el stock y anula la venta" onclick="eliminarPedido('${p.id}','devuelto')">Devuelto</button>`:'',
       p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="Regresar a Empaquetados" onclick="regresarPasoEnvio('${p.id}')">↩</button>`:''
     ].join('');
@@ -3823,7 +3824,6 @@ function abrirPasoEnvio(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(!p||p.estadoPago==='cancelado'||p.estadoEnvio==='entregado'){alert('Este pedido ya no tiene un paso pendiente.');return;}
   const i=etapaEnvio(p);
-  if(i===2&&p.metodoEnvio!=='shalom'){alert('Este pedido ya fue despachado.');return;}
   const cli=porId(db.clientes,p.clienteId);
   const sub=`${cli?esc((cli.nombre+' '+(cli.apellido||'')).trim()):'Cliente'} · ${esc(correlativoVenta(p.id))} · venta del ${fechaBonita(p.fecha)}`;
   let cuerpo='',titulo='',boton='';
@@ -3850,8 +3850,12 @@ function abrirPasoEnvio(pedidoId){
       <div id="pe-lima" style="${p.metodoEnvio==='indrive'?'':'display:none;'}">${camposMotorizadoHTML(p)}</div>
       <label>Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
   }else{
-    titulo='El cliente ya lo recogió';boton='Confirmar entrega';
-    cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
+    titulo=p.metodoEnvio==='shalom'?'El cliente ya lo recogió':'El cliente ya lo recibió';boton='Confirmar entrega';
+    // Contra entrega en Lima: de paso se puede marcar que ya pagó (mismo efecto que "Marcar como pagado").
+    const cobrar=p.estadoPago==='pendiente pago'?`<label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="pe-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display=this.checked?'':'none'"> Ya pagó los ${money(p.total)}</label>
+      <select id="pe-pago-metodo" style="display:none;">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no te llega la plata, déjalo sin marcar: sigue como "Pendiente de pago".</p>`:'';
+    cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">${cobrar}`;
   }
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
@@ -3895,6 +3899,13 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
   p.envioPasos=p.envioPasos||{};
   p.envioPasos[estado]={fecha,hora:horaAhora(),por:sesion?sesion.nombre:''};
   if(estado==='entregado'){p.fechaEntrega=fecha;p.entregaConfirmadaPor=sesion?sesion.nombre:'';}
+  const pagoChk=document.getElementById('pe-pagado');
+  if(estado==='entregado'&&pagoChk&&pagoChk.checked&&p.estadoPago==='pendiente pago'){
+    p.estadoPago='pagado';
+    p.metodoPago=document.getElementById('pe-pago-metodo').value;
+    p.fechaCobro=fecha;
+    p.pagoConfirmadoPor=sesion?sesion.nombre:'';
+  }
   guardar();
   // Al empaquetar sale sola la etiqueta del paquete (así sale rotulado de la casa; antes era al
   // despachar — cambiado a pedido de Roberto, 2026-10-22).
