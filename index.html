@@ -3266,7 +3266,7 @@ function tarjetaEnvio(p){
   ].join('');
   const cuando=i===2?'Despachado '+fechaCorta(fechaDespacho(p)):haceCuanto(creadoMsPedido(p));
   const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
-  const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div class="env-shalom">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:'';
+  const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div class="env-shalom">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:'';
   let acciones='';
   // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
   const anular=`<button type="button" class="btn-secundario btn-chico" title="Anular: devuelve el stock y queda como cancelado en el historial" onclick="eliminarPedido('${p.id}')">Anular</button>`;
@@ -3840,6 +3840,7 @@ function abrirPasoEnvio(pedidoId){
           <div><label>N° de orden</label><input id="pe-orden" value="${escAttr(p.numeroOrden||'')}"></div>
           <div><label>Código</label><input id="pe-codigo" value="${escAttr(p.codigoEnvio||'')}"></div>
         </div>
+        <label>Clave de retiro</label><input id="pe-clave" value="${escAttr(p.claveRetiro||'')}" placeholder="La que pusiste en Shalom para que el cliente lo recoja">
         <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no tienes el ticket de Shalom, déjalos vacíos y anótalos después desde la tarjeta.</p>
       </div>
       <label>Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
@@ -3877,6 +3878,7 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
     if(p.metodoEnvio==='shalom'){
       p.numeroOrden=document.getElementById('pe-orden').value.trim();
       p.codigoEnvio=document.getElementById('pe-codigo').value.trim();
+      p.claveRetiro=document.getElementById('pe-clave').value.trim();
     }
     estado='enviado';
   }else estado='entregado';
@@ -3906,6 +3908,7 @@ function abrirDatosShalom(pedidoId){
         <div><label style="margin-top:0;">N° de orden *</label><input id="pe-orden" required value="${escAttr(p.numeroOrden||'')}"></div>
         <div><label style="margin-top:0;">Código *</label><input id="pe-codigo" required value="${escAttr(p.codigoEnvio||'')}"></div>
       </div>
+      <label>Clave de retiro</label><input id="pe-clave" value="${escAttr(p.claveRetiro||'')}">
       <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">El cliente los necesita para rastrear y recoger su paquete.</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
@@ -3921,6 +3924,7 @@ function confirmarDatosShalom(ev,pedidoId){
   const codigo=document.getElementById('pe-codigo').value.trim();
   if(!orden||!codigo){alert('Falta el N° de orden o el código de Shalom.');return false;}
   p.numeroOrden=orden;p.codigoEnvio=codigo;
+  p.claveRetiro=document.getElementById('pe-clave').value.trim();
   guardar();
   if(!ofrecerWhatsAppEnvio(p))volverDePasoEnvio(p.id);
   return false;
@@ -3933,7 +3937,7 @@ function ofrecerWhatsAppEnvio(p){
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">✕</button>
     <h3>Listo, quedó en Shalom</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le mandas a ${esc(cli.nombre)} su N° de orden y código por WhatsApp?</p>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le mandas a ${esc(cli.nombre)} su N° de orden, código y clave por WhatsApp?</p>
     <div class="acciones-modal">
       <button type="button" class="btn-secundario" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">Ahora no</button>
       <button type="button" class="btn" onclick="enviarWhatsAppEnvio('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
@@ -3961,7 +3965,8 @@ function volverDePasoEnvio(pedidoId){
 }
 function mensajeWhatsAppEnvio(p,cli){
   return `Hola ${cli.nombre||''}, tu pedido de Zona Bariátrica ya está en camino por Shalom.\n\n`+
-    `N° de orden: ${p.numeroOrden||'—'}\nCódigo: ${p.codigoEnvio||'—'}\n\n`+
+    `N° de orden: ${p.numeroOrden||'—'}\nCódigo: ${p.codigoEnvio||'—'}\n`+
+    (p.claveRetiro?`Clave de retiro: ${p.claveRetiro}\n`:'')+`\n`+
     `Puedes seguir tu envío aquí: https://rastrea.shalom.pe\n`+
     `Para recogerlo en la agencia lleva tu DNI y estos datos. Cualquier duda, nos escribes.`;
 }
@@ -5040,6 +5045,7 @@ function abrirEditarPedido(id){
       <div class="fila-2 ${p.metodoEnvio!=='shalom'?'oculto':''}" id="pedidoShalomCampos">
         <div><label>N° de orden (Shalom)</label><input id="pd-numeroorden" value="${esc(p.numeroOrden||'')}"></div>
         <div><label>Código de envío / seguimiento</label><input id="pd-codigoenvio" value="${esc(p.codigoEnvio||'')}"></div>
+        <div><label>Clave de retiro</label><input id="pd-claveretiro" value="${esc(p.claveRetiro||'')}"></div>
       </div>
       <div class="fila-2">
         <div><label>Descuento manual (S/)</label><input type="number" id="pd-descuento" step="any" value="${Math.max(0,round2((p.descuento||0)-(p.descuentoPromocionalBN||0)-(p.descuentoPromocionalFusion||0)))}" oninput="pedidoActualizarTotales()"></div>
@@ -5105,6 +5111,7 @@ function guardarEditarPedido(ev,id){
   p.metodoEnvio=document.getElementById('pd-envio').value;
   p.numeroOrden=document.getElementById('pd-numeroorden').value.trim();
   p.codigoEnvio=document.getElementById('pd-codigoenvio').value.trim();
+  p.claveRetiro=document.getElementById('pd-claveretiro').value.trim();
   p.metodoPago=document.getElementById('pd-metodopago').value;
   p.pagoReferencia=document.getElementById('pd-referencia').value.trim();
   p.estadoPago=nuevoEstadoPago;
@@ -8953,7 +8960,7 @@ function contenidoDetalleVenta(pedidoId){
       <div>${esc(envioTxt)}${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&!anulada
         ?` · ${chipPasoEnvio(p)}`
         :` · ${esc(p.estadoEnvio||'—')}`}</div>
-      ${(p.numeroOrden||p.codigoEnvio)?`<div style="font-size:12.5px;color:var(--muted);">${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):''}</div>`:''}
+      ${(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div style="font-size:12.5px;color:var(--muted);">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:''}
     </div>
     ${anulada?`<div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Auditoría de anulación</div>
