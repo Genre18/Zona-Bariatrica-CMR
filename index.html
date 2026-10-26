@@ -3267,6 +3267,7 @@ function tarjetaEnvio(p){
   const cuando=i===2?'Despachado '+fechaCorta(fechaDespacho(p)):haceCuanto(creadoMsPedido(p));
   const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
   const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div class="env-shalom">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:'';
+  const motDatos=p.metodoEnvio==='indrive'&&p.motorizado?`<div class="env-shalom">🛵 ${esc(textoMotorizado(p))}</div>`:'';
   let acciones='';
   // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
   const anular=`<button type="button" class="btn-secundario btn-chico" title="Anular: devuelve el stock y queda como cancelado en el historial" onclick="eliminarPedido('${p.id}')">Anular</button>`;
@@ -3287,6 +3288,9 @@ function tarjetaEnvio(p){
       `<button type="button" class="btn-secundario btn-chico" title="Volver a imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>`,
       faltaDatosShalom(p)?`<button type="button" class="btn" onclick="abrirDatosShalom('${p.id}')">Anotar N° de orden</button>`:'',
       wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:'',
+      p.metodoEnvio==='indrive'&&p.motorizado&&c&&telefonoWhatsApp(c.telefono)?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente los datos del motorizado" onclick="enviarWhatsAppMotorizado('${p.id}')">WhatsApp</button>`:'',
+      p.metodoEnvio==='indrive'&&p.motorizado&&telefonoWhatsApp(p.motorizado.celular)?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(telefonoWhatsApp(p.motorizado.celular))}" target="_blank" rel="noopener" title="Escribirle al motorizado">Motorizado</a>`:'',
+      p.metodoEnvio==='indrive'?`<button type="button" class="btn-secundario btn-chico" title="Anotar o corregir nombre, celular o placa del motorizado" onclick="abrirDatosMotorizado('${p.id}')">${p.motorizado?'Editar motorizado':'Anotar motorizado'}</button>`:'',
       p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El cliente ya lo recogió en la agencia" onclick="abrirPasoEnvio('${p.id}')">Ya lo recogió</button>`:'',
       p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El paquete regresó (no lo recibió o no pagó): devuelve el stock y anula la venta" onclick="eliminarPedido('${p.id}','devuelto')">Devuelto</button>`:'',
       p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="Regresar a Empaquetados" onclick="regresarPasoEnvio('${p.id}')">↩</button>`:''
@@ -3298,7 +3302,7 @@ function tarjetaEnvio(p){
     ${lugar?`<div class="env-lugar">${esc(lugar)}</div>`:''}
     <div class="env-chips">${chips}</div>
     <ul class="env-items">${productos}</ul>
-    ${shalomDatos}
+    ${shalomDatos}${motDatos}
     <div class="env-acciones">${acciones}</div>
   </div>`;
 }
@@ -3832,7 +3836,7 @@ function abrirPasoEnvio(pedidoId){
   }else if(i===1){
     titulo='Despachar pedido';boton='Despachado';
     cuerpo=`${p.metodoEnvio?'':`<label style="margin-top:0;">¿Cómo se envía? *</label>
-      <select id="pe-metodo" onchange="document.getElementById('pe-shalom').style.display=this.value==='shalom'?'':'none'">
+      <select id="pe-metodo" onchange="document.getElementById('pe-shalom').style.display=this.value==='shalom'?'':'none';document.getElementById('pe-lima').style.display=this.value==='indrive'?'':'none'">
         <option value="">Elegir...</option><option value="shalom">Provincia (Shalom)</option><option value="indrive">Lima (InDrive)</option>
       </select>`}
       <div id="pe-shalom" style="${p.metodoEnvio==='shalom'?'':'display:none;'}">
@@ -3843,6 +3847,7 @@ function abrirPasoEnvio(pedidoId){
         <label>Clave de retiro</label><input id="pe-clave" value="${escAttr(p.claveRetiro||'')}" placeholder="La que pusiste en Shalom para que el cliente lo recoja">
         <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no tienes el ticket de Shalom, déjalos vacíos y anótalos después desde la tarjeta.</p>
       </div>
+      <div id="pe-lima" style="${p.metodoEnvio==='indrive'?'':'display:none;'}">${camposMotorizadoHTML(p)}</div>
       <label>Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
   }else{
     titulo='El cliente ya lo recogió';boton='Confirmar entrega';
@@ -3879,6 +3884,10 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
       p.numeroOrden=document.getElementById('pe-orden').value.trim();
       p.codigoEnvio=document.getElementById('pe-codigo').value.trim();
       p.claveRetiro=document.getElementById('pe-clave').value.trim();
+    }else if(p.metodoEnvio==='indrive'){
+      const m=leerCamposMotorizado();
+      if(!m)return false;
+      p.motorizado=m;
     }
     estado='enviado';
   }else estado='entregado';
@@ -3891,6 +3900,7 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
   // despachar — cambiado a pedido de Roberto, 2026-10-22).
   if(estado==='preparado')imprimirEtiquetaEnvio(p.id);
   if(estado==='enviado'&&p.metodoEnvio==='shalom'&&p.numeroOrden&&ofrecerWhatsAppEnvio(p))return false;
+  if(estado==='enviado'&&p.metodoEnvio==='indrive'&&p.motorizado&&ofrecerWhatsAppMotorizado(p))return false;
   volverDePasoEnvio(p.id);
   return false;
 }
@@ -3943,6 +3953,87 @@ function ofrecerWhatsAppEnvio(p){
       <button type="button" class="btn" onclick="enviarWhatsAppEnvio('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
     </div>`);
   return true;
+}
+/* ================= MOTORIZADO DE LIMA (2026-10-26) =================
+   Al despachar en Lima se anota quién lo lleva: p.motorizado = {nombre, celular, placa}. Los tres
+   son obligatorios para poder ubicarlo si pasa algo. La placa es texto libre: las bicicletas con
+   motor no tienen placa, ahí se escribe "Bicicleta" (pedido de Roberto). */
+function camposMotorizadoHTML(p){
+  const m=p.motorizado||{};
+  return `<div class="fila-2">
+      <div><label>Nombre del motorizado *</label><input id="pe-mot-nombre" value="${escAttr(m.nombre||'')}"></div>
+      <div><label>Celular del motorizado *</label><input id="pe-mot-celular" inputmode="tel" value="${escAttr(m.celular||'')}"></div>
+    </div>
+    <label>Placa *</label><input id="pe-mot-placa" value="${escAttr(m.placa||'')}" placeholder="Ej. 1234-AB · si es bicicleta, escribe Bicicleta">
+    <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si no tiene placa (bicicleta con motor), escribe "Bicicleta".</p>`;
+}
+// Devuelve {nombre, celular, placa} o null (y avisa) si falta alguno.
+function leerCamposMotorizado(){
+  const v=id=>document.getElementById(id).value.trim();
+  const m={nombre:v('pe-mot-nombre'),celular:v('pe-mot-celular'),placa:v('pe-mot-placa')};
+  if(!m.nombre||!m.celular||!m.placa){alert('Completa nombre, celular y placa del motorizado (si no tiene placa, escribe "Bicicleta").');return null;}
+  return m;
+}
+function textoMotorizado(p){
+  const m=p.motorizado;
+  return m?[m.nombre,m.celular?'Cel. '+m.celular:'',m.placa?'Placa '+m.placa:''].filter(Boolean).join(' · '):'';
+}
+// Anotar o corregir el motorizado después de despachar (se equivocó de número, cambió de moto...).
+function abrirDatosMotorizado(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.metodoEnvio!=='indrive')return;
+  const cli=porId(db.clientes,p.clienteId);
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Datos del motorizado</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc((cli.nombre+' '+(cli.apellido||'')).trim()):'Cliente'} · ${esc(correlativoVenta(p.id))}</p>
+    <form onsubmit="return confirmarDatosMotorizado(event,'${p.id}')">
+      ${camposMotorizadoHTML(p)}
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function confirmarDatosMotorizado(ev,pedidoId){
+  ev.preventDefault();
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return false;
+  const m=leerCamposMotorizado();
+  if(!m)return false;
+  p.motorizado=m;
+  guardar();
+  if(!ofrecerWhatsAppMotorizado(p))volverDePasoEnvio(p.id);
+  return false;
+}
+// Igual que Shalom: al despachar se ofrece mandarle al cliente quién le lleva el pedido.
+function ofrecerWhatsAppMotorizado(p){
+  const cli=porId(db.clientes,p.clienteId);
+  if(!cli||!telefonoWhatsApp(cli.telefono))return false;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">✕</button>
+    <h3>Listo, salió a reparto</h3>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;">¿Le avisas a ${esc(cli.nombre)} por WhatsApp quién le lleva su pedido (nombre, celular y placa)?</p>
+    <div class="acciones-modal">
+      <button type="button" class="btn-secundario" onclick="cerrarModal();volverDePasoEnvio('${p.id}')">Ahora no</button>
+      <button type="button" class="btn" onclick="enviarWhatsAppMotorizado('${p.id}');cerrarModal();volverDePasoEnvio('${p.id}')">Abrir WhatsApp</button>
+    </div>`);
+  return true;
+}
+function mensajeWhatsAppMotorizado(p,cli){
+  const m=p.motorizado||{};
+  return `Hola ${cli.nombre||''}, tu pedido de Zona Bariátrica ya salió a reparto.\n\n`+
+    `Te lo lleva: ${m.nombre||'—'}\nCelular: ${m.celular||'—'}\n`+
+    `${/^\s*bici/i.test(m.placa||'')?'Vehículo':'Placa'}: ${m.placa||'—'}\n\n`+
+    (p.estadoPago==='pendiente pago'?`Recuerda tener listo el pago de ${money(p.total)} al recibir.\n`:'')+
+    `Cualquier duda, nos escribes.`;
+}
+function enviarWhatsAppMotorizado(pedidoId){
+  const p=porId(db.pedidos,pedidoId);
+  const cli=p&&porId(db.clientes,p.clienteId);
+  const url=cli&&telefonoWhatsApp(cli.telefono);
+  if(!url){alert('Este cliente no tiene un teléfono válido para WhatsApp.');return;}
+  window.open(url+'?text='+encodeURIComponent(mensajeWhatsAppMotorizado(p,cli)),'_blank');
 }
 // Por si se tocó por error (pasa en tablet/celular): regresa una etapa y borra su huella.
 function regresarPasoEnvio(pedidoId){
@@ -8961,6 +9052,7 @@ function contenidoDetalleVenta(pedidoId){
         ?` · ${chipPasoEnvio(p)}`
         :` · ${esc(p.estadoEnvio||'—')}`}</div>
       ${(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div style="font-size:12.5px;color:var(--muted);">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:''}
+      ${p.metodoEnvio==='indrive'&&p.motorizado?`<div style="font-size:12.5px;color:var(--muted);">Motorizado: ${esc(textoMotorizado(p))}</div>`:''}
     </div>
     ${anulada?`<div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Auditoría de anulación</div>
