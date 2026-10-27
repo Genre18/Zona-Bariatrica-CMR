@@ -7400,17 +7400,52 @@ function deshacerPagoObligacion(pedidoId,stockId,libro){
 function pagarSeleccionAbono(){
   const marcados=[...document.querySelectorAll('.abono-sel')].filter(c=>c.checked);
   if(marcados.length===0)return;
-  let hechos=0;
+  const lineas=[];
   marcados.forEach(c=>{
     const pedidoId=c.dataset.pedido,stockId=c.dataset.stock,libro=c.dataset.libro;
     const o=obligacionesDeVentaProveedor(pedidoId).find(x=>x.stockId===stockId&&x.libro===libro);
     if(!o||o.pagado||o.montoAlMarcar<=0.005)return;
+    const p=porId(db.pedidos,pedidoId);
+    const cant=(p&&p.items||[]).filter(it=>it.stockId===stockId).reduce((t,it)=>t+(it.cantidad||0),0)||1;
+    lineas.push({producto:o.producto||'—',cant,monto:o.montoAlMarcar});
     registrarPagoObligacion(o,pedidoId,stockId,o.montoAlMarcar);
-    hechos++;
   });
-  if(hechos>0)guardar();
+  if(lineas.length>0)guardar();
   pintarProveedores();
-  refrescarDetalleAbierto();
+  if(lineas.length>0)mostrarDetalleAbono(lineas);
+  else refrescarDetalleAbierto();
+}
+// DETALLE DEL ABONO (2026-10-26, pedido de Roberto): al presionar PAGAR se muestra lo que se
+// acaba de pagar en el mismo formato del mensaje que Roberto le manda al Dr. junto con el
+// pantallazo de la transferencia, listo para copiar o abrir en WhatsApp.
+function textoDetalleAbono(lineas){
+  const total=round2(lineas.reduce((t,l)=>t+l.monto,0));
+  return lineas.map(l=>`- ${l.producto} ×${l.cant}\n${money(l.monto)}`).join('\n')
+    +(lineas.length>1?`\n\nTotal: ${money(total)}`:'');
+}
+function mostrarDetalleAbono(lineas){
+  const txt=textoDetalleAbono(lineas);
+  window._detalleAbonoTxt=txt;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModalAbono()">✕</button>
+    <h3 style="margin:0 0 4px;">✅ Pago registrado</h3>
+    <div class="drawer-subtexto" style="margin-bottom:10px;">Detalle para mandarle al proveedor con el pantallazo de la transferencia:</div>
+    <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;background:var(--bg-soft);border:1px solid var(--border-light);border-radius:8px;padding:12px;margin:0;">${esc(txt)}</pre>
+    <div class="acciones-modal">
+      <button type="button" class="btn-secundario" onclick="cerrarModalAbono()">Cerrar</button>
+      <button type="button" class="btn-secundario" onclick="window.open('https://wa.me/?text='+encodeURIComponent(window._detalleAbonoTxt),'_blank')">WhatsApp</button>
+      <button type="button" class="btn" onclick="copiarDetalleAbono()">Copiar</button>
+    </div>`,'modal-centrado');
+}
+function copiarDetalleAbono(){
+  const txt=window._detalleAbonoTxt||'';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt)
+      .then(()=>mostrarToast('Detalle copiado — pégalo en el chat del proveedor.'))
+      .catch(()=>prompt('No se pudo copiar automáticamente. Copia el texto manualmente:',txt));
+  }else{
+    prompt('Copia el texto manualmente:',txt);
+  }
 }
 function cerrarModalAbono(){
   abonoModalPedido=null;
