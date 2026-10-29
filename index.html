@@ -3377,7 +3377,7 @@ const WEB_A_CODIGO={
 // Ofertas x2 y packs de la web que en Stock son varios productos. '*' = el sabor que eligió el
 // cliente, en el orden en que viene en las notas ("Whey Protein 1: Vainilla · Whey Protein 2: ...").
 const WEB_COMPUESTOS={
-  oferta1:['*','*'],oferta2:['*','*'],oferta3:['*','*'],oferta4:['NUTRIFATH','NUTRIFATH'],oferta5:['GEN-PP-NE','GEN-PP-NE'],oferta6:['NDP-PP-NE','NDP-PP-NE'],
+  oferta1:['*','*'],oferta2:['*','*'],oferta3:['*','*'],oferta4:['NUTRIFATH','NUTRIFATH'],oferta5:['*','*'],oferta6:['NDP-PP-NE','NDP-PP-NE'],
   bp1:['*','*','BN-MG-MV-120','BN-MG-B12-90','BN-FB-SB-320'],
   bp2:['*','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
   bp3:['BN-MG-BT-90','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
@@ -3386,6 +3386,13 @@ const WEB_COMPUESTOS={
   lp7:['LVL-PRO-01','LVL-PRO-01'],lp8:['LVL-PRO-01','LVL-PRO-01'],lp9:['LVL-PRO-01','LVL-PRO-01']
 };
 const SABOR_A_CODIGO={'vainilla':'BN-PP-VA-15','chocolate':'BN-PP-CH-15','fresa':'BN-PL-FR-1L','maracumango':'BN-PL-MR-1L','bayas mixtas':'BF-MM-BM-120','tropical':'BF-MM-TP-120'};
+// Familias cuyo "chocolate" NO es el de B&N (2026-10-29: pack x2 del Geno, neutro o chocolate).
+// Los packs Geno de antes no traían sabor: eran neutros.
+const SABOR_CODIGO_FAMILIA={geno:{'neutro':'GEN-PP-NE','chocolate':'GEN-P-CH','':'GEN-PP-NE'}};
+function codigoSabor(familia,sabor){
+  const propio=SABOR_CODIGO_FAMILIA[familia];
+  return propio?(propio[sabor||'']||''):(SABOR_A_CODIGO[sabor]||'');
+}
 // Pedidos web anteriores a esta hora ya se atendieron por WhatsApp (Roberto, 22-10-2026): la bandeja
 // arranca con el de Jackeline (22-10, 1:06 pm).
 const PEDIDOS_WEB_DESDE='2026-10-22T13:00:00-05:00';
@@ -3459,9 +3466,19 @@ function traducirItemsWeb(items){
     const partes=WEB_COMPUESTOS[it.id]||(WEB_A_CODIGO[it.id]?[WEB_A_CODIGO[it.id]]:null);
     const texto=`${qty}x ${it.nombre||it.id}${it.notas?' ('+it.notas+')':''}`;
     if(!partes){faltan.push(texto);return;}
+    const familias=WEB_FAMILIAS[it.id]||[];
+    // Los pares que arma /catalogo traen "1x Neutro · 1x Chocolate" (cantidades del pedido entero),
+    // no "Envase 1: ...": se suman tal cual, una vez, sin multiplicar por qty.
+    const porCantidad=String(it.notas||'').split('·').map(s=>s.trim()).filter(Boolean).map(s=>s.match(/^(\d+)x\s+(.+)$/));
+    if(porCantidad.length&&porCantidad.every(Boolean)&&partes.every(c=>c==='*')&&familias.every(f=>f===familias[0])){
+      const unidades=porCantidad.map(m=>({n:Number(m[1]),st:stockPorCodigo(codigoSabor(familias[0],m[2].trim().toLowerCase()))}));
+      if(unidades.some(u=>!u.st)){faltan.push(texto);return;}
+      unidades.forEach(u=>{porStock[u.st.id]=(porStock[u.st.id]||0)+u.n;});
+      return;
+    }
     let k=0;
     const stocks=partes.map(cod=>{
-      if(cod==='*')cod=SABOR_A_CODIGO[sabores[k++]]||'';
+      if(cod==='*'){cod=codigoSabor(familias[k],sabores[k]);k++;}
       return cod?stockPorCodigo(cod):null;
     });
     if(stocks.some(s=>!s)){faltan.push(texto);return;}
@@ -3683,9 +3700,9 @@ function avisarRecibidoWhatsApp(pedidoId){
    Bajo pedido (LVL) nunca se agota. En ofertas/packs donde se elige sabor, un sabor sin stock se
    bloquea y el producto entero solo se agota si TODOS los sabores de una posición están en cero.
    Se manda cada vez que se revisan los pedidos web (2 min) y solo si cambió algo. */
-const SABORES_FAMILIA={liq:['fresa','maracumango'],polvo:['vainilla','chocolate'],bf:['bayas mixtas','tropical']};
+const SABORES_FAMILIA={liq:['fresa','maracumango'],polvo:['vainilla','chocolate'],bf:['bayas mixtas','tropical'],geno:['neutro','chocolate']};
 // Familia de cada '*' de WEB_COMPUESTOS, en el mismo orden.
-const WEB_FAMILIAS={oferta1:['liq','liq'],oferta2:['polvo','polvo'],oferta3:['bf','bf'],bp1:['liq','liq'],bp2:['polvo'],bp4:['liq','polvo']};
+const WEB_FAMILIAS={oferta1:['liq','liq'],oferta2:['polvo','polvo'],oferta3:['bf','bf'],oferta5:['geno','geno'],bp1:['liq','liq'],bp2:['polvo'],bp4:['liq','polvo']};
 let disponibilidadEnviada='';
 function calcularDisponibilidadWeb(){
   const modalidad=(db.config&&db.config.modalidadMarca)||{};
@@ -3694,7 +3711,6 @@ function calcularDisponibilidadWeb(){
     if(!s||modalidad[s.marca]==='bajo_pedido')return false; // si no se conoce, no se inventa un agotado
     return (Number(s.cantidad)||0)<=0;
   };
-  const saborAgotado=sab=>sinStock(SABOR_A_CODIGO[sab]);
   const agotados=[],sabores={};
   new Set([...Object.keys(WEB_A_CODIGO),...Object.keys(WEB_COMPUESTOS)]).forEach(id=>{
     const partes=WEB_COMPUESTOS[id]||[WEB_A_CODIGO[id]];
@@ -3702,8 +3718,9 @@ function calcularDisponibilidadWeb(){
     let k=0,agotado=false;
     partes.forEach(cod=>{
       if(cod==='*'){
-        const fam=SABORES_FAMILIA[familias[k++]]||[];
-        const sinSabor=fam.filter(saborAgotado);
+        const familia=familias[k++];
+        const fam=SABORES_FAMILIA[familia]||[];
+        const sinSabor=fam.filter(sab=>sinStock(codigoSabor(familia,sab)));
         if(sinSabor.length&&sinSabor.length===fam.length)agotado=true;
         if(sinSabor.length)sabores[id]=[...new Set([...(sabores[id]||[]),...sinSabor])];
       }else if(sinStock(cod))agotado=true;
