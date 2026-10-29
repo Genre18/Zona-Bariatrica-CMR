@@ -3711,19 +3711,36 @@ function calcularDisponibilidadWeb(){
     if(!s||modalidad[s.marca]==='bajo_pedido')return false; // si no se conoce, no se inventa un agotado
     return (Number(s.cantidad)||0)<=0;
   };
+  // Unidades que hay para vender (sin límite si no se conoce o es bajo pedido).
+  const hay=cod=>{
+    const s=stockPorCodigo(cod);
+    if(!s||modalidad[s.marca]==='bajo_pedido')return Infinity;
+    return Math.max(0,Number(s.cantidad)||0);
+  };
   const agotados=[],sabores={};
   new Set([...Object.keys(WEB_A_CODIGO),...Object.keys(WEB_COMPUESTOS)]).forEach(id=>{
     const partes=WEB_COMPUESTOS[id]||[WEB_A_CODIGO[id]];
     const familias=WEB_FAMILIAS[id]||[];
     let k=0,agotado=false;
+    // Un pack x2 necesita 2 unidades (2026-10-29): con 1 sola en stock no se puede armar.
+    const porCodigo={},porFamilia={};
     partes.forEach(cod=>{
       if(cod==='*'){
         const familia=familias[k++];
+        porFamilia[familia]=(porFamilia[familia]||0)+1;
         const fam=SABORES_FAMILIA[familia]||[];
         const sinSabor=fam.filter(sab=>sinStock(codigoSabor(familia,sab)));
         if(sinSabor.length&&sinSabor.length===fam.length)agotado=true;
         if(sinSabor.length)sabores[id]=[...new Set([...(sabores[id]||[]),...sinSabor])];
-      }else if(sinStock(cod))agotado=true;
+      }else{
+        if(sinStock(cod))agotado=true;
+        porCodigo[cod]=(porCodigo[cod]||0)+1;
+      }
+    });
+    Object.keys(porCodigo).forEach(cod=>{if(hay(cod)<porCodigo[cod])agotado=true;});
+    Object.keys(porFamilia).forEach(familia=>{
+      const total=(SABORES_FAMILIA[familia]||[]).reduce((t,sab)=>t+hay(codigoSabor(familia,sab)),0);
+      if(total<porFamilia[familia])agotado=true;
     });
     if(agotado)agotados.push(id);
   });
