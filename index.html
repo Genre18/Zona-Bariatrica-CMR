@@ -227,6 +227,19 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
    abrirModal(html,'stock-modal')) — no toca input/select/label/.fila-2/.modal globales, que
    Leads/Clientes siguen usando tal cual. */
 #modalBox.stock-modal{max-width:630px;padding:17px;}
+/* Link de compra (2026-10-29) */
+#modalBox.lc-modal{max-width:560px;}
+.lc-lista{max-height:46vh;overflow-y:auto;border:1px solid var(--border-light);border-radius:var(--r-sm);padding:0 10px;}
+.lc-cat{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin:12px 0 2px;}
+.lc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.lc-fila.lc-agotado{opacity:.55;}
+.lc-qty{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.lc-qty span{min-width:16px;text-align:center;font-weight:700;}
+.lc-qty .btn-icono{border:1px solid var(--border);width:30px;height:30px;padding:0;font-weight:700;color:var(--text);}
+.lc-sabores{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 10px;border-bottom:1px solid var(--border-light);font-size:12.5px;}
+.lc-sabores[hidden]{display:none;}
+.lc-sabores select{display:block;margin-top:2px;}
+.lc-resumen{margin-top:10px;font-size:13.5px;line-height:1.5;}
 #modalBox.stock-modal h3{font-size:16px;margin:0 0 8px;padding-bottom:6px;}
 .stock-form label{font-size:11.5px;margin:6px 0 3px;}
 .stock-form input,.stock-form select{padding:6px 9px;font-size:12.5px;border-radius:7px;}
@@ -1023,9 +1036,9 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
             <h2 class="page-title">Envíos</h2>
             <p class="page-description">Pedidos recibidos, empaquetados y despachados (Shalom e InDrive).</p>
           </div>
-          <!-- Link de compra (2026-10-26): abre el catálogo de la web en modo "armar link"; ahí se eligen
-               los productos cotizados y se manda al cliente el enlace que abre el checkout ya lleno. -->
-          <a class="btn" style="text-decoration:none;" href="https://zonabariatrica.com/catalogo?armar=1" target="_blank" rel="noopener" title="Armar un link con los productos que cotizaste para que el cliente llene sus datos y pague">🔗 Link de compra</a>
+          <!-- Link de compra (2026-10-29): ventana aquí mismo para marcar lo que pidió el cliente; el enlace
+               abre zonabariatrica.com/pedido (3 pasos: pedido, datos, pago) y vence en 24 horas. -->
+          <button type="button" class="btn" onclick="abrirLinkCompra()" title="Marcar los productos que pidió el cliente y mandarle un enlace para que llene sus datos y pague">🔗 Link de compra</button>
         </div>
       </div>
       <div class="filtros toolbar-modulo">
@@ -3604,6 +3617,132 @@ function registrarPedidoWeb(orderId){
     ${existente?`<br>Cliente ya registrado: se actualizará su dirección con la de este pedido.`:''}
     ${faltan.length?`<br><span style="color:var(--danger);font-weight:600;">Agrégalo a mano: ${esc(faltan.join(' · '))}</span>`:''}
   </div>`);
+}
+/* ---- Link de compra (2026-10-29) ----
+   Pedido de Roberto: cuando un cliente escribe "quiero una proteína", en vez de pedirle sus datos por
+   chat se marcan aquí los productos y se le manda un enlace a zonabariatrica.com/pedido. Ahí ve su
+   pedido (puede agregar algo), llena sus datos y paga, sin pasar por la tienda ni el catálogo. El
+   pedido cae en la bandeja "Pedidos de la web por registrar" como cualquier compra de la web.
+   Productos y precios salen del catálogo de la web (zb-catalogo.js): el precio NO viaja en el
+   enlace, lo pone la web y lo vuelve a calcular el cobro. El enlace vence a las 24 horas (t). */
+const LINK_COMPRA_URL='https://zonabariatrica.com/pedido';
+const LINK_COMPRA_CATEGORIAS=[['proteina','Proteínas'],['vitaminas','Vitaminas'],['colageno','Fibra y colágeno'],['oferta','Ofertas x2'],['pack','Packs']];
+let catalogoWeb=null;      // {productos, reglas} leído de la web
+let linkCompraSel={};      // id → {qty, sabores:[...]}
+async function cargarCatalogoWeb(){
+  if(catalogoWeb)return catalogoWeb;
+  const r=await fetch('https://zonabariatrica.com/zb-catalogo.js',{cache:'no-store'});
+  if(!r.ok)throw new Error('error '+r.status);
+  // Se ejecuta aislado: sus constantes (productos, tn...) no chocan con las del CRM.
+  catalogoWeb=new Function('window',(await r.text())+'\nreturn {productos:productos,reglas:reglasCobro};')({});
+  return catalogoWeb;
+}
+async function abrirLinkCompra(){
+  linkCompraSel={};
+  abrirModal('<h3>🔗 Link de compra</h3><p class="vacio">Cargando productos de la web…</p>','lc-modal');
+  try{await cargarCatalogoWeb();}
+  catch(e){
+    document.getElementById('modalBox').innerHTML='<h3>🔗 Link de compra</h3><p class="vacio" style="color:var(--danger);">No se pudo leer el catálogo de la web. Revisa tu internet e intenta de nuevo.</p><div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>';
+    return;
+  }
+  const disp=calcularDisponibilidadWeb();
+  const vendible=p=>!(p.consultar||p.precio==null||p.proximamente);
+  const filas=LINK_COMPRA_CATEGORIAS.map(([cat,titulo])=>{
+    const lista=catalogoWeb.productos.filter(p=>p.cat===cat&&vendible(p));
+    if(!lista.length)return '';
+    return `<div class="lc-cat">${titulo}</div>`+lista.map(p=>{
+      const agotado=disp.agotados.includes(p.id);
+      return `<div class="lc-fila${agotado?' lc-agotado':''}" data-nombre="${escAttr(p.nombre.toLowerCase())}">
+        <span>${esc(p.nombre)} <strong>${money(p.precio)}</strong>${agotado?' <em>(agotado)</em>':''}</span>
+        <span class="lc-qty">${agotado?'':`<button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',-1)">−</button><span id="lcq-${p.id}">0</span><button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',1)">+</button>`}</span>
+      </div><div class="lc-sabores" id="lcs-${p.id}" hidden></div>`;
+    }).join('');
+  }).join('');
+  document.getElementById('modalBox').innerHTML=`<h3>🔗 Link de compra</h3>
+    <p class="page-description" style="margin:0 0 10px;">Marca lo que pidió el cliente. Él podrá agregar algo más, llenar sus datos y pagar. El enlace vale <strong>24 horas</strong>.</p>
+    <input id="lcBuscar" placeholder="Buscar producto..." oninput="linkCompraFiltrar(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:8px;">
+    <div class="lc-lista">${filas}</div>
+    <div class="lc-resumen" id="lcResumen"></div>
+    <label style="display:block;margin-top:10px;">Celular del cliente <span style="font-weight:400;color:var(--text-muted);">(opcional: abre su chat directo)</span>
+      <input id="lcCelular" inputmode="tel" placeholder="Ej: 987654321" style="width:100%;box-sizing:border-box;margin-top:4px;"></label>
+    <div class="acciones-modal" style="margin-top:12px;">
+      <button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button>
+      <button type="button" class="btn-secundario" onclick="linkCompraCopiar()">Copiar mensaje</button>
+      <button type="button" class="btn" onclick="linkCompraWhatsApp()">Enviar por WhatsApp</button>
+    </div>
+    <p id="lcAviso" class="page-description" style="margin:6px 0 0;"></p>`;
+  linkCompraPintarResumen();
+}
+function linkCompraFiltrar(txt){
+  const q=String(txt||'').trim().toLowerCase();
+  document.querySelectorAll('#modalBox .lc-fila').forEach(f=>{f.hidden=!!q&&!f.dataset.nombre.includes(q);});
+  document.querySelectorAll('#modalBox .lc-cat').forEach(c=>{c.hidden=!!q;});
+}
+function linkCompraQty(id,d){
+  const p=catalogoWeb.productos.find(x=>x.id===id);
+  const bloqueados=(calcularDisponibilidadWeb().sabores||{})[id]||[];
+  const libre=g=>g.sabores.find(sab=>!bloqueados.includes(sab.toLowerCase()))||g.sabores[0];
+  const sel=linkCompraSel[id]||{qty:0,sabores:(p.seleccionSabor||[]).map(libre)};
+  sel.qty=Math.max(0,Math.min(50,sel.qty+d));
+  if(sel.qty)linkCompraSel[id]=sel;else delete linkCompraSel[id];
+  document.getElementById('lcq-'+id).textContent=sel.qty;
+  // Ofertas y packs con sabor a elegir: un selector por envase (como en la tienda).
+  const box=document.getElementById('lcs-'+id);
+  if(p.seleccionSabor){
+    box.hidden=!sel.qty;
+    box.innerHTML=sel.qty?p.seleccionSabor.map((g,k)=>`<label>${esc(g.label)}
+      <select onchange="linkCompraSel['${id}'].sabores[${k}]=this.value;linkCompraPintarResumen()">${g.sabores.map(sab=>`<option ${sab===sel.sabores[k]?'selected':''} ${bloqueados.includes(sab.toLowerCase())?'disabled':''}>${esc(sab)}</option>`).join('')}</select></label>`).join(''):'';
+  }
+  linkCompraPintarResumen();
+}
+function linkCompraItems(){
+  return Object.keys(linkCompraSel).map(id=>{
+    const p=catalogoWeb.productos.find(x=>x.id===id),sel=linkCompraSel[id];
+    const notas=p.seleccionSabor?p.seleccionSabor.map((g,k)=>g.label+': '+sel.sabores[k]).join(' · ')
+      :(p.sabores&&p.saborPredeterminado?'Sabor: '+p.saborPredeterminado:'');
+    return {id,qty:sel.qty,notas};
+  });
+}
+// Mismas cuentas que la web: subtotal − descuento B&N por cantidad (sin delivery).
+function linkCompraTotales(items){
+  const prod=id=>catalogoWeb.productos.find(x=>x.id===id);
+  const sub=items.reduce((s,i)=>s+prod(i.id).precio*i.qty,0);
+  const u=items.reduce((n,i)=>n+(prod(i.id).eligibleForBnQuantityDiscount?i.qty:0),0);
+  const tramo=catalogoWeb.reglas.descuentoBN.tramos.find(t=>u>=t.min);
+  const desc=tramo?tramo.desc:0;
+  return {sub,desc,total:sub-desc};
+}
+function linkCompraPintarResumen(){
+  const items=linkCompraItems();
+  const el=document.getElementById('lcResumen');
+  if(!el)return;
+  if(!items.length){el.innerHTML='<span style="color:var(--text-muted);">Aún no marcas productos.</span>';return;}
+  const t=linkCompraTotales(items);
+  el.innerHTML=items.map(i=>`<div>${i.qty}x ${esc(catalogoWeb.productos.find(x=>x.id===i.id).nombre)}${i.notas?' <span style="color:var(--text-muted);">('+esc(i.notas)+')</span>':''}</div>`).join('')
+    +(t.desc?`<div style="color:var(--success);">Descuento B&amp;N: −${money(t.desc)}</div>`:'')
+    +`<div style="font-weight:700;margin-top:4px;">Total: ${money(t.total)} + delivery</div>`;
+}
+function linkCompraMensaje(){
+  const items=linkCompraItems();
+  if(!items.length){alert('Marca al menos un producto.');return '';}
+  const link=LINK_COMPRA_URL+'?t='+Date.now()+'&p='+encodeURIComponent(JSON.stringify(items));
+  const lineas=items.map(i=>'• '+i.qty+'x '+catalogoWeb.productos.find(x=>x.id===i.id).nombre+(i.notas&&!/^Sabor:/.test(i.notas)?' ('+i.notas+')':''));
+  return '¡Hola! Este es tu pedido de Zona Bariátrica:\n\n'+lineas.join('\n')+
+    '\n\nTotal: S/ '+linkCompraTotales(items).total+' + delivery'+
+    '\n\nEntra aquí, completa tus datos y elige cómo pagar (tarjeta o Yape). El enlace vale 24 horas:\n'+link;
+}
+async function linkCompraCopiar(){
+  const msg=linkCompraMensaje();
+  if(!msg)return;
+  try{await navigator.clipboard.writeText(msg);document.getElementById('lcAviso').textContent='✓ Copiado: pégalo en el chat del cliente.';}
+  catch(e){window.prompt('Copia el mensaje:',msg);}
+}
+function linkCompraWhatsApp(){
+  const msg=linkCompraMensaje();
+  if(!msg)return;
+  let cel=(document.getElementById('lcCelular').value||'').replace(/\D/g,'');
+  if(cel.length===9)cel='51'+cel;
+  window.open('https://wa.me/'+(cel.length>=11?cel:'')+'?text='+encodeURIComponent(msg),'_blank');
 }
 /* ---- Compras sin terminar (2026-10-22) ----
    Intentos de pago con tarjeta en la web que no se completaron. Cada uno dejó nombre, celular y
