@@ -4501,6 +4501,32 @@ function imprimirTicket(pedidoId){
    construir un ítem de pedido — siempre pasar por acá (se llama solo desde
    pedidoAgregarItem/pedidoCambiarCantidadItem, el único punto donde se
    congela precioUnit en un ítem). */
+// Productos que comparten el precio por volumen aunque sean de distinto sabor (2026-10-29, pedido de
+// Roberto): 1 Geno neutro + 1 Geno chocolate = 2 unidades, cada una a precio de "desde 2". Solo
+// afecta pedidos que se están armando; las ventas ya guardadas no se recalculan.
+const GRUPOS_PRECIO_VOLUMEN=[{clave:'geno',codigo:/^GEN-/}];
+function grupoPrecioVolumen(stockItem){
+  const g=stockItem&&GRUPOS_PRECIO_VOLUMEN.find(x=>x.codigo.test(stockItem.codigo||''));
+  return g?g.clave:null;
+}
+// Unidades que cuentan para el tramo de precio de este producto dentro del pedido en armado.
+function cantidadParaPrecioVolumen(stockItem,cantidadPropia){
+  const grupo=grupoPrecioVolumen(stockItem);
+  if(!grupo)return cantidadPropia;
+  return pedidoItemsTmp.reduce((n,it)=>{
+    if(it.stockId===stockItem.id)return n;
+    return grupoPrecioVolumen(porId(db.stock,it.stockId))===grupo?n+(it.cantidad||0):n;
+  },cantidadPropia);
+}
+// Vuelve a resolver el precio de las líneas de un grupo (al agregar/cambiar/quitar un sabor
+// cambia el total del grupo). Al editar una venta ya guardada no se tocan las otras líneas.
+function repreciarGrupoPrecioVolumen(grupo){
+  if(!grupo||(edicionPedidoBackup&&edicionPedidoBackup.pedidoId))return;
+  pedidoItemsTmp.forEach(it=>{
+    const st=porId(db.stock,it.stockId);
+    if(grupoPrecioVolumen(st)===grupo)it.precioUnit=precioUnitarioParaCantidad(st,cantidadParaPrecioVolumen(st,it.cantidad));
+  });
+}
 function precioUnitarioParaCantidad(stockItem,cantidad){
   const base=stockItem?(stockItem.precioVenta||0):0;
   const tramos=((stockItem&&stockItem.preciosVolumen)||[]).filter(t=>t.activo!==false&&cantidad>=(t.desde||0));
@@ -4861,7 +4887,7 @@ function pedidoAgregarItem(){
       return;
     }
   }
-  const precioUnit=precioUnitarioParaCantidad(stockItem,cantidadTotal);
+  const precioUnit=precioUnitarioParaCantidad(stockItem,cantidadParaPrecioVolumen(stockItem,cantidadTotal));
   // Se congela en el propio ítem toda la "foto" económica del momento de la venta
   // (modalidad, proveedor, costo, responsable de despacho, precio ya resuelto por cantidad)
   // para que Proveedores y el historial nunca dependan de la configuración ACTUAL de la
@@ -4913,9 +4939,16 @@ function pedidoAgregarItem(){
     }
     pedidoItemsTmp.push(item);
   }
+  repreciarGrupoPrecioVolumen(grupoPrecioVolumen(stockItem));
   pedidoRenderItems();
 }
-function pedidoQuitarItem(i){pedidoItemsTmp.splice(i,1);pedidoRenderItems();}
+function pedidoQuitarItem(i){
+  const it=pedidoItemsTmp[i];
+  const grupo=it?grupoPrecioVolumen(porId(db.stock,it.stockId)):null;
+  pedidoItemsTmp.splice(i,1);
+  repreciarGrupoPrecioVolumen(grupo);
+  pedidoRenderItems();
+}
 // Mientras el pedido NO está confirmado, la cantidad de una línea puede cambiar y el precio
 // se reevalúa según la configuración de precio por volumen VIGENTE (ver precioUnitarioParaCantidad).
 // Esto es exclusivo de pedidoItemsTmp (temporal); un pedido ya guardado nunca pasa por acá.
@@ -4926,7 +4959,8 @@ function pedidoCambiarCantidadItem(i,valor){
   if(!it)return;
   const stockItem=porId(db.stock,it.stockId);
   it.cantidad=cantidad;
-  it.precioUnit=precioUnitarioParaCantidad(stockItem,cantidad);
+  it.precioUnit=precioUnitarioParaCantidad(stockItem,cantidadParaPrecioVolumen(stockItem,cantidad));
+  repreciarGrupoPrecioVolumen(grupoPrecioVolumen(stockItem));
   pedidoRenderItems();
 }
 function pedidoRenderItems(){
