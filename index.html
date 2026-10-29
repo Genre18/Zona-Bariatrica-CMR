@@ -229,7 +229,13 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 #modalBox.stock-modal{max-width:630px;padding:17px;}
 /* Link de compra (2026-10-29) */
 #modalBox.lc-modal{max-width:560px;}
-.lc-lista{max-height:46vh;overflow-y:auto;border:1px solid var(--border-light);border-radius:var(--r-sm);padding:0 10px;}
+.lc-lista{max-height:240px;overflow-y:auto;border:1px solid var(--border-light);border-radius:var(--r-sm);padding:0 10px;margin-top:8px;}
+.lc-lista[hidden],.lc-item[hidden]{display:none;}
+.lc-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.lc-chip{background:#fff;border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--text);}
+.lc-chip.activo{background:var(--primary);border-color:var(--primary);color:#fff;}
+.lc-sin{color:var(--text-muted);font-size:13px;margin:10px 0;}
+.lc-res-fila{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .lc-cat{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin:12px 0 2px;}
 .lc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
 .lc-fila.lc-agotado{opacity:.55;}
@@ -239,7 +245,7 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 .lc-sabores{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 10px;border-bottom:1px solid var(--border-light);font-size:12.5px;}
 .lc-sabores[hidden]{display:none;}
 .lc-sabores select{display:block;margin-top:2px;}
-.lc-resumen{margin-top:10px;font-size:13.5px;line-height:1.5;}
+.lc-resumen{margin-top:12px;font-size:13.5px;line-height:1.5;}
 #modalBox.stock-modal h3{font-size:16px;margin:0 0 8px;padding-bottom:6px;}
 .stock-form label{font-size:11.5px;margin:6px 0 3px;}
 .stock-form input,.stock-form select{padding:6px 9px;font-size:12.5px;border-radius:7px;}
@@ -3647,21 +3653,23 @@ async function abrirLinkCompra(){
   }
   const disp=calcularDisponibilidadWeb();
   const vendible=p=>!(p.consultar||p.precio==null||p.proximamente);
-  const filas=LINK_COMPRA_CATEGORIAS.map(([cat,titulo])=>{
-    const lista=catalogoWeb.productos.filter(p=>p.cat===cat&&vendible(p));
-    if(!lista.length)return '';
-    return `<div class="lc-cat">${titulo}</div>`+lista.map(p=>{
-      const agotado=disp.agotados.includes(p.id);
-      return `<div class="lc-fila${agotado?' lc-agotado':''}" data-nombre="${escAttr(p.nombre.toLowerCase())}">
+  // La lista arranca cerrada (pedido de Roberto: "de golpe sale una tremenda lista"): se abre al
+  // tocar una categoría o al escribir en el buscador, en una caja chica con scroll.
+  const filas=LINK_COMPRA_CATEGORIAS.map(([cat])=>catalogoWeb.productos.filter(p=>p.cat===cat&&vendible(p)).map(p=>{
+    const agotado=disp.agotados.includes(p.id);
+    return `<div class="lc-item" data-cat="${cat}" data-nombre="${escAttr(textoBusquedaLC(p.nombre))}" hidden>
+      <div class="lc-fila${agotado?' lc-agotado':''}">
         <span>${esc(p.nombre)} <strong>${money(p.precio)}</strong>${agotado?' <em>(agotado)</em>':''}</span>
         <span class="lc-qty">${agotado?'':`<button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',-1)">−</button><span id="lcq-${p.id}">0</span><button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',1)">+</button>`}</span>
-      </div><div class="lc-sabores" id="lcs-${p.id}" hidden></div>`;
-    }).join('');
-  }).join('');
+      </div><div class="lc-sabores" id="lcs-${p.id}" hidden></div>
+    </div>`;
+  }).join('')).join('');
+  const chips=LINK_COMPRA_CATEGORIAS.map(([cat,titulo])=>`<button type="button" class="lc-chip" data-cat="${cat}" onclick="linkCompraCategoria('${cat}')">${titulo}</button>`).join('');
   document.getElementById('modalBox').innerHTML=`<h3>🔗 Link de compra</h3>
     <p class="page-description" style="margin:0 0 10px;">Marca lo que pidió el cliente. Él podrá agregar algo más, llenar sus datos y pagar. El enlace vale <strong>24 horas</strong>.</p>
-    <input id="lcBuscar" placeholder="Buscar producto..." oninput="linkCompraFiltrar(this.value)" style="width:100%;box-sizing:border-box;margin-bottom:8px;">
-    <div class="lc-lista">${filas}</div>
+    <input id="lcBuscar" placeholder="Buscar producto (ej: biotina, whey, geno)..." oninput="linkCompraFiltrar()" autocomplete="off" style="width:100%;box-sizing:border-box;margin-bottom:8px;">
+    <div class="lc-chips">${chips}</div>
+    <div class="lc-lista" id="lcLista" hidden>${filas}</div>
     <div class="lc-resumen" id="lcResumen"></div>
     <label style="display:block;margin-top:10px;">Celular del cliente <span style="font-weight:400;color:var(--text-muted);">(opcional: abre su chat directo)</span>
       <input id="lcCelular" inputmode="tel" placeholder="Ej: 987654321" style="width:100%;box-sizing:border-box;margin-top:4px;"></label>
@@ -3673,10 +3681,27 @@ async function abrirLinkCompra(){
     <p id="lcAviso" class="page-description" style="margin:6px 0 0;"></p>`;
   linkCompraPintarResumen();
 }
-function linkCompraFiltrar(txt){
-  const q=String(txt||'').trim().toLowerCase();
-  document.querySelectorAll('#modalBox .lc-fila').forEach(f=>{f.hidden=!!q&&!f.dataset.nombre.includes(q);});
-  document.querySelectorAll('#modalBox .lc-cat').forEach(c=>{c.hidden=!!q;});
+let linkCompraCat='';
+// Sin tildes ni mayúsculas: "biotina", "Biotína" y "BIOTINA" encuentran lo mismo.
+function textoBusquedaLC(t){return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+function linkCompraCategoria(cat){
+  linkCompraCat=linkCompraCat===cat?'':cat;
+  document.getElementById('lcBuscar').value='';
+  linkCompraFiltrar();
+}
+function linkCompraFiltrar(){
+  const q=textoBusquedaLC(document.getElementById('lcBuscar').value).trim();
+  if(q)linkCompraCat='';
+  let visibles=0;
+  document.querySelectorAll('#modalBox .lc-item').forEach(f=>{
+    f.hidden=q?!q.split(/\s+/).every(w=>f.dataset.nombre.includes(w)):f.dataset.cat!==linkCompraCat;
+    if(!f.hidden)visibles++;
+  });
+  document.querySelectorAll('#modalBox .lc-chip').forEach(c=>c.classList.toggle('activo',c.dataset.cat===linkCompraCat));
+  const lista=document.getElementById('lcLista');
+  lista.hidden=!q&&!linkCompraCat;
+  lista.querySelector('.lc-sin')?.remove();
+  if(q&&!visibles)lista.insertAdjacentHTML('afterbegin','<p class="lc-sin">No hay productos con ese nombre.</p>');
 }
 function linkCompraQty(id,d){
   const p=catalogoWeb.productos.find(x=>x.id===id);
@@ -3703,6 +3728,16 @@ function linkCompraItems(){
     return {id,qty:sel.qty,notas};
   });
 }
+// Link corto (pedido de Roberto: el de antes era larguísimo). Formato: <fecha en base 36>.<producto>...
+// Cada producto es su id + "x<cantidad>" si es más de 1 + "-<sabores>" con la posición del sabor
+// elegido en cada envase. Ej: mh8k2p.oferta5-01.bi1x2 = pack Geno (neutro + chocolate) y 2 whey
+// vainilla. /pedido lo vuelve a armar con el mismo catálogo (zb-catalogo.js).
+function codigoLinkCompra(){
+  return [Date.now().toString(36)].concat(Object.keys(linkCompraSel).map(id=>{
+    const p=catalogoWeb.productos.find(x=>x.id===id),sel=linkCompraSel[id];
+    return id+(sel.qty>1?'x'+sel.qty:'')+(p.seleccionSabor?'-'+p.seleccionSabor.map((g,k)=>Math.max(0,g.sabores.indexOf(sel.sabores[k]))).join(''):'');
+  })).join('.');
+}
 // Mismas cuentas que la web: subtotal − descuento B&N por cantidad (sin delivery).
 function linkCompraTotales(items){
   const prod=id=>catalogoWeb.productos.find(x=>x.id===id);
@@ -3718,14 +3753,14 @@ function linkCompraPintarResumen(){
   if(!el)return;
   if(!items.length){el.innerHTML='<span style="color:var(--text-muted);">Aún no marcas productos.</span>';return;}
   const t=linkCompraTotales(items);
-  el.innerHTML=items.map(i=>`<div>${i.qty}x ${esc(catalogoWeb.productos.find(x=>x.id===i.id).nombre)}${i.notas?' <span style="color:var(--text-muted);">('+esc(i.notas)+')</span>':''}</div>`).join('')
+  el.innerHTML='<div class="lc-cat">Pedido del cliente</div>'+items.map(i=>`<div class="lc-res-fila"><span>${i.qty}x ${esc(catalogoWeb.productos.find(x=>x.id===i.id).nombre)}${i.notas?' <span style="color:var(--text-muted);">('+esc(i.notas)+')</span>':''}</span><button type="button" class="btn-icono" title="Quitar" onclick="linkCompraQty('${i.id}',-${i.qty})">✕</button></div>`).join('')
     +(t.desc?`<div style="color:var(--success);">Descuento B&amp;N: −${money(t.desc)}</div>`:'')
     +`<div style="font-weight:700;margin-top:4px;">Total: ${money(t.total)} + delivery</div>`;
 }
 function linkCompraMensaje(){
   const items=linkCompraItems();
   if(!items.length){alert('Marca al menos un producto.');return '';}
-  const link=LINK_COMPRA_URL+'?t='+Date.now()+'&p='+encodeURIComponent(JSON.stringify(items));
+  const link=LINK_COMPRA_URL+'?c='+codigoLinkCompra();
   const lineas=items.map(i=>'• '+i.qty+'x '+catalogoWeb.productos.find(x=>x.id===i.id).nombre+(i.notas&&!/^Sabor:/.test(i.notas)?' ('+i.notas+')':''));
   return '¡Hola! Este es tu pedido de Zona Bariátrica:\n\n'+lineas.join('\n')+
     '\n\nTotal: S/ '+linkCompraTotales(items).total+' + delivery'+
