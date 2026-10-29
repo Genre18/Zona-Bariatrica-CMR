@@ -3391,12 +3391,12 @@ const WEB_A_CODIGO={
   bi6:'BN-MG-HC-30',bi7:'BN-MG-MV-120',bi8:'BN-MG-B12-90',bi9:'BN-FB-SB-320',bi10:'BN-CP-AR-500',
   li1:'LVL-PRO-01',li2:'LVL-PRO-01',li3:'LVL-COL-01',li4:'LVL-FIB-01',
   lp1:'LVL-PACK-PCF',lp2:'LVL-PACK-PC',lp3:'LVL-PACK-PF',lp4:'LVL-PACK-CF',
-  bf1:'BF-MM-TP-120',bf2:'BF-MM-BM-120',sp1:'GEN-PP-NE',sp2:'GEN-P-CH',nf1:'NUTRIFATH',nx1:'NDP-PP-NE'
+  bf1:'BF-MM-TP-120',bf2:'BF-MM-BM-120',sp1:'GEN-PP-NE',sp2:'GEN-P-CH',sp3:'RG-PL-NA',sp4:'RG-PL-NE',nf1:'NUTRIFATH',nx1:'NDP-PP-NE'
 };
 // Ofertas x2 y packs de la web que en Stock son varios productos. '*' = el sabor que eligió el
 // cliente, en el orden en que viene en las notas ("Whey Protein 1: Vainilla · Whey Protein 2: ...").
 const WEB_COMPUESTOS={
-  oferta1:['*','*'],oferta2:['*','*'],oferta3:['*','*'],oferta4:['NUTRIFATH','NUTRIFATH'],oferta5:['*','*'],oferta6:['NDP-PP-NE','NDP-PP-NE'],
+  oferta1:['*','*'],oferta2:['*','*'],oferta3:['*','*'],oferta4:['NUTRIFATH','NUTRIFATH'],oferta5:['*','*'],oferta6:['NDP-PP-NE','NDP-PP-NE'],oferta7:['*','*'],
   bp1:['*','*','BN-MG-MV-120','BN-MG-B12-90','BN-FB-SB-320'],
   bp2:['*','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
   bp3:['BN-MG-BT-90','BN-MG-MV-120','BN-MG-HC-30','BN-MG-B12-90'],
@@ -3407,7 +3407,8 @@ const WEB_COMPUESTOS={
 const SABOR_A_CODIGO={'vainilla':'BN-PP-VA-15','chocolate':'BN-PP-CH-15','fresa':'BN-PL-FR-1L','maracumango':'BN-PL-MR-1L','bayas mixtas':'BF-MM-BM-120','tropical':'BF-MM-TP-120'};
 // Familias cuyo "chocolate" NO es el de B&N (2026-10-29: pack x2 del Geno, neutro o chocolate).
 // Los packs Geno de antes no traían sabor: eran neutros.
-const SABOR_CODIGO_FAMILIA={geno:{'neutro':'GEN-PP-NE','chocolate':'GEN-P-CH','':'GEN-PP-NE'}};
+// 2026-10-29: pack x2 de READY-GDC (proteína líquida 1 L), naranja o neutro.
+const SABOR_CODIGO_FAMILIA={geno:{'neutro':'GEN-PP-NE','chocolate':'GEN-P-CH','':'GEN-PP-NE'},ready:{'naranja':'RG-PL-NA','neutro':'RG-PL-NE'}};
 function codigoSabor(familia,sabor){
   const propio=SABOR_CODIGO_FAMILIA[familia];
   return propio?(propio[sabor||'']||''):(SABOR_A_CODIGO[sabor]||'');
@@ -3874,9 +3875,9 @@ function avisarRecibidoWhatsApp(pedidoId){
    Bajo pedido (LVL) nunca se agota. En ofertas/packs donde se elige sabor, un sabor sin stock se
    bloquea y el producto entero solo se agota si TODOS los sabores de una posición están en cero.
    Se manda cada vez que se revisan los pedidos web (2 min) y solo si cambió algo. */
-const SABORES_FAMILIA={liq:['fresa','maracumango'],polvo:['vainilla','chocolate'],bf:['bayas mixtas','tropical'],geno:['neutro','chocolate']};
+const SABORES_FAMILIA={liq:['fresa','maracumango'],polvo:['vainilla','chocolate'],bf:['bayas mixtas','tropical'],geno:['neutro','chocolate'],ready:['naranja','neutro']};
 // Familia de cada '*' de WEB_COMPUESTOS, en el mismo orden.
-const WEB_FAMILIAS={oferta1:['liq','liq'],oferta2:['polvo','polvo'],oferta3:['bf','bf'],oferta5:['geno','geno'],bp1:['liq','liq'],bp2:['polvo'],bp4:['liq','polvo']};
+const WEB_FAMILIAS={oferta1:['liq','liq'],oferta2:['polvo','polvo'],oferta3:['bf','bf'],oferta5:['geno','geno'],oferta7:['ready','ready'],bp1:['liq','liq'],bp2:['polvo'],bp4:['liq','polvo']};
 let disponibilidadEnviada='';
 function calcularDisponibilidadWeb(){
   const modalidad=(db.config&&db.config.modalidadMarca)||{};
@@ -4678,7 +4679,7 @@ function imprimirTicket(pedidoId){
 // Productos que comparten el precio por volumen aunque sean de distinto sabor (2026-10-29, pedido de
 // Roberto): 1 Geno neutro + 1 Geno chocolate = 2 unidades, cada una a precio de "desde 2". Solo
 // afecta pedidos que se están armando; las ventas ya guardadas no se recalculan.
-const GRUPOS_PRECIO_VOLUMEN=[{clave:'geno',codigo:/^GEN-/}];
+const GRUPOS_PRECIO_VOLUMEN=[{clave:'geno',codigo:/^GEN-/},{clave:'ready',codigo:/^RG-PL-/}];
 function grupoPrecioVolumen(stockItem){
   const g=stockItem&&GRUPOS_PRECIO_VOLUMEN.find(x=>x.codigo.test(stockItem.codigo||''));
   return g?g.clave:null;
