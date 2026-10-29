@@ -3395,12 +3395,25 @@ let pedidoWebEnCurso=null;  // pedido web que se está registrando en el formula
 let pedidosWebTimer=null;
 let intentosAbierto=false;  // el desplegable sigue abierto aunque el tablero se repinte
 let intentosWeb=[];         // compras con tarjeta que no se completaron (ver intentosWebHTML)
+// Más rápido (2026-10-28, pedido de Roberto): con el CRM a la vista se pregunta cada 30 s y al
+// volver a la pestaña al instante; en segundo plano sigue cada 2 min (así el stock llega igual a la web).
+const PEDIDOS_WEB_VISIBLE_MS=30*1000;
+let pedidosWebUltimaVez=0;
+let pedidosWebFirma='';
 function iniciarPedidosWeb(){
   if(pedidosWebTimer)return;
   cargarPedidosWeb();
-  pedidosWebTimer=setInterval(cargarPedidosWeb,PEDIDOS_WEB_CADA_MS);
+  pedidosWebTimer=setInterval(()=>{
+    const espera=document.visibilityState==='visible'?PEDIDOS_WEB_VISIBLE_MS:PEDIDOS_WEB_CADA_MS;
+    if(Date.now()-pedidosWebUltimaVez>=espera-1000)cargarPedidosWeb();
+  },PEDIDOS_WEB_VISIBLE_MS);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&Date.now()-pedidosWebUltimaVez>5000)cargarPedidosWeb();
+  });
 }
 async function cargarPedidosWeb(){
+  pedidosWebUltimaVez=Date.now();
+  const firmaAntes=pedidosWebFirma+'|'+pedidosWebError;
   try{
     const{data:{session}}=await sb.auth.getSession();
     if(!session)return;
@@ -3409,12 +3422,15 @@ async function cargarPedidosWeb(){
     if(!r.ok)throw new Error(j.error||('error '+r.status));
     pedidosWeb=j.pedidos||[];
     intentosWeb=j.intentos||[];
+    pedidosWebFirma=JSON.stringify([pedidosWeb,intentosWeb]);
     enviarDisponibilidadWeb(session.access_token);
     pedidosWebError='';
   }catch(e){
-    pedidosWebError='No se pudieron traer los pedidos de la web ('+(e.message||e)+'). Se reintenta solo en 2 minutos.';
+    pedidosWebError='No se pudieron traer los pedidos de la web ('+(e.message||e)+'). Se reintenta solo en unos segundos.';
   }
   pintarAvisoPedidosWeb();
+  // Solo se repinta el tablero si llegó algo distinto (ahora se pregunta seguido).
+  if(firmaAntes===pedidosWebFirma+'|'+pedidosWebError)return;
   if(seccionActual==='envios'){const y=window.scrollY;pintarEnvios();window.scrollTo(0,y);}
 }
 function pedidosWebPendientes(){
