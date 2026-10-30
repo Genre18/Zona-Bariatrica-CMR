@@ -6349,7 +6349,7 @@ function abrirFormCompra(){
     <h3>Registrar entrega o compra</h3>
     <form class="compra-form" onsubmit="return guardarCompra(event)">
       <label>Producto *</label>
-      <select id="cp-producto" required>${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(nombreConSabor(s))}</option>`).join('')}</select>
+      <select id="cp-producto" required onchange="sugerirContadoCompra()">${stockActivo.map(s=>`<option value="${s.id}">${esc(s.marca)} — ${esc(nombreConSabor(s))}</option>`).join('')}</select>
       <div class="fila-cantidad-costo">
         <div><label>Cantidad entregada</label><input type="number" id="cp-cantidad" value="1" min="1"></div>
         <div><label>Costo unitario (S/)</label><input type="number" id="cp-costo" step="any" value="0"></div>
@@ -6359,11 +6359,20 @@ function abrirFormCompra(){
         <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${hoyStr()}"></div>
       </div>
       <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+      <label style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:500;cursor:pointer;"><input type="checkbox" id="cp-contado"  style="margin:0;width:auto;"> Ya está pagada (compra al contado, no genera deuda)</label>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Registrar</button>
       </div>
     </form>`);
+  sugerirContadoCompra();
+}
+// Compra directa = Zona compra al contado (decisión de Roberto, 27-09-2026): se sugiere "ya
+// pagada" para esas marcas; igual se puede desmarcar si algún día se compra a crédito.
+function sugerirContadoCompra(){
+  const s=porId(db.stock,document.getElementById('cp-producto').value);
+  const c=document.getElementById('cp-contado');
+  if(s&&c)c.checked=(db.config.modalidadMarca||{})[s.marca]==='compra_directa';
 }
 const TIPOS_MOVIMIENTO_FISICO=['entrada','entrada_inicial','salida','ajuste','devolucion_cancelacion','correccion_pedido','salida_no_comercial'];
 function comparaMovimientos(a,ia,b,ib){
@@ -6452,7 +6461,8 @@ function guardarCompra(ev){
     // recibirla (solo al vender), a diferencia de una entrada de compra directa.
     modalidadComercial:(db.config.modalidadMarca||{})[stockItem.marca]||null,
     modalidadHistoricaEstimada:false,
-    proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString()
+    proveedor,monto:cantidad*costoUnit,fecha,usuario:sesion?sesion.nombre:'',createdAt:new Date().toISOString(),
+    pagadoAlContado:document.getElementById('cp-contado').checked
   });
   guardar();cerrarModal();pintarStock();
   return false;
@@ -6474,6 +6484,7 @@ function abrirEditarCompra(id){
           <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
         </div>
         <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+        <label style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:500;cursor:pointer;"><input type="checkbox" id="cp-contado" ${mov.pagadoAlContado?'checked':''} style="margin:0;width:auto;"> Ya está pagada (compra al contado, no genera deuda)</label>
         <div class="acciones-modal">
           <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
           <button class="btn">Guardar cambios</button>
@@ -6495,6 +6506,7 @@ function abrirEditarCompra(id){
         <div><label>Fecha de entrega</label><input type="date" id="cp-fecha" value="${mov.fecha}"></div>
       </div>
       <datalist id="cp-lista-proveedores">${listaProveedoresUnicos().map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+      <label style="display:flex;align-items:center;gap:6px;margin:6px 0 0;font-weight:500;cursor:pointer;"><input type="checkbox" id="cp-contado" ${mov.pagadoAlContado?'checked':''} style="margin:0;width:auto;"> Ya está pagada (compra al contado, no genera deuda)</label>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Guardar cambios</button>
@@ -6506,6 +6518,7 @@ function guardarEditarCompraMetadatos(ev,id){
   const mov=porId(db.movimientosStock,id);
   mov.proveedor=document.getElementById('cp-proveedor').value.trim();
   mov.fecha=document.getElementById('cp-fecha').value||mov.fecha;
+  mov.pagadoAlContado=document.getElementById('cp-contado').checked;
   guardar();cerrarModal();pintarStock();pintarProveedores();
   return false;
 }
@@ -6526,6 +6539,7 @@ function guardarEditarCompra(ev,id){
   const proveedor=document.getElementById('cp-proveedor').value.trim();
   const fecha=document.getElementById('cp-fecha').value||hoyStr();
   mov.cantidad=cantidad;mov.monto=cantidad*costoUnit;mov.proveedor=proveedor;mov.fecha=fecha;
+  mov.pagadoAlContado=document.getElementById('cp-contado').checked;
   // Recálculo completo (no revertirCompra/aplicarCompra) para que quede bien aunque esta
   // entrada no sea el último movimiento del producto — ver recalcularStockDesdeMovimientos.
   recalcularStockDesdeMovimientos(mov.stockId);
@@ -6565,6 +6579,7 @@ function pagosDeEntrega(entregaId){
   return (db.pagosProveedor||[]).filter(p=>p.entregaId===entregaId).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
 }
 function saldoEntrega(entrega,excluirPagoId){
+  if(entrega.pagadoAlContado)return 0; // compra al contado: se pagó al recibirla, no hay deuda
   const pagado=(db.pagosProveedor||[]).filter(p=>p.entregaId===entrega.id&&p.id!==excluirPagoId).reduce((s,p)=>s+(p.monto||0),0);
   return Math.max(0,(entrega.monto||0)-pagado);
 }
