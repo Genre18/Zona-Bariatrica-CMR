@@ -3656,11 +3656,14 @@ async function abrirLinkCompra(){
   const vendible=p=>!(p.consultar||p.precio==null||p.proximamente);
   // La lista arranca cerrada (pedido de Roberto: "de golpe sale una tremenda lista"): se abre al
   // tocar una categoría o al escribir en el buscador, en una caja chica con scroll.
+  // El buscador también mira la marca (2026-10-30): el Nutrifath suelto se llama "Whey Protein
+  // Isolate 1000g" en la web y buscando "nutrifath" solo salía el pack x2.
   const filas=LINK_COMPRA_CATEGORIAS.map(([cat])=>catalogoWeb.productos.filter(p=>p.cat===cat&&vendible(p)).map(p=>{
     const agotado=disp.agotados.includes(p.id);
-    return `<div class="lc-item" data-cat="${cat}" data-nombre="${escAttr(textoBusquedaLC(p.nombre))}" hidden>
+    const marca=p.marca&&!textoBusquedaLC(p.nombre).includes(textoBusquedaLC(p.marca))?p.marca:'';
+    return `<div class="lc-item" data-cat="${cat}" data-nombre="${escAttr(textoBusquedaLC(p.nombre+' '+(p.marca||'')))}" hidden>
       <div class="lc-fila${agotado?' lc-agotado':''}">
-        <span>${esc(p.nombre)} <strong>${money(p.precio)}</strong>${agotado?' <em>(agotado)</em>':''}</span>
+        <span>${esc(p.nombre)}${marca?` <span style="color:var(--text-muted);">· ${esc(marca)}</span>`:''} <strong>${money(p.precio)}</strong>${agotado?' <em>(agotado)</em>':''}</span>
         <span class="lc-qty">${agotado?'':`<button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',-1)">−</button><span id="lcq-${p.id}">0</span><button type="button" class="btn-icono" onclick="linkCompraQty('${p.id}',1)">+</button>`}</span>
       </div><div class="lc-sabores" id="lcs-${p.id}" hidden></div>
     </div>`;
