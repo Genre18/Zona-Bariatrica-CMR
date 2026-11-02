@@ -3299,10 +3299,10 @@ function tarjetaEnvio(p){
   // Ubicación de Google Maps que dejó el cliente en la web (solo Lima): para pasársela al repartidor.
   const mapaUrl=p.ubicacion||(c&&c.ubicacion)||'';
   const mapa=mapaUrl&&p.metodoEnvio!=='shalom'?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(mapaUrl)}" target="_blank" rel="noopener" title="Abrir la ubicación del cliente en Google Maps">📍 Mapa</a>`:'';
-  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${avisar}${mapa}${fechaBtn}${anular}`;
+  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${avisar}<button type="button" class="btn-secundario btn-chico" title="Corregir productos o sabores del pedido (ej. cambiar maracumango por fresa) sin anularlo" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>${mapa}${fechaBtn}${anular}`;
   else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
     <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
-    ${mapa}${fechaBtn}
+    <button type="button" class="btn-secundario btn-chico" title="Corregir productos o sabores del pedido (ej. cambiar maracumango por fresa) sin anularlo" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>${mapa}${fechaBtn}
     <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>${anular}`;
   else{
     const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
@@ -3737,7 +3737,10 @@ function linkCompraFiltrar(){
 function linkCompraQty(id,d){
   const p=catalogoWeb.productos.find(x=>x.id===id);
   const bloqueados=(calcularDisponibilidadWeb().sabores||{})[id]||[];
-  const libre=g=>g.sabores.find(sab=>!bloqueados.includes(sab.toLowerCase()))||g.sabores[0];
+  // Sin sabor puesto de antemano (2026-11-02): antes salía el primero (maracumango) y se mandó un
+  // link con 2 maracumango cuando el cliente quería fresa + maracumango. Solo se pone solo si hay
+  // un único sabor posible.
+  const libre=g=>{const ok=g.sabores.filter(sab=>!bloqueados.includes(sab.toLowerCase()));return ok.length===1?ok[0]:'';};
   const sel=linkCompraSel[id]||{qty:0,sabores:(p.seleccionSabor||[]).map(libre)};
   sel.qty=Math.max(0,Math.min(50,sel.qty+d));
   if(sel.qty)linkCompraSel[id]=sel;else delete linkCompraSel[id];
@@ -3747,14 +3750,14 @@ function linkCompraQty(id,d){
   if(p.seleccionSabor){
     box.hidden=!sel.qty;
     box.innerHTML=sel.qty?p.seleccionSabor.map((g,k)=>`<label>${esc(g.label)}
-      <select onchange="linkCompraSel['${id}'].sabores[${k}]=this.value;linkCompraPintarResumen()">${g.sabores.map(sab=>`<option ${sab===sel.sabores[k]?'selected':''} ${bloqueados.includes(sab.toLowerCase())?'disabled':''}>${esc(sab)}</option>`).join('')}</select></label>`).join(''):'';
+      <select onchange="linkCompraSel['${id}'].sabores[${k}]=this.value;linkCompraPintarResumen()"><option value="" ${sel.sabores[k]?'':'selected'} disabled>— elige sabor —</option>${g.sabores.map(sab=>`<option value="${escAttr(sab)}" ${sab===sel.sabores[k]?'selected':''} ${bloqueados.includes(sab.toLowerCase())?'disabled':''}>${esc(sab)}${bloqueados.includes(sab.toLowerCase())?' (sin stock)':''}</option>`).join('')}</select></label>`).join(''):'';
   }
   linkCompraPintarResumen();
 }
 function linkCompraItems(){
   return Object.keys(linkCompraSel).map(id=>{
     const p=catalogoWeb.productos.find(x=>x.id===id),sel=linkCompraSel[id];
-    const notas=p.seleccionSabor?p.seleccionSabor.map((g,k)=>g.label+': '+sel.sabores[k]).join(' · ')
+    const notas=p.seleccionSabor?p.seleccionSabor.map((g,k)=>g.label+': '+(sel.sabores[k]||'⚠ FALTA ELEGIR')).join(' · ')
       :(p.sabores&&p.saborPredeterminado?'Sabor: '+p.saborPredeterminado:'');
     return {id,qty:sel.qty,notas};
   });
@@ -3791,6 +3794,8 @@ function linkCompraPintarResumen(){
 function linkCompraMensaje(){
   const items=linkCompraItems();
   if(!items.length){alert('Marca al menos un producto.');return '';}
+  const sinSabor=Object.keys(linkCompraSel).filter(id=>linkCompraSel[id].sabores.some(x=>!x));
+  if(sinSabor.length){alert('Falta elegir el sabor de: '+sinSabor.map(id=>catalogoWeb.productos.find(x=>x.id===id).nombre).join(', ')+'.\nElígelo debajo del producto antes de mandar el link.');return '';}
   const link=LINK_COMPRA_URL+'?c='+codigoLinkCompra();
   const lineas=items.map(i=>'• '+i.qty+'x '+catalogoWeb.productos.find(x=>x.id===i.id).nombre+(i.notas&&!/^Sabor:/.test(i.notas)?' ('+i.notas+')':''));
   return '¡Hola! Este es tu pedido de Zona Bariátrica:\n\n'+lineas.join('\n')+
@@ -5149,6 +5154,40 @@ function pedidoAgregarItem(){
   repreciarGrupoPrecioVolumen(grupoPrecioVolumen(stockItem));
   pedidoRenderItems();
 }
+/* ---- Cambiar sabor (2026-11-02) ----
+   Pedido de Roberto: un pedido llegó con 2 maracumango y era 1 fresa + 1 maracumango. En vez de
+   anular, en la línea del pedido se elige "cambiar 1 unidad a: Fresa". Por dentro es lo mismo que
+   quitar 1 y agregar 1 del otro sabor con el botón de siempre (mismas validaciones de stock). */
+function saboresHermanos(stockId){
+  const s=porId(db.stock,stockId);
+  if(!s||!s.codigo)return [];
+  const grupo=Object.keys(SABORES_FAMILIA).map(f=>SABORES_FAMILIA[f].map(sab=>codigoSabor(f,sab))).find(g=>g.includes(s.codigo));
+  if(!grupo)return [];
+  return grupo.filter(cod=>cod!==s.codigo).map(stockPorCodigo).filter(x=>x&&x.activo!==false);
+}
+function selectorCambiarSabor(it,i){
+  const otros=saboresHermanos(it.stockId);
+  if(!otros.length)return '';
+  return `<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted);margin:-2px 0 6px;">
+    Cambiar 1 unidad a:
+    <select style="padding:3px 6px;font-size:12.5px;" onchange="pedidoCambiarSaborItem(${i},this.value)">
+      <option value="">elige sabor…</option>
+      ${otros.map(o=>`<option value="${o.id}">${esc(o.sabor||nombreConSabor(o))} (stock: ${o.cantidad})</option>`).join('')}
+    </select></div>`;
+}
+function pedidoCambiarSaborItem(i,nuevoStockId){
+  const it=pedidoItemsTmp[i];
+  const nuevo=porId(db.stock,nuevoStockId);
+  if(!it||!nuevo){pedidoRenderItems();return;}
+  ponerValor('pi-marca',nuevo.marca);
+  pedidoLlenarProductos();
+  ponerValor('pi-producto',nuevo.id);
+  const cuenta=()=>pedidoItemsTmp.filter(x=>x.stockId===nuevo.id).reduce((n,x)=>n+x.cantidad,0);
+  const antes=cuenta();
+  pedidoAgregarItem(); // si no hay stock o falta configuración, avisa y no agrega
+  if(cuenta()===antes){pedidoRenderItems();return;}
+  pedidoCambiarCantidadItem(pedidoItemsTmp.indexOf(it),it.cantidad-1);
+}
 function pedidoQuitarItem(i){
   const it=pedidoItemsTmp[i];
   const grupo=it?grupoPrecioVolumen(porId(db.stock,it.stockId)):null;
@@ -5186,7 +5225,7 @@ function pedidoRenderItems(){
         <strong>${money(it.cantidad*it.precioUnit)}</strong>
         <button type="button" class="btn-icono" onclick="pedidoQuitarItem(${i})">✕</button>
       </span>
-    </div>`).join('');
+    </div>${selectorCambiarSabor(it,i)}`).join('');
   pedidoActualizarTotales();
 }
 // Caja de totales en vivo (subtotal/descuento/embalaje/delivery/recargoTarjeta/total),
@@ -5562,6 +5601,7 @@ function guardarEditarPedido(ev,id){
   if(typeof pintarClientes==='function')pintarClientes();
   if(typeof pintarHistorial==='function')pintarHistorial();
   if(typeof pintarProveedores==='function')pintarProveedores();
+  if(seccionActual==='envios'&&typeof pintarEnvios==='function')pintarEnvios();
   return false;
 }
 // ELIMINAR COMPRA CON AUDITORÍA (2026-08-24): antes esto era un solo confirm() sin dejar
