@@ -3517,7 +3517,11 @@ function bandejaPedidosWebHTML(){
     const lugar=w.zona==='provincia'?'Provincia (Shalom)':(w.distrito||'Lima');
     const pago=w.metodo==='tarjeta'
       ?'<span class="chip chip-azul">Tarjeta · pagado</span>'
-      :'<span class="chip chip-violeta">Yape al recibir</span>';
+      :(w.zona==='provincia'
+        ?'<span class="chip chip-violeta">Yape antes del envío</span>'
+        :'<span class="chip chip-violeta">Yape al recibir</span>');
+    const pedirPago=w.metodo!=='tarjeta'&&w.zona==='provincia'
+      ?`<button type="button" class="btn-secundario btn-chico" title="Mandarle por WhatsApp cómo pagar y que envíe su constancia" onclick="pedirPagoWebWhatsApp('${escAttr(w.order_id)}')">${(db.config.pagoWebPedido||{})[w.order_id]?'✓ Pago pedido':'Pedir pago'}</button>`:'';
     return `<div class="env-card">
       <div class="env-card-top"><span>${esc(w.order_id)}</span><span>${esc(haceCuanto(new Date(w.creado_en).getTime()))}</span></div>
       <div class="env-cliente">${esc(c.nombre||'—')}</div>
@@ -3526,7 +3530,7 @@ function bandejaPedidosWebHTML(){
       <ul class="env-items">${(w.items||[]).map(it=>`<li>${esc(textoItemWeb(it))}</li>`).join('')}</ul>
       <div class="env-web-total">${w.metodo==='tarjeta'?'Cobrado':'Por cobrar'}: ${money(w.monto)}</div>
       <div class="env-acciones">
-        <button type="button" class="btn" onclick="registrarPedidoWeb('${escAttr(w.order_id)}')">Registrar en el CRM</button>
+        <button type="button" class="btn" onclick="registrarPedidoWeb('${escAttr(w.order_id)}')">Registrar en el CRM</button>${pedirPago}
         <button type="button" class="btn-secundario btn-chico" title="Ya lo cargaste a mano: sacarlo de esta lista" onclick="descartarPedidoWeb('${escAttr(w.order_id)}')">Ya está</button>
       </div>
     </div>`;
@@ -3536,6 +3540,34 @@ function bandejaPedidosWebHTML(){
     ${pedidosWebError?`<p class="vacio" style="text-align:left;padding:0 0 8px;color:var(--danger);">${esc(pedidosWebError)}</p>`:''}
     <div class="env-web-grid">${tarjetas}</div>
   </div>`+intentosWebHTML();
+}
+/* PROVINCIA AL CONTADO (02-11-2026): a un pedido web de provincia con Yape se le pide el pago
+   ANTES de despachar. Este WhatsApp le da el monto, a dónde pagar y que mande su constancia. */
+function mensajePedirPagoProvincia(nombreCompleto,total,refPedido){
+  const nombre=String(nombreCompleto||'').trim().split(/s+/)[0]||'';
+  return `Hola ${nombre}, gracias por tu compra en Zona Bariátrica 🙌
+
+`+
+    `Para despachar tu pedido${refPedido?' '+refPedido:''} a Shalom necesitamos tu pago antes del envío (a provincia no hay pago contra entrega).
+
+`+
+    `Total a pagar: ${money(total)}
+`+
+    `Yape: 961 841 069 — ROBERTO GOMEZ SALAS
+
+`+
+    `Apenas hagas tu Yape o transferencia, envíanos la constancia (captura) por aquí y despachamos tu pedido.`;
+}
+function pedirPagoWebWhatsApp(orderId){
+  const w=pedidosWeb.find(x=>x.order_id===orderId);
+  if(!w)return;
+  const c=w.cliente||{};
+  const url=telefonoWhatsApp(c.telefono);
+  if(!url){alert('Este número no es válido para WhatsApp.');return;}
+  window.open(url+'?text='+encodeURIComponent(mensajePedirPagoProvincia(c.nombre,w.monto,orderId)),'_blank');
+  db.config.pagoWebPedido=Object.assign({},db.config.pagoWebPedido,{[orderId]:hoyStr()});
+  guardar();
+  pintarEnvios();
 }
 function descartarPedidoWeb(orderId){
   if(!confirm(`¿Sacar el pedido ${orderId} de la bandeja?\nÚsalo solo si ya lo registraste a mano o no se va a despachar.`))return;
@@ -3619,7 +3651,7 @@ function registrarPedidoWeb(orderId){
   pedidoRenderItems();
   const h3=document.querySelector('#modalBox h3');
   if(h3)h3.insertAdjacentHTML('afterend',`<div class="env-web-aviso">
-    <strong>Pedido web ${esc(w.order_id)}</strong> · ${w.metodo==='tarjeta'?'pagado con tarjeta':'Yape al recibir (queda pendiente de cobro)'}<br>
+    <strong>Pedido web ${esc(w.order_id)}</strong> · ${w.metodo==='tarjeta'?'pagado con tarjeta':(w.zona==='provincia'?'Yape ANTES del envío: regístralo cuando el cliente mande su constancia (marca "Sí, ya pagó")':'Yape al recibir (queda pendiente de cobro)')}<br>
     En la web: productos ${money(netoWeb)} + envío ${money(d.envio||0)}${d.recargo?` + recargo ${money(d.recargo)}`:''} = <strong>${money(w.monto)}</strong>. Revisa que el total de abajo cuadre antes de guardar.
     ${existente?`<br>Cliente ya registrado: se actualizará su dirección con la de este pedido.`:''}
     ${faltan.length?`<br><span style="color:var(--danger);font-weight:600;">Agrégalo a mano: ${esc(faltan.join(' · '))}</span>`:''}
@@ -3853,7 +3885,9 @@ function mensajeRecibidoWhatsApp(p,cli){
   const nombre=String(cli.nombre||'').trim().split(/\s+/)[0]||'';
   const productos=(p.items||[]).map(it=>`• ${it.cantidad}x ${nombreConSabor(it)}`).join('\n');
   const pago=p.estadoPago==='pendiente pago'
-    ?`Total: ${money(p.total)} — lo pagas con Yape al recibir.`
+    ?(p.metodoEnvio==='shalom'
+      ?`Total: ${money(p.total)} — se paga ANTES del envío. Yape: 961 841 069 — ROBERTO GOMEZ SALAS. Envíanos tu constancia (captura) por aquí y despachamos.`
+      :`Total: ${money(p.total)} — lo pagas con Yape al recibir.`)
     :`Total: ${money(p.total)} — pago recibido ✅`;
   const cuando=p.entregaProgramada
     ?`Lo tendrás el ${diaConNombre(p.entregaProgramada)}, como acordamos.`
@@ -4024,7 +4058,7 @@ function imprimirEtiquetaEnvio(pedidoId){
     <div class="lbl">DIRECCIÓN</div>
     <div class="dir">${esc(direccionCompleta(c))}</div>
     ${p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio)?`<div style="margin-top:4px;">Shalom: ${p.numeroOrden?'N° '+esc(p.numeroOrden):''}${p.numeroOrden&&p.codigoEnvio?' · ':''}${p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):''}</div>`:''}
-    ${p.estadoPago==='pendiente pago'?`<div class="cobrar">PAGA AL RECIBIR: ${money(p.total)}</div>`:''}
+    ${p.estadoPago==='pendiente pago'&&p.metodoEnvio!=='shalom'?`<div class="cobrar">PAGA AL RECIBIR: ${money(p.total)}</div>`:''}
     ${p.entregaProgramada?`<div class="cobrar">ENTREGAR EL ${esc(diaConNombre(p.entregaProgramada).toUpperCase())}</div>`:''}
     <div class="lbl">PEDIDO</div>
     <ul>${items}</ul>
@@ -4619,7 +4653,7 @@ function mostrarTicket(pedido,cliente){
         <strong>Zona Bariátrica</strong><br>
         <span style="font-size:12px;color:var(--muted);">Ticket de venta · ${fechaBonita(pedido.fecha)}</span>
       </div>
-      ${pedido.estadoPago==='pendiente pago'?`<div style="text-align:center;color:var(--warning);font-weight:700;font-size:12px;margin-bottom:8px;">PENDIENTE DE PAGO · paga contra entrega</div>`:''}
+      ${pedido.estadoPago==='pendiente pago'?`<div style="text-align:center;color:var(--warning);font-weight:700;font-size:12px;margin-bottom:8px;">PENDIENTE DE PAGO · ${pedido.metodoEnvio==='shalom'?'paga antes del envío':'paga contra entrega'}</div>`:''}
       <div style="font-size:13px;margin-bottom:8px;">
         <strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>
         ${esc(cliente.dni||'sin DNI')} · ${esc(cliente.telefono||'—')}<br>
@@ -4651,7 +4685,7 @@ function imprimirTicket(pedidoId){
     </head><body>
     <h3>Zona Bariátrica</h3>
     ${pedido.estadoPago==='cancelado'?'<div class="c" style="color:#c0392b;font-weight:700;">*** VENTA ANULADA ***</div>':''}
-    ${pedido.estadoPago==='pendiente pago'?'<div class="c" style="color:#b9770e;font-weight:700;">*** PENDIENTE DE PAGO — PAGA CONTRA ENTREGA ***</div>':''}
+    ${pedido.estadoPago==='pendiente pago'?'<div class="c" style="color:#b9770e;font-weight:700;">*** PENDIENTE DE PAGO — '+(pedido.metodoEnvio==='shalom'?'PAGA ANTES DEL ENVÍO':'PAGA CONTRA ENTREGA')+' ***</div>':''}
     <div class="c">Ticket de venta · ${fechaBonita(pedido.fecha)}</div>
     <div>${cliente?`<strong>${esc(cliente.nombre)} ${esc(cliente.apellido)}</strong><br>${esc(cliente.dni||'')} · ${esc(cliente.telefono||'')}<br>${esc(direccionCompleta(cliente))}`:'<strong>Cliente eliminado</strong>'}</div>
     <table style="margin-top:8px;">${filas}
