@@ -3517,9 +3517,7 @@ function bandejaPedidosWebHTML(){
     const lugar=w.zona==='provincia'?'Provincia (Shalom)':(w.distrito||'Lima');
     const pago=w.metodo==='tarjeta'
       ?'<span class="chip chip-azul">Tarjeta · pagado</span>'
-      :(w.zona==='provincia'
-        ?'<span class="chip chip-violeta">Yape antes del envío</span>'
-        :'<span class="chip chip-violeta">Yape al recibir</span>');
+      :`<span class="chip chip-violeta">${(w.cliente||{}).pago==='transferencia'?'Transferencia':'Yape'} ${w.zona==='provincia'?'antes del envío':'al recibir'}</span>`;
     const pedirPago=w.metodo!=='tarjeta'&&w.zona==='provincia'
       ?`<button type="button" class="btn-secundario btn-chico" title="Mandarle por WhatsApp cómo pagar y que envíe su constancia" onclick="pedirPagoWebWhatsApp('${escAttr(w.order_id)}')">${(db.config.pagoWebPedido||{})[w.order_id]?'✓ Pago pedido':'Pedir pago'}</button>`:'';
     return `<div class="env-card">
@@ -3543,19 +3541,16 @@ function bandejaPedidosWebHTML(){
 }
 /* PROVINCIA AL CONTADO (02-11-2026): a un pedido web de provincia con Yape se le pide el pago
    ANTES de despachar. Este WhatsApp le da el monto, a dónde pagar y que mande su constancia. */
+const DATOS_PAGO_TEXTO='Yape: 961 841 069 — Roberto Pablo Gomez Salas\n'+
+  'Transferencia BCP Soles: 19376612863028\n'+
+  'CCI (otros bancos): 00219317661286302817\n'+
+  'Titular: Roberto Pablo Gomez Salas';
 function mensajePedirPagoProvincia(nombreCompleto,total,refPedido){
-  const nombre=String(nombreCompleto||'').trim().split(/s+/)[0]||'';
-  return `Hola ${nombre}, gracias por tu compra en Zona Bariátrica 🙌
-
-`+
-    `Para despachar tu pedido${refPedido?' '+refPedido:''} a Shalom necesitamos tu pago antes del envío (a provincia no hay pago contra entrega).
-
-`+
-    `Total a pagar: ${money(total)}
-`+
-    `Yape: 961 841 069 — ROBERTO GOMEZ SALAS
-
-`+
+  const nombre=String(nombreCompleto||'').trim().split(/\s+/)[0]||'';
+  return `Hola ${nombre}, gracias por tu compra en Zona Bariátrica 🙌\n\n`+
+    `Para despachar tu pedido${refPedido?' '+refPedido:''} a Shalom necesitamos tu pago antes del envío (a provincia no hay pago contra entrega).\n\n`+
+    `Total a pagar: ${money(total)}\n\n`+
+    DATOS_PAGO_TEXTO+`\n\n`+
     `Apenas hagas tu Yape o transferencia, envíanos la constancia (captura) por aquí y despachamos tu pedido.`;
 }
 function pedirPagoWebWhatsApp(orderId){
@@ -3619,7 +3614,7 @@ function registrarPedidoWeb(orderId){
   // Con tarjeta la web cobra el 4% también sobre el envío (el CRM solo sobre productos): ese
   // pedacito va dentro del delivery para que el total sea lo que de verdad entró.
   ponerValor('pd-delivery',w.metodo==='tarjeta'?round2((d.envio||0)*1.04):(d.envio||0));
-  ponerValor('pd-metodopago',w.metodo==='tarjeta'?'Tarjeta de crédito':'Yape');
+  ponerValor('pd-metodopago',w.metodo==='tarjeta'?'Tarjeta de crédito':(c.pago==='transferencia'?'Transferencia':'Yape'));
   ponerValor('pd-yapago',w.metodo==='tarjeta'?'1':'0');
   ponerValor('pd-referencia',w.order_id);
   // Fecha comercial = el día (hora de Lima) en que se hizo la compra en la web.
@@ -3651,7 +3646,7 @@ function registrarPedidoWeb(orderId){
   pedidoRenderItems();
   const h3=document.querySelector('#modalBox h3');
   if(h3)h3.insertAdjacentHTML('afterend',`<div class="env-web-aviso">
-    <strong>Pedido web ${esc(w.order_id)}</strong> · ${w.metodo==='tarjeta'?'pagado con tarjeta':(w.zona==='provincia'?'Yape ANTES del envío: regístralo cuando el cliente mande su constancia (marca "Sí, ya pagó")':'Yape al recibir (queda pendiente de cobro)')}<br>
+    <strong>Pedido web ${esc(w.order_id)}</strong> · ${w.metodo==='tarjeta'?'pagado con tarjeta':(w.zona==='provincia'?(c.pago==='transferencia'?'Transferencia':'Yape')+' ANTES del envío: regístralo cuando el cliente mande su constancia (marca "Sí, ya pagó")':(c.pago==='transferencia'?'Transferencia':'Yape')+' al recibir (queda pendiente de cobro)')}<br>
     En la web: productos ${money(netoWeb)} + envío ${money(d.envio||0)}${d.recargo?` + recargo ${money(d.recargo)}`:''} = <strong>${money(w.monto)}</strong>. Revisa que el total de abajo cuadre antes de guardar.
     ${existente?`<br>Cliente ya registrado: se actualizará su dirección con la de este pedido.`:''}
     ${faltan.length?`<br><span style="color:var(--danger);font-weight:600;">Agrégalo a mano: ${esc(faltan.join(' · '))}</span>`:''}
@@ -3886,7 +3881,7 @@ function mensajeRecibidoWhatsApp(p,cli){
   const productos=(p.items||[]).map(it=>`• ${it.cantidad}x ${nombreConSabor(it)}`).join('\n');
   const pago=p.estadoPago==='pendiente pago'
     ?(p.metodoEnvio==='shalom'
-      ?`Total: ${money(p.total)} — se paga ANTES del envío. Yape: 961 841 069 — ROBERTO GOMEZ SALAS. Envíanos tu constancia (captura) por aquí y despachamos.`
+      ?`Total: ${money(p.total)} — se paga ANTES del envío.\n\n${DATOS_PAGO_TEXTO}\n\nEnvíanos tu constancia (captura) por aquí y despachamos.`
       :`Total: ${money(p.total)} — lo pagas con Yape al recibir.`)
     :`Total: ${money(p.total)} — pago recibido ✅`;
   const cuando=p.entregaProgramada
