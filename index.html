@@ -412,6 +412,19 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rp-personal input{width:auto;padding:5px 8px;font-size:12.5px;}
 /* Productos vendidos */
 .mv-fila-bloque{grid-template-columns:1fr;}
+.rz-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.rz-nota{font-size:12px;color:var(--muted);margin-top:2px;}
+.rz-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.rz-scroll{overflow-x:auto;}
+.rz-tabla{width:100%;font-size:12.5px;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.rz-tabla th{font-weight:600;color:var(--muted);}
+.rz-tabla td,.rz-tabla th{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border-light);}
+.rz-tabla td:first-child,.rz-tabla th:first-child{text-align:left;position:sticky;left:0;background:var(--card);}
+.rz-tabla tr.rz-grupo td{background:var(--bg-soft);}
+.rz-tabla tr.rz-total td{border-top:2px solid var(--border);font-weight:700;}
+.rz-lugar{padding-left:14px;}
+.rz-sub{font-size:11.5px;color:var(--muted);font-weight:400;}
+.rz-cero{color:var(--muted);}
 .mv-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
 .mv-cab .reportes-subtitulo{margin-bottom:2px;}
 .mv-resumen{font-size:12px;color:var(--muted);}
@@ -8864,9 +8877,80 @@ function pintarReportes(){
       </div>
     </div>
 
-    <div class="reportes-fila-bloques mv-fila-bloque">${htmlProductosVendidos()}</div>`;
+    <div class="reportes-fila-bloques mv-fila-bloque">${htmlProductosVendidos()}</div>
+    <div class="reportes-fila-bloques mv-fila-bloque">${htmlVentasPorZona(hasta)}</div>`;
   pintarGraficoReportes();
   pintarMasVendidos();
+}
+/* ---- Ventas por zona y mes (2026-11-03) ----
+   Pedido de Roberto: además de las gráficas, una lista para comparar las ventas mes a mes por
+   zona: Lima por distrito y provincia por departamento. Usa las mismas ventas que el resto de
+   Reportes (pedidosFacturablesEntre: pagadas y, si son con tarjeta, acreditadas). La zona sale del
+   método de envío (Shalom = provincia) y la ubicación ACTUAL de la ficha del cliente. */
+let rzMedida='soles',rzMeses=6;
+const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];
+function zonaVentaReportes(p){
+  const c=p.clienteId?porId(db.clientes,p.clienteId):null;
+  const dep=String((c&&c.departamento)||'').trim();
+  const esLima=v=>textoBusquedaLC(v).trim()==='lima';
+  let provincia;
+  if(p.metodoEnvio==='shalom')provincia=true;
+  else if(p.metodoEnvio==='indrive')provincia=false;
+  else provincia=!!dep&&!esLima(dep);
+  const lugar=provincia?(dep||(c&&(c.provincia||c.ciudad))||''):((c&&(c.ciudad||c.distrito))||'');
+  return {grupo:provincia?'Provincia':'Lima',lugar:String(lugar).trim()||(provincia?'Sin departamento':'Sin distrito')};
+}
+function htmlVentasPorZona(hasta){
+  const [a,m]=hasta.split('-').map(Number);
+  const meses=[];
+  for(let k=rzMeses-1;k>=0;k--){
+    const d=new Date(a,m-1-k,1);
+    const y=d.getFullYear(),mm=d.getMonth()+1,mes2=String(mm).padStart(2,'0');
+    meses.push({clave:y+'-'+mes2,titulo:MESES_CORTOS[mm-1]+(mm===1||k===rzMeses-1?' '+String(y).slice(2):''),
+      desde:y+'-'+mes2+'-01',hasta:y+'-'+mes2+'-'+String(new Date(y,mm,0).getDate()).padStart(2,'0')});
+  }
+  const pedidos=pedidosFacturablesEntre(meses[0].desde,meses[meses.length-1].hasta);
+  const filas={}; // grupo|lugar normalizado → {grupo,lugar,porMes:{clave:{soles,ped}}}
+  const totales={Lima:{},Provincia:{},Todo:{}};
+  const sumar=(obj,mes,p)=>{const x=obj[mes]=obj[mes]||{soles:0,ped:0};x.soles+=Number(p.total)||0;x.ped++;};
+  pedidos.forEach(p=>{
+    const z=zonaVentaReportes(p),mes=p.fecha.slice(0,7);
+    const k=z.grupo+'|'+textoBusquedaLC(z.lugar).replace(/\s+/g,' ').trim();
+    const f=filas[k]=filas[k]||{grupo:z.grupo,lugar:z.lugar.replace(/\s+/g,' '),porMes:{}};
+    sumar(f.porMes,mes,p);sumar(totales[z.grupo],mes,p);sumar(totales.Todo,mes,p);
+  });
+  const val=(porMes,mes)=>{const x=porMes[mes];return x?(rzMedida==='soles'?x.soles:x.ped):0;};
+  const total=porMes=>meses.reduce((s,me)=>s+val(porMes,me.clave),0);
+  const fmt=n=>n?(rzMedida==='soles'?moneyEntero(n):String(n)):'<span class="rz-cero">—</span>';
+  const ult=meses[meses.length-1].clave,pen=meses.length>1?meses[meses.length-2].clave:null;
+  const delta=porMes=>{
+    if(!pen)return '';
+    const act=val(porMes,ult),antes=val(porMes,pen);
+    if(!act&&!antes)return '<span class="rz-cero">—</span>';
+    if(!antes)return '<span class="rk-sube">▲ nuevo</span>';
+    const d=(act-antes)/antes*100;
+    if(Math.abs(d)<0.5)return '<span class="rk-igual">=</span>';
+    return '<span class="'+(d>0?'rk-sube':'rk-baja')+'">'+(d>0?'▲':'▼')+' '+Math.abs(d).toFixed(0)+'%</span>';
+  };
+  const fila=(nombre,porMes,cls)=>'<tr class="'+(cls||'')+'"><td>'+nombre+'</td>'+meses.map(me=>'<td>'+fmt(val(porMes,me.clave))+'</td>').join('')+'<td><strong>'+fmt(total(porMes))+'</strong></td><td>'+delta(porMes)+'</td></tr>';
+  const bloque=grupo=>{
+    const lista=Object.values(filas).filter(f=>f.grupo===grupo).sort((x,y)=>total(y.porMes)-total(x.porMes)||x.lugar.localeCompare(y.lugar));
+    if(!lista.length)return '';
+    const unidad=grupo==='Lima'?(lista.length===1?'distrito':'distritos'):(lista.length===1?'departamento':'departamentos');
+    return fila('<strong>'+grupo+'</strong> <span class="rz-sub">'+lista.length+' '+unidad+'</span>',totales[grupo],'rz-grupo')
+      +lista.map(f=>fila('<span class="rz-lugar">'+esc(f.lugar)+'</span>',f.porMes)).join('');
+  };
+  const boton=(clave,txt)=>'<button type="button" data-rzmedida="'+clave+'" class="'+(rzMedida===clave?'activo':'')+'" aria-pressed="'+(rzMedida===clave)+'" onclick="rzMedida=\''+clave+'\';pintarReportes()">'+txt+'</button>';
+  const opciones=[3,6,12].map(n=>'<option value="'+n+'"'+(n===rzMeses?' selected':'')+'>Últimos '+n+' meses</option>').join('');
+  const tabla=pedidos.length
+    ?'<div class="rz-scroll"><table class="rz-tabla"><thead><tr><th>Zona</th>'+meses.map(me=>'<th>'+esc(me.titulo)+(me.clave===hoyStr().slice(0,7)?'<div class="rz-sub">en curso</div>':'')+'</th>').join('')+'<th>Total</th><th>vs mes ant.</th></tr></thead><tbody>'
+      +bloque('Lima')+bloque('Provincia')+fila('<strong>Total</strong>',totales.Todo,'rz-total')+'</tbody></table></div>'
+    :'<div class="vacio">Sin ventas en estos meses.</div>';
+  return '<div class="reportes-bloque"><div class="rz-cab"><div><h3 class="reportes-subtitulo">Ventas por zona y mes</h3>'
+    +'<div class="rz-nota">Lima por distrito y provincia por departamento, hasta '+esc(meses[meses.length-1].titulo)+'. La última columna compara el último mes con el anterior.</div></div>'
+    +'<div class="rz-controles"><div class="rp-seg" role="group" aria-label="Medir en">'+boton('soles','Soles')+boton('pedidos','Pedidos')+'</div>'
+    +'<select onchange="rzMeses=Number(this.value);pintarReportes()" aria-label="Meses a comparar">'+opciones+'</select></div></div>'
+    +tabla+'</div>';
 }
 function repRangoRapido(tipo){
   const hoy=hoyStr();
