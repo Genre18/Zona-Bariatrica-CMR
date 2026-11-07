@@ -540,6 +540,20 @@ table.cliente-historial-tabla th{padding:6px 8px;font-size:9.5px;}
 table.cliente-historial-tabla th,table.cliente-historial-tabla td{white-space:normal;word-break:break-word;}
 table.cliente-historial-tabla td{padding:5px 8px;font-size:11.5px;vertical-align:middle;}
 table.cliente-historial-tabla td .chip{white-space:normal;font-size:10px;line-height:1.25;padding:3px 7px;}
+/* Lista de Clientes (2026-11-06): debe caber en la pantalla, sin scroll horizontal. Se anula
+   el white-space:nowrap global de .tabla-excel solo aquí, con anchos fijos por columna, para que
+   ubicación, marcas y chips partan en varias líneas en vez de ensanchar la tabla. */
+table.clientes-tabla{width:100%;table-layout:fixed;}
+table.clientes-tabla th,table.clientes-tabla td{white-space:normal;word-break:break-word;}
+table.clientes-tabla td{vertical-align:middle;}
+table.clientes-tabla td .chip{white-space:normal;line-height:1.25;margin:1px 0;}
+table.clientes-tabla th:nth-child(1){width:24%;}
+table.clientes-tabla th:nth-child(2){width:20%;}
+table.clientes-tabla th:nth-child(3){width:18%;}
+table.clientes-tabla th:nth-child(4){width:14%;}
+table.clientes-tabla th:nth-child(5){width:16%;}
+table.clientes-tabla th:nth-child(6){width:8%;}
+@media(max-width:700px){table.clientes-tabla th{font-size:9.5px;padding:7px 5px;}table.clientes-tabla td{font-size:11.5px;}table.clientes-tabla td .chip{font-size:10px;padding:2px 6px;}}
 /* Un chip que además es acción (marcar cobrado): mismo look del chip, comportamiento de botón. */
 button.chip{border:0;cursor:pointer;font-family:inherit;}
 button.chip:hover{filter:brightness(.95);}
@@ -2985,7 +2999,7 @@ function pintarClientes(){
   const cont=document.getElementById('listaClientes');
   if(clientes.length===0){cont.innerHTML=`<div class="vacio">${buscar||filtroRecompra?'Ningún cliente coincide con la búsqueda/filtro.':'No hay clientes todavía.'}</div>`;return;}
   const pad='padding:7px 10px;';
-  cont.innerHTML=`<div class="tabla-excel"><table><thead><tr>
+  cont.innerHTML=`<div class="tabla-excel"><table class="clientes-tabla"><thead><tr>
     ${thOrden('clientes','cliente','Cliente','pintarClientes()')}${thOrden('clientes','ubicacion','Ubicación','pintarClientes()')}<th>Marcas</th>${thOrden('clientes','ultima','Última compra','pintarClientes()')}<th>Recompra</th>${thOrden('clientes','pedidos','Pedidos','pintarClientes()')}
     </tr></thead><tbody>${clientes.map(c=>{
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
