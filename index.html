@@ -2255,6 +2255,7 @@ function intentarAutoLogin(){
 const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','gastos','reportes','config'];
 function irA(sec){
   seccionActual=sec;
+  actualizarAvisoGastos();
   SECCIONES.forEach(s=>{
     document.getElementById('sec-'+s).classList.toggle('activa',s===sec);
     document.getElementById('tab-'+s).classList.toggle('activo',s===sec);
@@ -9079,8 +9080,12 @@ function gastosFijosPeriodo(desde,hasta){
     const dm=diasDelMes(mes);
     const ini=mes===primero?Number(desde.slice(8,10)):1;
     const fin=mes===ultimo?Number(hasta.slice(8,10)):dm;
-    const t=totalFijosMes(mes);
-    if(t)total+=t*(fin-ini+1)/dm;
+    // 09-11-2026: los que tienen día de pago cuentan completos si esa fecha cae en el período;
+    // los que no tienen día se reparten por días como antes.
+    gastosFijosDelMes(mes).forEach(g=>{
+      if(g.dia){const d=Math.min(g.dia,dm);if(d>=ini&&d<=fin)total+=g.monto||0;}
+      else total+=(g.monto||0)*(fin-ini+1)/dm;
+    });
     mes=mesSumar(mes,1);
   }
   return round2(total);
@@ -9146,12 +9151,43 @@ function htmlEstadoResultados(M,desde,hasta){
       ${linea('= Ganancia bruta ZB',money(M.gananciaZB),'er-sub')}
       ${linea('− Publicidad',money(M.pauta))}
       ${linea('− Otros gastos del día a día',money(M.otrosGastos))}
-      ${linea('− Gastos fijos',money(M.fijos),'',parcial&&M.fijos?'proporcional a los días del período':'')}
+      ${linea('− Gastos fijos',money(M.fijos),'',parcial&&M.fijos?'los que vencen en estas fechas':'')}
       ${linea('= Ganancia neta ZB',money(M.gananciaNeta),'er-total'+(M.gananciaNeta<0?' er-neg':''))}
       <div style="margin-top:10px;"><button type="button" class="btn-secundario btn-chico" onclick="irA('gastos')">Ver y anotar gastos</button></div>
     </div>
     <div class="reportes-bloque">${htmlPuntoEquilibrio(mesDeFecha(hasta))}</div>
   </div>`;
+}
+// Día de pago de los fijos (09-11-2026, pedido de Roberto: "hay pagos mensuales en fechas
+// específicas"). g.dia = día del mes (1-31; en meses más cortos se toma el último día).
+// g.pagos = {'AAAA-MM':{fecha,por}} marca qué meses ya se pagaron (solo control, no cambia montos).
+function fechaPagoFijo(g,mes){return g.dia?mes+'-'+String(Math.min(g.dia,diasDelMes(mes))).padStart(2,'0'):null;}
+function estadoPagoFijo(g,mes){
+  const pago=(g.pagos||{})[mes];
+  if(pago)return{cls:'chip-verde',txt:'Pagado'+(pago.fecha?' el '+fechaDiaMes(pago.fecha):''),pend:false,venc:false};
+  const f=fechaPagoFijo(g,mes);
+  if(!f)return{cls:'chip-gris',txt:'Pendiente',pend:true,venc:false};
+  const d=diasEntreISO(hoyStr(),f);
+  if(d<0)return{cls:'chip-rojo',txt:'Vencido hace '+(-d)+(d===-1?' día':' días'),pend:true,venc:true};
+  if(d===0)return{cls:'chip-naranja',txt:'Vence hoy',pend:true,venc:true};
+  if(d<=3)return{cls:'chip-naranja',txt:'Vence en '+d+(d===1?' día':' días'),pend:true,venc:false};
+  return{cls:'chip-gris',txt:'Vence el '+fechaDiaMes(f),pend:true,venc:false};
+}
+function marcarPagoFijo(id,mes){
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g)return;
+  g.pagos=g.pagos||{};
+  if(g.pagos[mes])delete g.pagos[mes];
+  else g.pagos[mes]={fecha:mes===hoyStr().slice(0,7)?hoyStr():(fechaPagoFijo(g,mes)||mes+'-01'),por:sesion?sesion.nombre:''};
+  guardar();pintarGastos();
+}
+// Número rojo en la pestaña: fijos de este mes vencidos o que vencen hoy, sin marcar como pagados.
+function actualizarAvisoGastos(){
+  const tab=document.getElementById('tab-gastos');
+  if(!tab||typeof db==='undefined'||!db)return;
+  const mes=hoyStr().slice(0,7);
+  const n=gastosFijosDelMes(mes).filter(g=>estadoPagoFijo(g,mes).venc).length;
+  tab.innerHTML='Gastos'+(n?`<span class="tab-num" style="background:var(--danger);" title="Gastos fijos vencidos o que vencen hoy">${n}</span>`:'');
 }
 function gastosCambiarMes(n){gastosMes=mesSumar(gastosMes||hoyStr().slice(0,7),n);pintarGastos();}
 function pintarGastos(){
@@ -9159,8 +9195,10 @@ function pintarGastos(){
   if(!cont)return;
   if(!gastosMes)gastosMes=hoyStr().slice(0,7);
   const mes=gastosMes,desde=mes+'-01',hasta=finDeMes(mes);
-  const fijos=gastosFijosDelMes(mes).sort((a,b)=>(b.monto||0)-(a.monto||0));
+  const fijos=gastosFijosDelMes(mes).sort((a,b)=>(a.dia||99)-(b.dia||99)||(b.monto||0)-(a.monto||0));
   const totFijos=round2(fijos.reduce((s,g)=>s+(g.monto||0),0));
+  const porPagar=round2(fijos.filter(g=>estadoPagoFijo(g,mes).pend).reduce((s,g)=>s+(g.monto||0),0));
+  actualizarAvisoGastos();
   const dia=gastosDiaADia(desde,hasta);
   const totDia=round2(dia.reduce((s,g)=>s+g.monto,0));
   const anulados=(db.gastos||[]).filter(g=>g.anulado&&g.fecha>=desde&&g.fecha<=hasta)
@@ -9175,9 +9213,13 @@ function pintarGastos(){
   const maxCat=Math.max(1,...cats.map(c=>c[1]));
   const esMesActual=mes===hoyStr().slice(0,7);
   const kpi=(lbl,val,sub)=>`<div class="gs-kpi"><div class="lbl">${lbl}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
-  const filaFijo=g=>`<tr><td>${esc(g.concepto)}<small>${esc(g.categoria||'Otros')} · desde ${esc(nombreMes(g.desde).toLowerCase())}${g.hasta?' hasta '+esc(nombreMes(g.hasta).toLowerCase()):''}</small></td>
+  const filaFijo=g=>{
+    const e=estadoPagoFijo(g,mes),pagado=!e.pend;
+    return `<tr><td class="num">${g.dia?g.dia:'—'}</td><td>${esc(g.concepto)}<small>${esc(g.categoria||'Otros')} · desde ${esc(nombreMes(g.desde).toLowerCase())}${g.hasta?' hasta '+esc(nombreMes(g.hasta).toLowerCase()):''}</small>
+      <span class="chip ${e.cls}" style="margin-top:4px;display:inline-block;">${esc(e.txt)}</span></td>
     <td class="num">${money(g.monto)}</td>
-    <td class="gs-acc"><span class="gs-acc-btns"><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar monto</button><button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></span></td></tr>`;
+    <td class="gs-acc"><span class="gs-acc-btns"><button type="button" class="${pagado?'link-lead':'btn btn-chico'}" onclick="marcarPagoFijo('${g.id}','${mes}')">${pagado?'Desmarcar pago':'✓ Pagado'}</button><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar</button><button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></span></td></tr>`;
+  };
   const filaDia=g=>`<tr><td>${esc(fechaBonita(g.fecha))}</td>
     <td>${esc(g.concepto||'—')}<small>${esc(g.categoria||'Otros')}${g.nota?' · '+esc(g.nota):''}${g.creadoPor?' · '+esc(g.creadoPor):''}</small></td>
     <td class="num">${money(g.monto)}</td>
@@ -9190,7 +9232,7 @@ function pintarGastos(){
       ${esMesActual?'':'<button type="button" class="btn-secundario btn-chico" onclick="gastosMes=null;pintarGastos()">Ir al mes actual</button>'}
     </div>
     <div class="gs-kpis">
-      ${kpi('Gastos fijos',money(totFijos),fijos.length+(fijos.length===1?' gasto':' gastos')+' al mes')}
+      ${kpi('Gastos fijos',money(totFijos),fijos.length?(porPagar?money(porPagar)+' por pagar':'✓ todo pagado'):'0 gastos al mes')}
       ${kpi('Gastos del día a día',money(totDia),dia.length+(dia.length===1?' registro':' registros'))}
       ${kpi('Total del mes',money(round2(totFijos+totDia)),'')}
       ${kpi('Punto de equilibrio',peVal,peSub)}
@@ -9199,7 +9241,7 @@ function pintarGastos(){
       <div class="reportes-bloque">
         <div class="gs-cab"><h3 class="reportes-subtitulo">Gastos fijos mensuales</h3><button type="button" class="btn-secundario btn-chico" onclick="abrirFormGasto(true)">+ Gasto fijo</button></div>
         ${fijos.length===0?'<div class="gs-vacio">Todavía no hay gastos fijos. Anota aquí lo que se paga todos los meses (línea de teléfono, internet, Claude, sueldos...). Se anotan una sola vez y se cuentan solos cada mes.</div>'
-          :`<div class="gs-scroll"><table class="gs-tabla"><thead><tr><th>Concepto</th><th class="num">Al mes</th><th></th></tr></thead><tbody>${fijos.map(filaFijo).join('')}</tbody><tfoot><tr><td>Total</td><td class="num">${money(totFijos)}</td><td></td></tr></tfoot></table></div>`}
+          :`<div class="gs-scroll"><table class="gs-tabla"><thead><tr><th class="num">Día</th><th>Concepto</th><th class="num">Al mes</th><th></th></tr></thead><tbody>${fijos.map(filaFijo).join('')}</tbody><tfoot><tr><td></td><td>Total</td><td class="num">${money(totFijos)}</td><td></td></tr></tfoot></table></div>`}
       </div>
       <div class="reportes-bloque">${htmlPuntoEquilibrio(mes)}</div>
     </div>
@@ -9231,7 +9273,9 @@ function abrirFormGasto(fijo){
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;"><input type="checkbox" id="gs-fijo" ${fijo?'checked':''} style="width:auto;margin:0;" onchange="document.getElementById('gs-caja-fecha').classList.toggle('oculto',this.checked);document.getElementById('gs-caja-desde').classList.toggle('oculto',!this.checked);"> Se paga todos los meses (gasto fijo)</label>
       <div id="gs-caja-fecha" class="${fijo?'oculto':''}"><label>Fecha *</label><input type="date" id="gs-fecha" value="${fechaDef}"></div>
-      <div id="gs-caja-desde" class="${fijo?'':'oculto'}"><label>Desde qué mes *</label><input type="month" id="gs-desde" value="${mesVista}" placeholder="AAAA-MM">
+      <div id="gs-caja-desde" class="${fijo?'':'oculto'}"><div class="fila-2">
+        <div><label>Día de pago</label><input type="number" id="gs-dia" min="1" max="31" step="1" placeholder="Ej. 15"></div>
+        <div><label>Desde qué mes *</label><input type="month" id="gs-desde" value="${mesVista}" placeholder="AAAA-MM"></div></div>
         <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Se cuenta solo cada mes desde ahí, hasta que lo des de baja.</p></div>
       <label>Nota (opcional)</label>
       <input id="gs-nota">
@@ -9256,7 +9300,10 @@ function guardarGastoNuevo(ev){
   if(fijo){
     const desde=(document.getElementById('gs-desde').value||'').trim();
     if(!/^\d{4}-\d{2}$/.test(desde)){alert('Elige el mes desde el que se paga (por ejemplo 2026-11).');return false;}
-    db.gastosFijos.push({id:nuevoId(),concepto,categoria,monto,desde,hasta:null,nota,creadoPor:autor,creadoEn:new Date().toISOString()});
+    const diaTxt=(document.getElementById('gs-dia').value||'').trim();
+    const dia=diaTxt?parseInt(diaTxt,10):null;
+    if(diaTxt&&!(dia>=1&&dia<=31)){alert('El día de pago debe ser un número del 1 al 31.');return false;}
+    db.gastosFijos.push({id:nuevoId(),concepto,categoria,monto,dia,desde,hasta:null,pagos:{},nota,creadoPor:autor,creadoEn:new Date().toISOString()});
   }else{
     const fecha=document.getElementById('gs-fecha').value||hoyStr();
     if(categoria===CAT_PUBLICIDAD)db.gastosPauta.push({id:nuevoId(),fecha,monto,canal:concepto,nota,creadoPor:autor});
@@ -9299,12 +9346,14 @@ function abrirFormCambiarFijo(id){
   const mesDef=(gastosMes||hoyStr().slice(0,7))<g.desde?g.desde:(gastosMes||hoyStr().slice(0,7));
   abrirModal(`
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>Cambiar monto · ${esc(g.concepto)}</h3>
-    <p class="vacio" style="text-align:left;padding:4px 0 8px;">Hoy: ${money(g.monto)} al mes, desde ${esc(nombreMes(g.desde).toLowerCase())}. Los meses anteriores al cambio se quedan con el monto viejo.</p>
+    <h3>Cambiar · ${esc(g.concepto)}</h3>
+    <p class="vacio" style="text-align:left;padding:4px 0 8px;">Hoy: ${money(g.monto)} al mes${g.dia?', se paga el día '+g.dia:''}, desde ${esc(nombreMes(g.desde).toLowerCase())}. Si cambia el monto, los meses anteriores se quedan con el monto viejo.</p>
     <form onsubmit="return cambiarMontoFijo(event,'${g.id}')">
+      <label>Día de pago</label>
+      <input type="number" id="gs-nuevo-dia" min="1" max="31" step="1" value="${g.dia||''}" placeholder="Ej. 15">
       <div class="fila-2">
-        <div><label>Nuevo monto (S/) *</label><input type="number" id="gs-nuevo-monto" step="any" min="0.01" required value="${g.monto}"></div>
-        <div><label>Desde qué mes *</label><input type="month" id="gs-nuevo-desde" value="${mesDef}" placeholder="AAAA-MM"></div>
+        <div><label>Monto al mes (S/) *</label><input type="number" id="gs-nuevo-monto" step="any" min="0.01" required value="${g.monto}"></div>
+        <div><label>Desde qué mes cambia el monto</label><input type="month" id="gs-nuevo-desde" value="${mesDef}" placeholder="AAAA-MM"></div>
       </div>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
@@ -9318,14 +9367,24 @@ function cambiarMontoFijo(ev,id){
   if(!g){cerrarModal();return false;}
   const monto=round2(parseFloat(document.getElementById('gs-nuevo-monto').value)||0);
   const desde=(document.getElementById('gs-nuevo-desde').value||'').trim();
+  const diaTxt=(document.getElementById('gs-nuevo-dia').value||'').trim();
+  const dia=diaTxt?parseInt(diaTxt,10):null;
+  if(diaTxt&&!(dia>=1&&dia<=31)){alert('El día de pago debe ser un número del 1 al 31.');return false;}
   if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
-  if(!/^\d{4}-\d{2}$/.test(desde)){alert('Elige el mes desde el que cambia (por ejemplo 2026-11).');return false;}
-  if(g.hasta&&desde>g.hasta){alert('Ese mes es posterior a la baja de este gasto. Registra un gasto fijo nuevo.');return false;}
-  if(desde<=g.desde){g.monto=monto;} // corrige desde el inicio: no hay meses viejos que cuidar
-  else{
-    const autor=sesion?sesion.nombre:'';
-    db.gastosFijos.push({id:nuevoId(),concepto:g.concepto,categoria:g.categoria,monto,desde,hasta:g.hasta||null,nota:g.nota||'',reemplazaA:g.id,creadoPor:autor,creadoEn:new Date().toISOString()});
-    g.hasta=mesSumar(desde,-1);
+  // El día de pago se corrige en el mismo registro (no cambia lo que costó cada mes).
+  g.dia=dia;
+  if(monto!==round2(g.monto)){
+    if(!/^\d{4}-\d{2}$/.test(desde)){alert('Elige el mes desde el que cambia el monto (por ejemplo 2026-11).');return false;}
+    if(g.hasta&&desde>g.hasta){alert('Ese mes es posterior a la baja de este gasto. Registra un gasto fijo nuevo.');return false;}
+    if(desde<=g.desde){g.monto=monto;} // corrige desde el inicio: no hay meses viejos que cuidar
+    else{
+      const autor=sesion?sesion.nombre:'';
+      // los pagos ya marcados desde ese mes pasan al registro nuevo
+      const pagosNuevo={};
+      Object.keys(g.pagos||{}).forEach(k=>{if(k>=desde){pagosNuevo[k]=g.pagos[k];delete g.pagos[k];}});
+      db.gastosFijos.push({id:nuevoId(),concepto:g.concepto,categoria:g.categoria,monto,dia,desde,hasta:g.hasta||null,pagos:pagosNuevo,nota:g.nota||'',reemplazaA:g.id,creadoPor:autor,creadoEn:new Date().toISOString()});
+      g.hasta=mesSumar(desde,-1);
+    }
   }
   guardar();cerrarModal();pintarGastos();
   return false;
