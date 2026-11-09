@@ -307,6 +307,47 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-neto .rn-val{font-size:16px;font-weight:600;}
 .reportes-neto .rn-op{display:flex;align-items:center;font-size:16px;color:var(--muted);padding:0 2px;}
 @media(max-width:640px){.reportes-neto .rn-op{display:none;}.reportes-neto .rn-item{flex-basis:100%;}}
+/* GASTOS (2026-11-09): pestaña Gastos + Estado de resultados y Punto de equilibrio en Reportes */
+.gs-mes{display:flex;align-items:center;gap:8px;margin:0 0 12px;flex-wrap:wrap;}
+.gs-mes b{font-size:15px;min-width:150px;text-align:center;}
+.gs-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+@media(max-width:760px){.gs-kpis{grid-template-columns:repeat(2,1fr);gap:8px;}}
+.gs-kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;min-width:0;}
+.gs-kpi .lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.gs-kpi .val{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;}
+.gs-kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.gs-bloques{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:900px){.gs-bloques{grid-template-columns:1fr;}}
+.gs-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.gs-cab .reportes-subtitulo{margin:0;}
+.gs-scroll{overflow-x:auto;}
+.gs-tabla{width:100%;border-collapse:collapse;font-size:13px;}
+.gs-tabla th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border-light);}
+.gs-tabla td{padding:7px 8px;border-bottom:1px solid var(--border-light);vertical-align:top;}
+.gs-tabla .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.gs-tabla .gs-acc{white-space:nowrap;text-align:right;}
+.gs-tabla small{display:block;color:var(--muted);font-size:11.5px;}
+.gs-tabla tfoot td{font-weight:700;border-bottom:none;}
+.gs-cat{display:grid;grid-template-columns:minmax(100px,180px) 1fr 84px;align-items:center;gap:8px;font-size:12.5px;margin:6px 0;}
+.gs-cat span:last-child{text-align:right;font-variant-numeric:tabular-nums;}
+.gs-cat-pista{background:var(--bg-soft);border-radius:4px;height:10px;overflow:hidden;}
+.gs-cat-barra{display:block;height:100%;background:var(--primary);border-radius:4px;}
+.gs-vacio{color:var(--muted);font-size:13px;padding:8px 0;}
+.gs-anulados{margin-top:10px;font-size:12.5px;color:var(--muted);}
+.er-fila{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.er-fila small{display:block;font-size:11px;color:var(--muted);}
+.er-fila b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:500;}
+.er-fila.er-sub span,.er-fila.er-sub b{font-weight:700;}
+.er-fila.er-total{border-bottom:none;border-top:2px solid var(--border);margin-top:2px;font-size:15px;}
+.er-fila.er-total span,.er-fila.er-total b{font-weight:700;}
+.er-fila.er-neg b{color:var(--danger);}
+.er-nota{font-size:12px;color:var(--muted);margin:-2px 0 6px;}
+.pe-num{font-size:28px;font-weight:700;letter-spacing:-.01em;margin-top:4px;}
+.pe-txt{font-size:13px;color:var(--muted);margin:2px 0 10px;}
+.pe-barra{background:var(--bg-soft);border:1px solid var(--border-light);border-radius:6px;height:14px;overflow:hidden;}
+.pe-barra span{display:block;height:100%;background:var(--warning);}
+.pe-barra.ok span{background:var(--success);}
+.pe-llevas{font-size:12.5px;margin-top:6px;}
 /* Sección 14: ranking 01/02/03 en Más vendidos, mismo orden/cálculo de topProductos. */
 .reportes-mas-vendidos{list-style:none;margin:0;padding:0;font-size:13px;}
 .reportes-mas-vendidos li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);}
@@ -990,6 +1031,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       <button id="tab-stock" onclick="irA('stock')">Stock</button>
       <button id="tab-proveedores" onclick="irA('proveedores')">Proveedores</button>
       <button id="tab-tareas" onclick="irA('tareas')">Tareas</button>
+      <button id="tab-gastos" onclick="irA('gastos')">Gastos</button>
       <button id="tab-reportes" onclick="irA('reportes')">Reportes</button>
       <button id="tab-config" onclick="irA('config')">Config</button>
     </nav>
@@ -1134,6 +1176,20 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
         </div>
       </div>
       <div id="tableroTareas"></div>
+    </section>
+
+    <!-- ===== GASTOS (2026-11-09) ===== -->
+    <section class="sec" id="sec-gastos">
+      <div class="page-header">
+        <div class="page-title-row">
+          <div>
+            <h2 class="page-title">Gastos</h2>
+            <p class="page-description">Lo que cuesta mantener Zona Bariátrica funcionando, mes a mes.</p>
+          </div>
+          <div class="page-actions"><button class="btn" onclick="abrirFormGasto(false)">+ Registrar gasto</button></div>
+        </div>
+      </div>
+      <div id="gastosContenido"></div>
     </section>
 
     <!-- ===== REPORTES ===== -->
@@ -1420,6 +1476,9 @@ function dbVacia(){
     // publicidad por período en Reportes. config.gastoPauta (global, sin fecha) se conserva tal
     // cual por compatibilidad histórica, pero deja de usarse en reportes por período.
     gastosPauta:[],
+    // GASTOS (2026-11-09): gastos sueltos con fecha (db.gastos) y gastos fijos mensuales
+    // (db.gastosFijos). Ver bloque "GASTOS" más abajo.
+    gastos:[], gastosFijos:[],
     usuarios:[
       {id:'u-roberto',nombre:'Roberto',pin:'1234',color:'#15557f',rol:'admin'},
       {id:'u-genesis',nombre:'Genesis',pin:'4321',color:'#8e3b8e',rol:'admin'},
@@ -2190,7 +2249,7 @@ function intentarAutoLogin(){
 }
 
 /* ================= NAVEGACIÓN ================= */
-const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','reportes','config'];
+const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','gastos','reportes','config'];
 function irA(sec){
   seccionActual=sec;
   SECCIONES.forEach(s=>{
@@ -2203,6 +2262,7 @@ function irA(sec){
   if(sec==='stock')pintarStock();
   if(sec==='proveedores')pintarProveedores();
   if(sec==='tareas')pintarTareas();
+  if(sec==='gastos')pintarGastos();
   if(sec==='reportes')cambiarVistaReportes(reportesVistaActual);
   if(sec==='config')pintarConfig();
 }
@@ -8389,8 +8449,14 @@ function metricasReportes(desde,hasta,primeraCompra){
   // Sección 15 / BLOQUE 5: pauta fechada del período, solo gastos ACTIVOS (!g.anulado). Es gasto
   // 100% de ZB: SOLO reduce la ganancia neta (puede quedar negativa), no toca nada más.
   const pauta=round2((db.gastosPauta||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0));
+  // GASTOS (2026-11-09): además de la pauta, la ganancia neta descuenta los gastos sueltos del
+  // período y los gastos fijos mensuales (prorrateados por días si el período no es un mes entero).
+  const otrosGastos=totalGastosSueltos(desde,hasta);
+  const fijos=gastosFijosPeriodo(desde,hasta);
+  const cobradoAparte=round2(pedidos.reduce((s,p)=>s+(Number(p.delivery)||0)+(Number(p.embalaje)||0)+(Number(p.recargoTarjeta)||0),0));
   return{
-    pedidos,ingresos,rentab,gananciaZB,pauta,gananciaNeta:round2(gananciaZB-pauta),
+    pedidos,ingresos,rentab,gananciaZB,pauta,otrosGastos,fijos,cobradoAparte,
+    gananciaNeta:round2(gananciaZB-pauta-otrosGastos-fijos),
     hayMarcaSinHistoria:rentab.some(f=>f.huboItemNoCalculable),
     totalLeads:leads.length,convertidos,
     conversion:leads.length?convertidos/leads.length*100:null,
@@ -8843,6 +8909,8 @@ function pintarReportes(){
       ${tarjetaKPI('conversion',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion))}
     </div>
 
+    ${htmlEstadoResultados(M,desde,hasta)}
+
     <div class="rg-card">
       <div class="rg-cabecera">
         <div><h3 class="rg-titulo" id="rgTitulo"></h3><div class="rg-sub">Toca cualquier indicador de arriba para verlo aquí · pasa el cursor para ver cada ${unidadGran}</div></div>
@@ -8975,6 +9043,324 @@ function htmlVentasPorZona(hasta){
     +'<div class="rz-controles"><div class="rp-seg" role="group" aria-label="Zona">'+botonZona('ambos','Ambos')+botonZona('Lima','Lima')+botonZona('Provincia','Provincia')+'</div><div class="rp-seg" role="group" aria-label="Medir en">'+boton('soles','Soles')+boton('pedidos','Pedidos')+'</div>'
     +'<select onchange="rzMeses=Number(this.value);pintarReportes()" aria-label="Meses a comparar">'+opciones+'</select></div></div>'
     +tabla+'</div>';
+}
+/* ================= GASTOS (2026-11-09) =================
+   Pedido de Roberto: un lugar para anotar TODOS los gastos de ZB (no solo la pauta), ver si el
+   negocio gana después de pagarlos (Estado de resultados) y el punto de equilibrio.
+   - db.gastosFijos: se repiten cada mes (línea, internet, sueldos...). Se anotan UNA vez con su
+     monto mensual y el mes desde el que corren ('AAAA-MM'); 'hasta' = último mes que se paga
+     (null = sigue). Cambiar el monto cierra el registro viejo y abre uno nuevo, así los meses
+     pasados no cambian. 'eliminado' = se anotó por error (no cuenta nunca).
+   - db.gastos: gastos sueltos con fecha. Se ANULAN con motivo (no se borran), igual que la pauta.
+   - La publicidad sigue en db.gastosPauta (alimenta Reportes desde antes): desde esta pestaña se
+     registra/anula con la categoría "Publicidad" y las funciones de siempre.
+   Ganancia neta ZB = Ganancia ZB − pauta − gastos sueltos − gastos fijos del período. */
+const CATEGORIAS_GASTO=['Envíos y delivery','Embalaje','Comisiones de pago','Teléfono e internet','Software y web','Sueldos y pagos al equipo','Alquiler y servicios','Movilidad','Impuestos y trámites','Otros'];
+const CAT_PUBLICIDAD='Publicidad';
+let gastosMes=null; // 'AAAA-MM' que se ve en la pestaña Gastos (solo UI)
+function mesDeFecha(f){return String(f||'').slice(0,7);}
+function diasDelMes(mes){const [a,m]=mes.split('-').map(Number);return new Date(a,m,0).getDate();}
+function finDeMes(mes){return mes+'-'+String(diasDelMes(mes)).padStart(2,'0');}
+function mesSumar(mes,n){const [a,m]=mes.split('-').map(Number);const d=new Date(a,m-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function nombreMes(mes){const [a,m]=mes.split('-').map(Number);const t=new Date(a,m-1,1).toLocaleDateString('es-PE',{month:'long',year:'numeric'});return t.charAt(0).toUpperCase()+t.slice(1);}
+function fijoActivoEnMes(g,mes){return !g.eliminado&&!!g.desde&&g.desde<=mes&&(!g.hasta||g.hasta>=mes);}
+function gastosFijosDelMes(mes){return (db.gastosFijos||[]).filter(g=>fijoActivoEnMes(g,mes));}
+function totalFijosMes(mes){return round2(gastosFijosDelMes(mes).reduce((s,g)=>s+(g.monto||0),0));}
+// Fijos de un período cualquiera: cada mes cuenta en proporción a los días del período que caen
+// en él (un mes completo = su monto entero).
+function gastosFijosPeriodo(desde,hasta){
+  if(!desde||!hasta||desde>hasta||!(db.gastosFijos||[]).length)return 0;
+  let total=0,mes=mesDeFecha(desde);
+  const primero=mes,ultimo=mesDeFecha(hasta);
+  while(mes<=ultimo){
+    const dm=diasDelMes(mes);
+    const ini=mes===primero?Number(desde.slice(8,10)):1;
+    const fin=mes===ultimo?Number(hasta.slice(8,10)):dm;
+    const t=totalFijosMes(mes);
+    if(t)total+=t*(fin-ini+1)/dm;
+    mes=mesSumar(mes,1);
+  }
+  return round2(total);
+}
+function totalGastosSueltos(desde,hasta){
+  return round2((db.gastos||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta).reduce((s,g)=>s+(g.monto||0),0));
+}
+// Gastos del día a día de un período: sueltos + pauta, en un solo formato para listarlos.
+function gastosDiaADia(desde,hasta){
+  const pauta=(db.gastosPauta||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta)
+    .map(g=>({id:g.id,origen:'pauta',fecha:g.fecha,monto:g.monto||0,categoria:CAT_PUBLICIDAD,concepto:g.canal||'Publicidad',nota:g.nota||'',creadoPor:g.creadoPor||''}));
+  const sueltos=(db.gastos||[]).filter(g=>!g.anulado&&g.fecha>=desde&&g.fecha<=hasta)
+    .map(g=>Object.assign({origen:'gasto'},g,{monto:g.monto||0}));
+  return pauta.concat(sueltos).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+// Punto de equilibrio de un mes: gastos fijos del mes ÷ lo que deja libre cada pedido (ganancia
+// ZB menos publicidad y gastos sueltos), con el promedio de los últimos 3 meses (más estable que
+// un mes a medias).
+function datosPuntoEquilibrio(mes){
+  const fijos=totalFijosMes(mes);
+  const hoy=hoyStr();
+  let hasta=finDeMes(mes);if(hasta>hoy)hasta=hoy;
+  const desde=mesSumar(mes,-2)+'-01';
+  const ped=desde<=hasta?pedidosFacturablesEntre(desde,hasta):[];
+  const r=rentabilidadPorMarca(ped);
+  const gan=r.reduce((s,f)=>s+f.gananciaZB,0)-(r.descuentosNoAtribuibles||0);
+  const variables=gastosDiaADia(desde,hasta).reduce((s,g)=>s+g.monto,0);
+  const n=ped.length;
+  const margen=n?round2((gan-variables)/n):null;
+  const ticket=n?round2(ped.reduce((s,p)=>s+(Number(p.total)||0),0)/n):null;
+  const necesarios=fijos>0&&margen>0?Math.ceil(fijos/margen):null;
+  const pedidosMes=mes+'-01'<=hoy?pedidosFacturablesEntre(mes+'-01',finDeMes(mes)).length:0;
+  return{fijos,margen,ticket,necesarios,pedidosMes,n,desde,hasta};
+}
+function htmlPuntoEquilibrio(mes){
+  const d=datosPuntoEquilibrio(mes);
+  let cuerpo;
+  if(!d.fijos)cuerpo=`<div class="gs-vacio">Anota los gastos fijos del mes (línea, internet, sueldos...) en la pestaña <a href="#" onclick="irA('gastos');return false;">Gastos</a> y aquí verás cuántos pedidos necesitas para no perder plata.</div>`;
+  else if(d.margen==null)cuerpo='<div class="gs-vacio">Todavía no hay ventas para calcularlo.</div>';
+  else if(d.margen<=0)cuerpo=`<div class="pe-num" style="color:var(--danger);">No se llega</div><div class="pe-txt">Hoy cada pedido deja ${money(d.margen)} después de publicidad y gastos del día a día, así que ninguna cantidad de pedidos cubre los ${money(d.fijos)} de gastos fijos. Hay que subir el margen o bajar gastos.</div>`;
+  else{
+    const ok=d.pedidosMes>=d.necesarios;
+    const pct=Math.min(100,d.pedidosMes/d.necesarios*100);
+    cuerpo=`<div class="pe-num">${d.necesarios} pedidos</div>
+      <div class="pe-txt">al mes (≈ ${moneyEntero(d.necesarios*d.ticket)} en ventas) para cubrir ${money(d.fijos)} de gastos fijos. Cada pedido deja en promedio ${money(d.margen)} libres (calculado con los ${d.n} pedidos del ${esc(rangoTexto(d.desde,d.hasta))}).</div>
+      <div class="pe-barra${ok?' ok':''}" role="img" aria-label="${d.pedidosMes} de ${d.necesarios} pedidos"><span style="width:${pct.toFixed(1)}%;"></span></div>
+      <div class="pe-llevas">${ok?'✓ ':''}En ${esc(nombreMes(mes).toLowerCase())} llevas <b>${d.pedidosMes}</b> de ${d.necesarios}${ok?' — ya cubriste los gastos fijos':' — faltan '+(d.necesarios-d.pedidosMes)}</div>`;
+  }
+  return `<h3 class="reportes-subtitulo">Punto de equilibrio · ${esc(nombreMes(mes))}</h3>${cuerpo}`;
+}
+// Bloque de Reportes: Estado de resultados del período + punto de equilibrio del mes de "Hasta".
+function htmlEstadoResultados(M,desde,hasta){
+  const costoVenta=round2(M.ingresos-M.cobradoAparte-M.gananciaZB);
+  const linea=(lbl,val,cls,sub)=>`<div class="er-fila ${cls||''}"><span>${lbl}${sub?`<small>${sub}</small>`:''}</span><b>${val}</b></div>`;
+  const parcial=!desde||!hasta||desde.slice(8)!=='01'||hasta!==finDeMes(mesDeFecha(hasta))||mesDeFecha(desde)!==mesDeFecha(hasta);
+  return `<div class="reportes-fila-bloques" style="margin-top:0;">
+    <div class="reportes-bloque">
+      <h3 class="reportes-subtitulo">Estado de resultados</h3>
+      <div class="er-nota">${esc(rangoTexto(desde,hasta))}</div>
+      ${linea('Ventas',money(M.ingresos),'','lo cobrado a los clientes')}
+      ${linea('− Delivery, embalaje y recargo cobrados',money(M.cobradoAparte),'','se van en el envío y la pasarela')}
+      ${linea('− Costo de productos y parte de socios',money(costoVenta),'','incluye descuentos')}
+      ${linea('= Ganancia bruta ZB',money(M.gananciaZB),'er-sub')}
+      ${linea('− Publicidad',money(M.pauta))}
+      ${linea('− Otros gastos del día a día',money(M.otrosGastos))}
+      ${linea('− Gastos fijos',money(M.fijos),'',parcial&&M.fijos?'proporcional a los días del período':'')}
+      ${linea('= Ganancia neta ZB',money(M.gananciaNeta),'er-total'+(M.gananciaNeta<0?' er-neg':''))}
+      <div style="margin-top:10px;"><button type="button" class="btn-secundario btn-chico" onclick="irA('gastos')">Ver y anotar gastos</button></div>
+    </div>
+    <div class="reportes-bloque">${htmlPuntoEquilibrio(mesDeFecha(hasta))}</div>
+  </div>`;
+}
+function gastosCambiarMes(n){gastosMes=mesSumar(gastosMes||hoyStr().slice(0,7),n);pintarGastos();}
+function pintarGastos(){
+  const cont=document.getElementById('gastosContenido');
+  if(!cont)return;
+  if(!gastosMes)gastosMes=hoyStr().slice(0,7);
+  const mes=gastosMes,desde=mes+'-01',hasta=finDeMes(mes);
+  const fijos=gastosFijosDelMes(mes).sort((a,b)=>(b.monto||0)-(a.monto||0));
+  const totFijos=round2(fijos.reduce((s,g)=>s+(g.monto||0),0));
+  const dia=gastosDiaADia(desde,hasta);
+  const totDia=round2(dia.reduce((s,g)=>s+g.monto,0));
+  const anulados=(db.gastos||[]).filter(g=>g.anulado&&g.fecha>=desde&&g.fecha<=hasta)
+    .concat((db.gastosPauta||[]).filter(g=>g.anulado&&g.fecha>=desde&&g.fecha<=hasta).map(g=>Object.assign({},g,{concepto:g.canal||'Publicidad',categoria:CAT_PUBLICIDAD})));
+  const pe=datosPuntoEquilibrio(mes);
+  const peVal=!pe.fijos||pe.margen==null?'—':pe.margen<=0?'No se llega':pe.necesarios+' pedidos';
+  const peSub=pe.necesarios?'llevas '+pe.pedidosMes:(!pe.fijos?'faltan los gastos fijos':'');
+  const porCat={};
+  fijos.forEach(g=>{const c=g.categoria||'Otros';porCat[c]=(porCat[c]||0)+(g.monto||0);});
+  dia.forEach(g=>{const c=g.categoria||'Otros';porCat[c]=(porCat[c]||0)+g.monto;});
+  const cats=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+  const maxCat=Math.max(1,...cats.map(c=>c[1]));
+  const esMesActual=mes===hoyStr().slice(0,7);
+  const kpi=(lbl,val,sub)=>`<div class="gs-kpi"><div class="lbl">${lbl}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
+  const filaFijo=g=>`<tr><td>${esc(g.concepto)}<small>${esc(g.categoria||'Otros')} · desde ${esc(nombreMes(g.desde).toLowerCase())}${g.hasta?' hasta '+esc(nombreMes(g.hasta).toLowerCase()):''}</small></td>
+    <td class="num">${money(g.monto)}</td>
+    <td class="gs-acc"><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar monto</button> · <button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></td></tr>`;
+  const filaDia=g=>`<tr><td>${esc(fechaBonita(g.fecha))}</td>
+    <td>${esc(g.concepto||'—')}<small>${esc(g.categoria||'Otros')}${g.nota?' · '+esc(g.nota):''}${g.creadoPor?' · '+esc(g.creadoPor):''}</small></td>
+    <td class="num">${money(g.monto)}</td>
+    <td class="gs-acc"><button type="button" class="link-lead" onclick="${g.origen==='pauta'?`abrirFormAnularGastoPauta('${g.id}')`:`abrirFormAnularGasto('${g.id}')`}">Anular</button></td></tr>`;
+  cont.innerHTML=`
+    <div class="gs-mes">
+      <button type="button" class="btn-secundario btn-chico" onclick="gastosCambiarMes(-1)" aria-label="Mes anterior">‹</button>
+      <b>${esc(nombreMes(mes))}</b>
+      <button type="button" class="btn-secundario btn-chico" onclick="gastosCambiarMes(1)" aria-label="Mes siguiente">›</button>
+      ${esMesActual?'':'<button type="button" class="btn-secundario btn-chico" onclick="gastosMes=null;pintarGastos()">Ir al mes actual</button>'}
+    </div>
+    <div class="gs-kpis">
+      ${kpi('Gastos fijos',money(totFijos),fijos.length+(fijos.length===1?' gasto':' gastos')+' al mes')}
+      ${kpi('Gastos del día a día',money(totDia),dia.length+(dia.length===1?' registro':' registros'))}
+      ${kpi('Total del mes',money(round2(totFijos+totDia)),'')}
+      ${kpi('Punto de equilibrio',peVal,peSub)}
+    </div>
+    <div class="gs-bloques">
+      <div class="reportes-bloque">
+        <div class="gs-cab"><h3 class="reportes-subtitulo">Gastos fijos mensuales</h3><button type="button" class="btn-secundario btn-chico" onclick="abrirFormGasto(true)">+ Gasto fijo</button></div>
+        ${fijos.length===0?'<div class="gs-vacio">Todavía no hay gastos fijos. Anota aquí lo que se paga todos los meses (línea de teléfono, internet, Claude, sueldos...). Se anotan una sola vez y se cuentan solos cada mes.</div>'
+          :`<div class="gs-scroll"><table class="gs-tabla"><thead><tr><th>Concepto</th><th class="num">Al mes</th><th></th></tr></thead><tbody>${fijos.map(filaFijo).join('')}</tbody><tfoot><tr><td>Total</td><td class="num">${money(totFijos)}</td><td></td></tr></tfoot></table></div>`}
+      </div>
+      <div class="reportes-bloque">${htmlPuntoEquilibrio(mes)}</div>
+    </div>
+    <div class="reportes-bloque" style="margin-bottom:12px;">
+      <div class="gs-cab"><h3 class="reportes-subtitulo">Gastos del día a día</h3><button type="button" class="btn-secundario btn-chico" onclick="abrirFormGasto(false)">+ Registrar gasto</button></div>
+      ${dia.length===0?'<div class="gs-vacio">Sin gastos registrados este mes. Aquí van los gastos sueltos: envíos que paga ZB, cajas y embalaje, comisiones, publicidad, movilidad...</div>'
+        :`<div class="gs-scroll"><table class="gs-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Monto</th><th></th></tr></thead><tbody>${dia.map(filaDia).join('')}</tbody><tfoot><tr><td></td><td>Total</td><td class="num">${money(totDia)}</td><td></td></tr></tfoot></table></div>`}
+      ${anulados.length?`<details class="gs-anulados"><summary>${anulados.length} ${anulados.length===1?'gasto anulado':'gastos anulados'} (no cuentan)</summary>
+        ${anulados.map(g=>`<div style="padding:4px 0;">${esc(fechaBonita(g.fecha))} · ${esc(g.concepto||'—')} · ${money(g.monto)} — ${esc(g.motivoAnulacion||'')}${g.anuladoPor?' ('+esc(g.anuladoPor)+')':''}</div>`).join('')}</details>`:''}
+    </div>
+    <div class="reportes-bloque">
+      <h3 class="reportes-subtitulo">En qué se va la plata</h3>
+      ${cats.length===0?'<div class="gs-vacio">Sin gastos este mes.</div>':cats.map(([c,v])=>`<div class="gs-cat"><span>${esc(c)}</span><span class="gs-cat-pista"><span class="gs-cat-barra" style="width:${(v/maxCat*100).toFixed(1)}%;"></span></span><span>${money(v)}</span></div>`).join('')}
+    </div>`;
+}
+function abrirFormGasto(fijo){
+  const mesVista=gastosMes||hoyStr().slice(0,7);
+  const fechaDef=mesVista===hoyStr().slice(0,7)?hoyStr():mesVista+'-01';
+  const opts=[CAT_PUBLICIDAD,...CATEGORIAS_GASTO].map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>${fijo?'Nuevo gasto fijo mensual':'Registrar gasto'}</h3>
+    <form onsubmit="return guardarGastoNuevo(event)">
+      <label>¿En qué se gastó? *</label>
+      <input id="gs-concepto" required placeholder="Ej. Línea de teléfono, envío Shalom, cajas">
+      <div class="fila-2">
+        <div><label>Monto (S/) *</label><input type="number" id="gs-monto" step="any" min="0.01" required></div>
+        <div><label>Categoría *</label><select id="gs-cat">${opts}</select></div>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;"><input type="checkbox" id="gs-fijo" ${fijo?'checked':''} style="width:auto;margin:0;" onchange="document.getElementById('gs-caja-fecha').classList.toggle('oculto',this.checked);document.getElementById('gs-caja-desde').classList.toggle('oculto',!this.checked);"> Se paga todos los meses (gasto fijo)</label>
+      <div id="gs-caja-fecha" class="${fijo?'oculto':''}"><label>Fecha *</label><input type="date" id="gs-fecha" value="${fechaDef}"></div>
+      <div id="gs-caja-desde" class="${fijo?'':'oculto'}"><label>Desde qué mes *</label><input type="month" id="gs-desde" value="${mesVista}" placeholder="AAAA-MM">
+        <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Se cuenta solo cada mes desde ahí, hasta que lo des de baja.</p></div>
+      <label>Nota (opcional)</label>
+      <input id="gs-nota">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+  setTimeout(()=>{const el=document.getElementById('gs-concepto');if(el)el.focus();},50);
+}
+function guardarGastoNuevo(ev){
+  ev.preventDefault();
+  const concepto=(document.getElementById('gs-concepto').value||'').trim();
+  const monto=round2(parseFloat(document.getElementById('gs-monto').value)||0);
+  const categoria=document.getElementById('gs-cat').value||'Otros';
+  const nota=(document.getElementById('gs-nota').value||'').trim();
+  const fijo=document.getElementById('gs-fijo').checked;
+  const autor=sesion?sesion.nombre:'';
+  if(!concepto){alert('Escribe en qué se gastó.');return false;}
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
+  if(fijo){
+    const desde=(document.getElementById('gs-desde').value||'').trim();
+    if(!/^\d{4}-\d{2}$/.test(desde)){alert('Elige el mes desde el que se paga (por ejemplo 2026-11).');return false;}
+    db.gastosFijos.push({id:nuevoId(),concepto,categoria,monto,desde,hasta:null,nota,creadoPor:autor,creadoEn:new Date().toISOString()});
+  }else{
+    const fecha=document.getElementById('gs-fecha').value||hoyStr();
+    if(categoria===CAT_PUBLICIDAD)db.gastosPauta.push({id:nuevoId(),fecha,monto,canal:concepto,nota,creadoPor:autor});
+    else db.gastos.push({id:nuevoId(),fecha,monto,categoria,concepto,nota,creadoPor:autor,creadoEn:new Date().toISOString()});
+    gastosMes=mesDeFecha(fecha);
+  }
+  guardar();cerrarModal();pintarGastos();
+  return false;
+}
+function abrirFormAnularGasto(id){
+  const g=(db.gastos||[]).find(x=>x.id===id);
+  if(!g)return;
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Anular gasto</h3>
+    <p class="vacio" style="text-align:left;padding:4px 0 8px;">${fechaBonita(g.fecha)} · ${esc(g.concepto)} · ${money(g.monto)}</p>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;font-size:12.5px;">El registro no se elimina: queda visible como anulado y deja de contar. Para corregir un monto, anula este y registra el correcto.</p>
+    <form onsubmit="return anularGasto(event,'${g.id}')">
+      <label>Motivo de la anulación *</label>
+      <input id="gs-motivo-anul" required placeholder="Ej. monto mal tipeado / lo anoté dos veces">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn-peligro">Anular gasto</button>
+      </div>
+    </form>`);
+}
+function anularGasto(ev,id){
+  ev.preventDefault();
+  const motivo=(document.getElementById('gs-motivo-anul').value||'').trim();
+  if(!motivo){alert('El motivo de la anulación es obligatorio.');return false;}
+  const g=(db.gastos||[]).find(x=>x.id===id);
+  if(!g){cerrarModal();return false;}
+  g.anulado=true;g.anuladoPor=sesion?sesion.nombre:'';g.anuladoFecha=hoyStr();g.motivoAnulacion=motivo;
+  guardar();cerrarModal();pintarGastos();
+  return false;
+}
+function abrirFormCambiarFijo(id){
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g)return;
+  const mesDef=(gastosMes||hoyStr().slice(0,7))<g.desde?g.desde:(gastosMes||hoyStr().slice(0,7));
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Cambiar monto · ${esc(g.concepto)}</h3>
+    <p class="vacio" style="text-align:left;padding:4px 0 8px;">Hoy: ${money(g.monto)} al mes, desde ${esc(nombreMes(g.desde).toLowerCase())}. Los meses anteriores al cambio se quedan con el monto viejo.</p>
+    <form onsubmit="return cambiarMontoFijo(event,'${g.id}')">
+      <div class="fila-2">
+        <div><label>Nuevo monto (S/) *</label><input type="number" id="gs-nuevo-monto" step="any" min="0.01" required value="${g.monto}"></div>
+        <div><label>Desde qué mes *</label><input type="month" id="gs-nuevo-desde" value="${mesDef}" placeholder="AAAA-MM"></div>
+      </div>
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn">Guardar</button>
+      </div>
+    </form>`);
+}
+function cambiarMontoFijo(ev,id){
+  ev.preventDefault();
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g){cerrarModal();return false;}
+  const monto=round2(parseFloat(document.getElementById('gs-nuevo-monto').value)||0);
+  const desde=(document.getElementById('gs-nuevo-desde').value||'').trim();
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
+  if(!/^\d{4}-\d{2}$/.test(desde)){alert('Elige el mes desde el que cambia (por ejemplo 2026-11).');return false;}
+  if(g.hasta&&desde>g.hasta){alert('Ese mes es posterior a la baja de este gasto. Registra un gasto fijo nuevo.');return false;}
+  if(desde<=g.desde){g.monto=monto;} // corrige desde el inicio: no hay meses viejos que cuidar
+  else{
+    const autor=sesion?sesion.nombre:'';
+    db.gastosFijos.push({id:nuevoId(),concepto:g.concepto,categoria:g.categoria,monto,desde,hasta:g.hasta||null,nota:g.nota||'',reemplazaA:g.id,creadoPor:autor,creadoEn:new Date().toISOString()});
+    g.hasta=mesSumar(desde,-1);
+  }
+  guardar();cerrarModal();pintarGastos();
+  return false;
+}
+function abrirFormBajaFijo(id){
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g)return;
+  const mesDef=(gastosMes||hoyStr().slice(0,7))<g.desde?g.desde:(gastosMes||hoyStr().slice(0,7));
+  abrirModal(`
+    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
+    <h3>Dar de baja · ${esc(g.concepto)}</h3>
+    <p class="vacio" style="text-align:left;padding:4px 0 8px;">${money(g.monto)} al mes desde ${esc(nombreMes(g.desde).toLowerCase())}. Los meses en que sí se pagó siguen contando.</p>
+    <form onsubmit="return darDeBajaFijo(event,'${g.id}')">
+      <label>Último mes que se pagó *</label>
+      <input type="month" id="gs-baja-hasta" value="${mesDef}" placeholder="AAAA-MM">
+      <div class="acciones-modal">
+        <button type="button" class="btn-secundario" onclick="eliminarFijoPorError('${g.id}')">Lo anoté por error: quitarlo</button>
+        <button class="btn-peligro">Dar de baja</button>
+      </div>
+    </form>`);
+}
+function darDeBajaFijo(ev,id){
+  ev.preventDefault();
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g){cerrarModal();return false;}
+  const hasta=(document.getElementById('gs-baja-hasta').value||'').trim();
+  if(!/^\d{4}-\d{2}$/.test(hasta)){alert('Elige el último mes que se pagó (por ejemplo 2026-11).');return false;}
+  if(hasta<g.desde){alert('Ese mes es anterior a cuando empezó este gasto. Si nunca se pagó, usa "Lo anoté por error".');return false;}
+  g.hasta=hasta;g.bajaPor=sesion?sesion.nombre:'';g.bajaFecha=hoyStr();
+  guardar();cerrarModal();pintarGastos();
+  return false;
+}
+// Se marca (no se borra) para que quede rastro; un gasto 'eliminado' no cuenta en ningún mes.
+function eliminarFijoPorError(id){
+  const g=(db.gastosFijos||[]).find(x=>x.id===id);
+  if(!g){cerrarModal();return;}
+  if(!confirm('¿Quitar "'+g.concepto+'"? Dejará de contar en todos los meses.'))return;
+  g.eliminado=true;g.eliminadoPor=sesion?sesion.nombre:'';g.eliminadoFecha=hoyStr();
+  guardar();cerrarModal();pintarGastos();
 }
 function repRangoRapido(tipo){
   const hoy=hoyStr();
@@ -9699,6 +10085,7 @@ function guardarGastoPauta(ev){
     creadoPor:sesion?sesion.nombre:''
   });
   guardar();cerrarModal();pintarConfig();
+  if(seccionActual==='gastos')pintarGastos();
   return false;
 }
 // BLOQUE 5 (2026-09-07) — un gasto de pauta ya registrado NO se borra: ahora afecta la
@@ -9733,6 +10120,7 @@ function anularGastoPauta(ev,id){
   g.anuladoFecha=hoyStr();
   g.motivoAnulacion=motivo;
   guardar();cerrarModal();pintarConfig();
+  if(seccionActual==='gastos')pintarGastos();
   return false;
 }
 function pintarGastosPautaConfig(){
