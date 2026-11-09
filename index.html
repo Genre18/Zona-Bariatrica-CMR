@@ -324,8 +324,11 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .gs-tabla{width:100%;border-collapse:collapse;font-size:13px;}
 .gs-tabla th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border-light);}
 .gs-tabla td{padding:7px 8px;border-bottom:1px solid var(--border-light);vertical-align:top;}
-.gs-tabla .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
-.gs-tabla .gs-acc{white-space:nowrap;text-align:right;}
+.gs-tabla th,.gs-tabla td{text-align:left;}
+.gs-tabla th.num,.gs-tabla td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.gs-tabla td.gs-acc{text-align:right;width:1%;}
+.gs-acc-btns{display:inline-flex;gap:4px 12px;flex-wrap:wrap;justify-content:flex-end;}
+.gs-acc-btns button{white-space:nowrap;}
 .gs-tabla small{display:block;color:var(--muted);font-size:11.5px;}
 .gs-tabla tfoot td{font-weight:700;border-bottom:none;}
 .gs-cat{display:grid;grid-template-columns:minmax(100px,180px) 1fr 84px;align-items:center;gap:8px;font-size:12.5px;margin:6px 0;}
@@ -9174,7 +9177,7 @@ function pintarGastos(){
   const kpi=(lbl,val,sub)=>`<div class="gs-kpi"><div class="lbl">${lbl}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
   const filaFijo=g=>`<tr><td>${esc(g.concepto)}<small>${esc(g.categoria||'Otros')} · desde ${esc(nombreMes(g.desde).toLowerCase())}${g.hasta?' hasta '+esc(nombreMes(g.hasta).toLowerCase()):''}</small></td>
     <td class="num">${money(g.monto)}</td>
-    <td class="gs-acc"><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar monto</button> · <button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></td></tr>`;
+    <td class="gs-acc"><span class="gs-acc-btns"><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar monto</button><button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></span></td></tr>`;
   const filaDia=g=>`<tr><td>${esc(fechaBonita(g.fecha))}</td>
     <td>${esc(g.concepto||'—')}<small>${esc(g.categoria||'Otros')}${g.nota?' · '+esc(g.nota):''}${g.creadoPor?' · '+esc(g.creadoPor):''}</small></td>
     <td class="num">${money(g.monto)}</td>
