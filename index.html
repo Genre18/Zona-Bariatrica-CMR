@@ -9227,7 +9227,7 @@ function abrirFormGasto(fijo){
       <input id="gs-concepto" required placeholder="Ej. Línea de teléfono, envío Shalom, cajas">
       <div class="fila-2">
         <div><label>Monto (S/) *</label><input type="number" id="gs-monto" step="any" min="0.01" required></div>
-        <div><label>Categoría *</label><select id="gs-cat">${opts}</select></div>
+        <div><label>Categoría *</label><select id="gs-cat" required><option value="">Elige...</option>${opts}</select></div>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:12px;cursor:pointer;"><input type="checkbox" id="gs-fijo" ${fijo?'checked':''} style="width:auto;margin:0;" onchange="document.getElementById('gs-caja-fecha').classList.toggle('oculto',this.checked);document.getElementById('gs-caja-desde').classList.toggle('oculto',!this.checked);"> Se paga todos los meses (gasto fijo)</label>
       <div id="gs-caja-fecha" class="${fijo?'oculto':''}"><label>Fecha *</label><input type="date" id="gs-fecha" value="${fechaDef}"></div>
@@ -9251,6 +9251,7 @@ function guardarGastoNuevo(ev){
   const fijo=document.getElementById('gs-fijo').checked;
   const autor=sesion?sesion.nombre:'';
   if(!concepto){alert('Escribe en qué se gastó.');return false;}
+  if(!document.getElementById('gs-cat').value){alert('Elige la categoría del gasto.');return false;}
   if(monto<=0){alert('El monto debe ser mayor a 0.');return false;}
   if(fijo){
     const desde=(document.getElementById('gs-desde').value||'').trim();
