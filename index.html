@@ -9216,9 +9216,9 @@ function pintarGastos(){
   const filaFijo=g=>{
     const e=estadoPagoFijo(g,mes),pagado=!e.pend;
     return `<tr><td class="num">${g.dia?g.dia:'—'}</td><td>${esc(g.concepto)}<small>${esc(g.categoria||'Otros')} · desde ${esc(nombreMes(g.desde).toLowerCase())}${g.hasta?' hasta '+esc(nombreMes(g.hasta).toLowerCase()):''}</small>
-      <span class="chip ${e.cls}" style="margin-top:4px;display:inline-block;">${esc(e.txt)}</span></td>
+      <span class="gs-acc-btns" style="justify-content:flex-start;margin-top:4px;align-items:center;"><span class="chip ${e.cls}">${esc(e.txt)}</span><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar</button><button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></span></td>
     <td class="num">${money(g.monto)}</td>
-    <td class="gs-acc"><span class="gs-acc-btns"><button type="button" class="${pagado?'link-lead':'btn btn-chico'}" onclick="marcarPagoFijo('${g.id}','${mes}')">${pagado?'Desmarcar pago':'✓ Pagado'}</button><button type="button" class="link-lead" onclick="abrirFormCambiarFijo('${g.id}')">Cambiar</button><button type="button" class="link-lead" onclick="abrirFormBajaFijo('${g.id}')">Dar de baja</button></span></td></tr>`;
+    <td class="gs-acc"><button type="button" class="${pagado?'link-lead':'btn btn-chico'}" style="white-space:nowrap;" onclick="marcarPagoFijo('${g.id}','${mes}')">${pagado?'Desmarcar':'✓ Pagado'}</button></td></tr>`;
   };
   const filaDia=g=>`<tr><td>${esc(fechaBonita(g.fecha))}</td>
     <td>${esc(g.concepto||'—')}<small>${esc(g.categoria||'Otros')}${g.nota?' · '+esc(g.nota):''}${g.creadoPor?' · '+esc(g.creadoPor):''}</small></td>
