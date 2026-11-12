@@ -6000,7 +6000,10 @@ function pintarStock(){
   );
   const cont=document.getElementById('listaStock');
   if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${buscar?'Ningún producto coincide con la búsqueda.':'No hay productos en stock todavía.'}</div>`;return;}
-  stockVisible=stockVisible.slice().sort((a,b)=>a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
+  // 2026-11-12 (pedido de Genesis): las marcas "bajo pedido" (LVL Drink) van al final — ZB no tiene stock
+  // propio de ellas, siempre marcan 0 y obligaban a bajar para ver el resto. Después, marca y producto A-Z.
+  const alFinal=s=>((db.config.modalidadMarca||{})[s.marca]==='bajo_pedido')?1:0;
+  stockVisible=stockVisible.slice().sort((a,b)=>alFinal(a)-alFinal(b)||a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
   stockVisible=ordenarFilas('stock',stockVisible,{
     marca:s=>s.marca,
     producto:s=>s.producto,
