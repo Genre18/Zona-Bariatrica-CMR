@@ -41,6 +41,9 @@ Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribi
 - Pestañas reales (`<nav class="tabs">`): Leads, Clientes, Stock, Proveedores, Tareas, Reportes, Config. **No existe pestaña "Pedidos"** (hay una tabla oculta/muerta; no agregar cosas ahí). Antes de decir "lo agregué en X", verificar que X sea visible desde esa navegación.
 - Acciones frecuentes van en la lista; acciones pesadas o poco frecuentes (editar venta, marcar entregado/acreditado) van en **Historial → Ver detalle**.
 - Reutilizar lo que ya existe (`.chip`, `.stat`, `.reportes-kpis`, `var(--border)`, `abrirModal`, `ordenarTablaPor`) en vez de crear estilos o sistemas paralelos.
+- **Tamaños de letra: solo esta escala** — 11 (notas/encabezados de tabla), 12 (tablas densas, chips), 13 (texto de tabla/secundario), 14 (botones, texto normal de UI), 15, 16 (inputs en celular), 18 (subtítulos), 22, 24, 28 (números grandes). Nada menor a 11px. Pesos: 400, 500, 600, 700. No inventar tamaños intermedios (12.5, 13.5...).
+- Botones: `.btn` (principal azul) y `.btn-secundario` (blanco con borde); agregar `.btn-chico` para la versión compacta. Ya tienen forma propia: no ponerles padding/border-radius en línea.
+- En celular (≤640px) Clientes y Leads se muestran como tarjetas con CSS por posición de columna (bloque "CELULAR" en el <style>): si se agrega/quita/reordena una columna en pintarClientes()/pintarLeads(), ajustar ese bloque.
 - Botones dentro de `<form>` llevan `type="button"` (Enter no debe enviar pedidos a medio llenar; ver `evitarEnviarConEnter`).
 - Código y textos en español, mismo estilo del archivo.
 

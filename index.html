@@ -57,21 +57,22 @@ button{font-family:inherit;cursor:pointer;}
 input,select,textarea{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r-sm);width:100%;background:#fff;color:var(--text);transition:border-color .15s,box-shadow .15s;}
 input::placeholder,textarea::placeholder{color:var(--text-light);}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px var(--primary-ring);}
-label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-weight:600;}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600;}
 .btn{background:var(--primary);color:#fff;border:none;border-radius:var(--r-sm);padding:10px 18px;font-weight:600;font-size:14px;box-shadow:var(--shadow-xs);transition:background .15s,box-shadow .15s,transform .1s;}
 .btn:hover{background:var(--primary-dark);box-shadow:var(--shadow-sm);}
 .btn:active{transform:translateY(1px);}
 .btn:disabled{background:var(--bg-soft);color:var(--text-light);box-shadow:none;cursor:not-allowed;}
-.btn-secundario{background:#fff;color:var(--text);border:1px solid var(--border);}
+.btn-secundario{background:#fff;color:var(--text);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 18px;font-weight:500;font-size:14px;transition:background .15s,border-color .15s;}
+/* 2026-11-12: antes .btn-secundario/.btn-peligro solos no tenían padding ni esquinas y el navegador los dibujaba cuadrados. */
 .btn-secundario:hover{background:var(--bg-soft);border-color:#d8dee7;}
-.btn-peligro{background:var(--danger);color:#fff;border:none;box-shadow:var(--shadow-xs);}
+.btn-peligro{background:var(--danger);color:#fff;border:none;box-shadow:var(--shadow-xs);border-radius:var(--r-sm);padding:10px 18px;font-weight:600;font-size:14px;}
 .btn-peligro:hover{background:#b91c1c;}
-.btn-chico{padding:6px 12px;font-size:12.5px;border-radius:var(--r-xs);}
+.btn-chico{padding:6px 12px;font-size:13px;border-radius:var(--r-xs);}
 .btn-icono{background:none;border:none;font-size:16px;padding:4px 8px;border-radius:var(--r-xs);color:var(--muted);transition:background .15s,color .15s;}
 .btn-icono:hover{background:var(--bg-soft);color:var(--text);}
 
 .menu-contextual{position:fixed;z-index:80;background:#fff;border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow-lg);padding:5px;display:flex;flex-direction:column;min-width:150px;}
-.menu-contextual button{background:none;border:none;text-align:left;padding:8px 10px;font-size:13.5px;border-radius:var(--r-xs);color:var(--text);}
+.menu-contextual button{background:none;border:none;text-align:left;padding:8px 10px;font-size:14px;border-radius:var(--r-xs);color:var(--text);}
 .menu-contextual button:hover{background:var(--bg-soft);}
 
 /* ---------- LOGIN — SPRINT ART DIRECTION (2026-08-22): pantalla de identificación como
@@ -85,13 +86,13 @@ label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px;font-w
 .login-logo{width:80px;height:80px;object-fit:contain;margin-top:4px;margin-bottom:-6px;}
 .login-footer-nota{margin:4px 0 0;color:var(--text-light);font-size:11px;}
 .marca-login{text-align:center;}
-.marca-login h1{margin:0;font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
-.marca-login p{margin:4px 0 0;color:var(--muted);font-size:12.5px;}
+.marca-login h1{margin:0;font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.marca-login p{margin:4px 0 0;color:var(--muted);font-size:13px;}
 .pin-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:28px;width:280px;text-align:center;box-shadow:var(--shadow-lg);}
 .login-shell .pin-box{border:none;box-shadow:none;padding:0;width:100%;}
 .pin-input-wrap{position:relative;margin:16px 0 4px;}
-.pin-input-wrap input{padding-right:40px;letter-spacing:4px;font-size:20px;text-align:center;}
-.pin-ojito{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;padding:0;border:none;background:transparent;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+.pin-input-wrap input{padding-right:40px;letter-spacing:4px;font-size:22px;text-align:center;}
+.pin-ojito{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:32px;height:32px;padding:0;border:none;background:transparent;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);}
 .pin-ojito:hover{color:var(--text);}
 .pin-error{color:var(--danger);font-size:13px;height:18px;margin-top:6px;}
 
@@ -103,17 +104,17 @@ header.app-header{background:var(--dark);color:#fff;padding:0 20px;display:flex;
 .app-header-marca{display:flex;align-items:center;gap:10px;padding:14px 0;flex-shrink:0;}
 .header-logo{width:26px;height:26px;object-fit:contain;flex-shrink:0;}
 .app-header-marca-texto{display:flex;flex-direction:column;}
-.app-header-marca .titulo{font-weight:700;font-size:15.5px;letter-spacing:-.005em;}
+.app-header-marca .titulo{font-weight:700;font-size:15px;letter-spacing:-.005em;}
 .app-header-tagline{display:block;font-weight:400;font-size:11px;opacity:.55;margin-top:1px;}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;background:transparent;border-bottom:none;padding:0;flex:1;}
-nav.tabs button{background:none;border:none;padding:16px 14px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;border-radius:0;letter-spacing:.005em;transition:color .15s;position:relative;}
+nav.tabs button{background:none;border:none;padding:16px 14px;font-size:14px;font-weight:500;color:rgba(255,255,255,.62);white-space:nowrap;border-radius:0;letter-spacing:.005em;transition:color .15s;position:relative;}
 nav.tabs button:hover{color:#fff;}
 nav.tabs button:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:-3px;}
 nav.tabs button.activo{color:#fff;font-weight:600;}
 nav.tabs button.activo::after{content:'';position:absolute;left:14px;right:14px;bottom:0;height:2px;background:var(--primary);border-radius:2px 2px 0 0;}
-header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:12.5px;flex-shrink:0;padding:14px 0;}
+header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:13px;flex-shrink:0;padding:14px 0;}
 .app-header-fecha{opacity:.55;font-size:11px;white-space:nowrap;}
-.avatar-chip{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;background:var(--rol);color:#fff;font-weight:700;font-size:12.5px;cursor:default;}
+.avatar-chip{display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:50%;background:var(--rol);color:#fff;font-weight:700;font-size:13px;cursor:default;}
 @media(max-width:768px){
   header.app-header{padding:10px 14px 0;gap:8px;}
   .app-header-marca{padding:2px 0 8px;}
@@ -127,53 +128,53 @@ header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:12.
    en la primera fila. */
 @media(max-width:768px){
   nav.tabs{flex:1 1 100%;flex-wrap:wrap;overflow:visible;gap:0;padding:4px 0 6px;}
-  nav.tabs button{padding:9px 10px;font-size:13.5px;}
+  nav.tabs button{padding:9px 10px;font-size:14px;}
   nav.tabs button.activo::after{left:10px;right:10px;}
 }
-@media(max-width:640px){.app-header-fecha{display:none;}}
+@media(max-width:640px){.app-header-fecha{display:none;}nav.tabs button{padding:8px 8px;font-size:13px;}nav.tabs button.activo::after{left:8px;right:8px;}}
 main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .sec{display:none;}
 .sec.activa{display:block;}
 
 .barra-sec{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
-.barra-sec h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em;}
+.barra-sec h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;}
 .barra-sec .acciones{display:flex;gap:8px;flex-wrap:wrap;}
 .filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
 .filtros input,.filtros select{width:auto;min-width:150px;}
 
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
-.link-historial{background:none;border:none;padding:3px 6px;font-size:11.5px;font-weight:600;color:var(--muted);text-decoration:none;border-radius:var(--r-xs);cursor:pointer;transition:background .15s,color .15s;}
+.link-historial{background:none;border:none;padding:3px 6px;font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;border-radius:var(--r-xs);cursor:pointer;transition:background .15s,color .15s;}
 .link-historial:hover{background:var(--bg-soft);color:var(--primary);}
 .link-lead:focus-visible,.link-historial:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:var(--r-xs);}
 .tabla-excel{border:1px solid var(--border);border-radius:var(--r-md);overflow:auto;background:var(--card);}
 .tabla-excel table{border-collapse:collapse;width:100%;}
-.tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:12.5px;white-space:nowrap;text-align:center;}
-.tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;}
-.tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:12.5px;width:100%;border-radius:0;min-width:90px;text-align:center;}
-.tabla-excel td input[type=date],.tabla-excel td input[type=time]{min-width:0;width:80px;font-size:11.5px;padding:7px 4px;}
+.tabla-excel th,.tabla-excel td{border:1px solid var(--border-light);padding:0;font-size:13px;white-space:nowrap;text-align:center;}
+.tabla-excel th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.04em;padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;}
+.tabla-excel td input,.tabla-excel td select{border:none;background:transparent;padding:7px 10px;font-size:13px;width:100%;border-radius:0;min-width:90px;text-align:center;}
+.tabla-excel td input[type=date],.tabla-excel td input[type=time]{min-width:0;width:80px;font-size:12px;padding:7px 4px;}
 .tabla-excel td input[type=date]::-webkit-calendar-picker-indicator,
 .tabla-excel td input[type=time]::-webkit-calendar-picker-indicator{display:none;-webkit-appearance:none;}
 .tabla-excel td input:focus,.tabla-excel td select:focus{background:var(--primary-suave);box-shadow:inset 0 0 0 1px var(--primary);position:relative;z-index:1;}
 .tabla-excel tbody tr:hover{background:var(--bg-soft);}
-.link-lead{background:none;border:none;padding:7px 10px;font-size:12.5px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:center;width:100%;}
+.link-lead{background:none;border:none;padding:7px 10px;font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;cursor:pointer;text-align:center;width:100%;}
 .link-lead:hover{text-decoration:underline;}
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;box-shadow:var(--shadow-xs);}
-.stat .num{font-size:23px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.stat .num{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
 .stat .lbl{font-size:12px;color:var(--muted);margin-top:3px;}
 .grid-cards.chico .stat{padding:10px 12px;}
-.grid-cards.chico .stat .num{font-size:17px;}
-.grid-cards.chico .stat .lbl{font-size:10.5px;}
+.grid-cards.chico .stat .num{font-size:18px;}
+.grid-cards.chico .stat .lbl{font-size:11px;}
 
 table{width:100%;border-collapse:collapse;background:var(--card);border-radius:var(--r-md);overflow:hidden;}
-table th,table td{padding:10px 12px;text-align:center;font-size:13.5px;border-bottom:1px solid var(--border-light);}
-table th{background:var(--bg-soft);color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+table th,table td{padding:10px 12px;text-align:center;font-size:14px;border-bottom:1px solid var(--border-light);}
+table th{background:var(--bg-soft);color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
 table tr:last-child td{border-bottom:none;}
 table tbody tr:hover{background:var(--bg-soft);}
 .tabla-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card);}
 .tabla-wrap table{border:none;border-radius:0;}
 
-.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-xs);font-size:11.5px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
+.chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-xs);font-size:12px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
 .chip-gris{background:var(--bg-soft);color:var(--muted);}
 .chip-azul{background:var(--azul-suave);color:var(--azul);}
 .chip-verde{background:var(--success-suave);color:var(--success);}
@@ -182,7 +183,7 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip-violeta{background:var(--violeta-suave);color:var(--violeta);}
 /* ENVÍOS — tablero (2026-10-17): 3 columnas en pantalla grande; en celular, una columna a la vez con pestañas. */
 .env-tabs{display:none;gap:6px;margin-bottom:10px;}
-.env-tabs button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;font-size:12.5px;font-weight:600;color:var(--muted);}
+.env-tabs button{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 6px;font-size:13px;font-weight:600;color:var(--muted);}
 .env-tabs button.activo{border-color:var(--primary);color:var(--primary);background:var(--primary-suave);}
 .env-tabs button span{font-weight:700;}
 .env-tablero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start;}
@@ -193,23 +194,23 @@ table tbody tr:hover{background:var(--bg-soft);}
 .env-card{background:var(--card);border:1px solid var(--border-light);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;box-shadow:var(--shadow-xs);}
 .env-card-alerta{border-color:var(--danger-br);}
 .env-card-top{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;}
-.env-cliente{font-weight:700;font-size:14.5px;cursor:pointer;}
+.env-cliente{font-weight:700;font-size:14px;cursor:pointer;}
 .env-lugar{font-size:12px;color:var(--muted);}
 .env-chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
-.env-items{margin:0;padding-left:18px;font-size:12.5px;}
+.env-items{margin:0;padding-left:18px;font-size:13px;}
 .env-shalom{font-size:12px;color:var(--muted);margin-top:4px;}
 .env-acciones{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;}
 .env-acciones .btn{flex:1;padding:10px 12px;}
 .env-etiqueta{border:2px dashed var(--border);border-radius:var(--r-sm);padding:12px;font-size:13px;line-height:1.5;}
 .env-etq-top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
 .env-etq-nombre{font-size:16px;font-weight:700;}
-.env-checklist label{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:400;font-size:13.5px;}
+.env-checklist label{display:flex;align-items:center;gap:8px;margin:6px 0;font-weight:400;font-size:14px;}
 .env-checklist input{width:20px;height:20px;}
 .env-web{background:var(--success-suave);border:1px solid var(--border-light);border-radius:var(--r-md);padding:10px;margin-bottom:12px;}
 .env-web-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}
 .env-web .env-card{margin-bottom:0;}
-.env-web-total{font-weight:700;font-size:13.5px;margin-top:6px;}
-.env-web-aviso{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:10px;}
+.env-web-total{font-weight:700;font-size:14px;margin-top:6px;}
+.env-web-aviso{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;line-height:1.5;margin-bottom:10px;}
 .tab-num{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--success);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;}
 @media(max-width:760px){
   .env-tabs{display:flex;}
@@ -222,14 +223,14 @@ table tbody tr:hover{background:var(--bg-soft);}
 /* BLOQUE UX (2026-08-21): tabla Stock más densa/compacta — clase propia (no toca .tabla-excel
    base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
    a ".tabla-excel th" sin depender del orden de declaración en la hoja de estilos. */
-table.stock-tabla{width:100%;min-width:1020px;}
-table.stock-tabla th{padding:5px 6px;font-size:9.5px;}
-table.stock-tabla td{padding:4px 6px;font-size:11.5px;}
-table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
+table.stock-tabla{width:100%;min-width:1020px;table-layout:fixed;}
+table.stock-tabla th{padding:7px 6px;font-size:11px;white-space:normal;line-height:1.25;}
+table.stock-tabla td{padding:7px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;}
+table.stock-tabla .chip{padding:2px 7px;font-size:11px;}
 /* En desktop amplio, Stock puede usar más ancho que el resto de pestañas (main sigue en
    max-width:1100px) — gated a min-width:1300px para no arriesgar overflow ni tocar mobile/tablet. */
 @media (min-width:1300px){
-  #sec-stock{margin-left:-90px;margin-right:-90px;}
+  /* 2026-11-12: Stock ya no se ensancha — mismo ancho que las demás pestañas (la tabla cabe en 1100px). */
 }
 
 /* AJUSTE DE DENSIDAD (2026-08-21): SOLO formulario/modal de Stock (abrirFormStock/
@@ -246,22 +247,22 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 .lc-chip.activo{background:var(--primary);border-color:var(--primary);color:#fff;}
 .lc-sin{color:var(--text-muted);font-size:13px;margin:10px 0;}
 .lc-res-fila{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-.lc-cat{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin:12px 0 2px;}
-.lc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.lc-cat{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin:12px 0 2px;}
+.lc-fila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:14px;}
 .lc-fila.lc-agotado{opacity:.55;}
 .lc-qty{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .lc-qty span{min-width:16px;text-align:center;font-weight:700;}
 .lc-qty .btn-icono{border:1px solid var(--border);width:30px;height:30px;padding:0;font-weight:700;color:var(--text);}
-.lc-sabores{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 10px;border-bottom:1px solid var(--border-light);font-size:12.5px;}
+.lc-sabores{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 10px;border-bottom:1px solid var(--border-light);font-size:13px;}
 .lc-sabores[hidden]{display:none;}
 .lc-sabores select{display:block;margin-top:2px;}
-.lc-resumen{margin-top:12px;font-size:13.5px;line-height:1.5;}
+.lc-resumen{margin-top:12px;font-size:14px;line-height:1.5;}
 #modalBox.stock-modal h3{font-size:16px;margin:0 0 8px;padding-bottom:6px;}
-.stock-form label{font-size:11.5px;margin:6px 0 3px;}
-.stock-form input,.stock-form select{padding:6px 9px;font-size:12.5px;border-radius:7px;}
+.stock-form label{font-size:12px;margin:6px 0 3px;}
+.stock-form input,.stock-form select{padding:6px 9px;font-size:13px;border-radius:7px;}
 .stock-form .fila-2{gap:7px;}
 .stock-form hr{margin:10px 0 3px;}
-.stock-form .btn-chico{padding:4px 9px;font-size:11.5px;}
+.stock-form .btn-chico{padding:4px 9px;font-size:12px;}
 .stock-form .btn-icono{font-size:14px;padding:2px 6px;}
 .stock-form #stVolList table th,.stock-form #stVolList table td{padding:5px 7px;font-size:12px;}
 /* A8: menos aire entre "Precios especiales" y Cancelar/Guardar — SOLO dentro de .stock-modal,
@@ -271,7 +272,7 @@ table.stock-tabla .chip{padding:1px 5px;font-size:9px;}
 /* SPRINT UX (2026-08-21) — B10: tabla principal de Proveedores compacta, mismo criterio que
    table.stock-tabla, sin tocar .tabla-excel/.tabla-wrap globales. */
 table.proveedores-tabla{width:100%;}
-table.proveedores-tabla th{padding:6px 7px;font-size:9.5px;}
+table.proveedores-tabla th{padding:6px 7px;font-size:11px;}
 table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 
 /* UX PREMIUM (2026-08-21) — sección 2/3: Proveedores no se estira a todo el ancho si su
@@ -286,12 +287,12 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
 .reportes-kpis .stat{padding:9px 12px;text-align:center;}
 .reportes-kpis .stat .num{font-size:18px;}
-.reportes-kpis .stat .lbl{font-size:10.5px;margin-top:2px;}
+.reportes-kpis .stat .lbl{font-size:11px;margin-top:2px;}
 @media(max-width:640px){.reportes-kpis{grid-template-columns:repeat(2,1fr);}}
 .reportes-subtitulo{font-size:14px;margin:18px 0 8px;}
 .reportes-marca-wrap{max-width:480px;}
 .reportes-marca-wrap table{width:100%;}
-.reportes-marca-wrap th{padding:6px 10px;font-size:9.5px;}
+.reportes-marca-wrap th{padding:6px 10px;font-size:11px;}
 .reportes-marca-wrap td{padding:5px 10px;font-size:12px;}
 
 /* UX PREMIUM — sección 8: Leads + Más vendidos lado a lado en desktop, apilados en angosto. */
@@ -299,21 +300,21 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 @media(max-width:720px){.reportes-fila-bloques{grid-template-columns:1fr;}}
 .reportes-bloque{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-xs);display:flex;flex-direction:column;}
 .reportes-bloque .reportes-subtitulo{margin-top:0;}
-.reportes-leads-franja{font-size:13.5px;margin:0;}
+.reportes-leads-franja{font-size:14px;margin:0;}
 /* ART DIRECTION (2026-08-22) — sección 14: Leads como mini-visualización operacional (números
    protagonistas + flechas), no una sola línea de texto con flechas ASCII. Mismos 3 valores de
    siempre (totalLeads/convertidos/tasaConv), sin gráfico ni librería. */
 .reportes-leads-viz{display:flex;align-items:center;gap:10px;}
 .viz-paso{text-align:center;}
-.viz-num{font-size:20px;font-weight:700;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums;}
-.viz-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.viz-num{font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums;}
+.viz-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
 .viz-flecha{color:var(--text-light);font-size:14px;}
-.reportes-pauta-linea{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-light);font-size:12.5px;color:var(--muted);}
+.reportes-pauta-linea{margin-top:14px;padding-top:12px;border-top:1px solid var(--border-light);font-size:13px;color:var(--muted);}
 /* BLOQUE 5 (2026-09-07) — cadena Ganancia ZB antes de pauta − Pauta del período = Ganancia neta ZB */
 .reportes-neto{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:0 0 18px;}
 .reportes-neto .rn-item{flex:1 1 150px;background:var(--bg-soft);border:1px solid var(--border-light);border-radius:12px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;}
 .reportes-neto .rn-item.rn-total{background:var(--card);border-color:var(--border);}
-.reportes-neto .rn-lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.reportes-neto .rn-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
 .reportes-neto .rn-val{font-size:16px;font-weight:600;}
 .reportes-neto .rn-op{display:flex;align-items:center;font-size:16px;color:var(--muted);padding:0 2px;}
 @media(max-width:640px){.reportes-neto .rn-op{display:none;}.reportes-neto .rn-item{flex-basis:100%;}}
@@ -323,9 +324,9 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .gs-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
 @media(max-width:760px){.gs-kpis{grid-template-columns:repeat(2,1fr);gap:8px;}}
 .gs-kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;min-width:0;}
-.gs-kpi .lbl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
-.gs-kpi .val{font-size:19px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;}
-.gs-kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.gs-kpi .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.gs-kpi .val{font-size:18px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;}
+.gs-kpi .sub{font-size:12px;color:var(--muted);margin-top:2px;}
 .gs-bloques{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 @media(max-width:900px){.gs-bloques{grid-template-columns:1fr;}}
 .gs-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
@@ -340,15 +341,15 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .gs-acc-btns{display:inline-flex;gap:4px 12px;flex-wrap:wrap;justify-content:flex-end;}
 .gs-acc-btns button{white-space:nowrap;}
 .gs-acc-btns .link-lead{display:inline-block;width:auto;padding:0;margin:0;font-size:12px;}
-.gs-tabla small{display:block;color:var(--muted);font-size:11.5px;}
+.gs-tabla small{display:block;color:var(--muted);font-size:12px;}
 .gs-tabla tfoot td{font-weight:700;border-bottom:none;}
-.gs-cat{display:grid;grid-template-columns:minmax(100px,180px) 1fr 84px;align-items:center;gap:8px;font-size:12.5px;margin:6px 0;}
+.gs-cat{display:grid;grid-template-columns:minmax(100px,180px) 1fr 84px;align-items:center;gap:8px;font-size:13px;margin:6px 0;}
 .gs-cat span:last-child{text-align:right;font-variant-numeric:tabular-nums;}
 .gs-cat-pista{background:var(--bg-soft);border-radius:4px;height:10px;overflow:hidden;}
 .gs-cat-barra{display:block;height:100%;background:var(--primary);border-radius:4px;}
 .gs-vacio{color:var(--muted);font-size:13px;padding:8px 0;}
-.gs-anulados{margin-top:10px;font-size:12.5px;color:var(--muted);}
-.er-fila{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.gs-anulados{margin-top:10px;font-size:13px;color:var(--muted);}
+.er-fila{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);font-size:14px;}
 .er-fila small{display:block;font-size:11px;color:var(--muted);}
 .er-fila b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:500;}
 .er-fila.er-sub span,.er-fila.er-sub b{font-weight:700;}
@@ -361,7 +362,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .pe-barra{background:var(--bg-soft);border:1px solid var(--border-light);border-radius:6px;height:14px;overflow:hidden;}
 .pe-barra span{display:block;height:100%;background:var(--warning);}
 .pe-barra.ok span{background:var(--success);}
-.pe-llevas{font-size:12.5px;margin-top:6px;}
+.pe-llevas{font-size:13px;margin-top:6px;}
 /* Sección 14: ranking 01/02/03 en Más vendidos, mismo orden/cálculo de topProductos. */
 .reportes-mas-vendidos{list-style:none;margin:0;padding:0;font-size:13px;}
 .reportes-mas-vendidos li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-light);}
@@ -374,13 +375,13 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-kpis.rk-dash{grid-template-columns:repeat(3,1fr);gap:8px;}
 .reportes-kpis.rk-dash .stat{text-align:left;padding:9px 12px;display:flex;flex-direction:column;gap:1px;}
 .reportes-kpis.rk-dash .stat .lbl{order:-1;font-size:11px;margin:0;color:var(--muted);font-weight:500;}
-.reportes-kpis.rk-dash .stat .num{font-size:17px;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
+.reportes-kpis.rk-dash .stat .num{font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.15;color:var(--text);}
 .rk-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 16px;box-shadow:var(--shadow-xs);margin-bottom:12px;}
 .rk-hero-lbl{font-size:12px;color:var(--muted);font-weight:500;}
 .rk-hero.activa .rk-hero-lbl{color:var(--primary);}
-.rk-hero-num{font-size:30px;font-weight:650;letter-spacing:-.02em;line-height:1.1;color:var(--text);margin:2px 0 4px;}
+.rk-hero-num{font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.1;color:var(--text);margin:2px 0 4px;}
 .rk-hero .rk-delta{font-size:12px;}
-@media(max-width:640px){.rk-hero-num{font-size:26px;}}
+@media(max-width:640px){.rk-hero-num{font-size:24px;}}
 .rk-delta{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin-top:1px;}
 .rk-sube{color:var(--success);font-weight:600;}
 .rk-baja{color:var(--danger);font-weight:600;}
@@ -413,7 +414,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rg-tip-fecha{color:var(--muted);font-size:11px;margin-bottom:5px;}
 .rg-tip-fila{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:1px 0;}
 .rg-tip-fila span{color:var(--muted);display:inline-flex;align-items:center;gap:6px;}
-.rg-tip-fila b{font-weight:650;color:var(--text);font-variant-numeric:tabular-nums;}
+.rg-tip-fila b{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;}
 .rg-tabla summary{font-size:12px;color:var(--muted);cursor:pointer;margin-top:8px;width:max-content;}
 .rg-tabla table{width:100%;font-size:12px;margin-top:6px;border-collapse:collapse;font-variant-numeric:tabular-nums;}
 .rg-tabla th{font-weight:600;color:var(--muted);}
@@ -421,16 +422,16 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rg-tabla td:first-child,.rg-tabla th:first-child{text-align:left;}
 .rb-lista{display:flex;flex-direction:column;gap:12px;}
 .rb-fila{display:grid;grid-template-columns:minmax(80px,120px) 1fr 92px;gap:10px;align-items:center;font-size:13px;}
-.rb-cab{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:-4px;}
+.rb-cab{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:-4px;}
 .rb-cab span:last-child{text-align:right;}
 .rb-nombre{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rb-pista{display:flex;align-items:center;gap:8px;min-width:0;}
 .rb-barra{height:14px;border-radius:0 4px 4px 0;background:var(--primary);min-width:3px;flex-shrink:0;transition:opacity .15s;}
 .rb-fila:hover .rb-barra{opacity:.75;}
-.rb-valor{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;font-size:12.5px;}
-.rb-ganancia{font-size:12.5px;color:var(--muted);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
-.rc-total{font-size:13.5px;color:var(--muted);}
-.rc-total b{font-size:22px;font-weight:650;color:var(--text);letter-spacing:-.02em;margin-right:4px;}
+.rb-valor{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;font-size:13px;}
+.rb-ganancia{font-size:13px;color:var(--muted);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}
+.rc-total{font-size:14px;color:var(--muted);}
+.rc-total b{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-.02em;margin-right:4px;}
 .rc-barra{display:flex;gap:2px;height:14px;margin:10px 0 14px;}
 .rc-seg{border-radius:4px;min-width:4px;}
 .rc-nuevo{background:var(--primary);}
@@ -440,7 +441,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rc-sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
 .rc-item b{margin-left:auto;font-variant-numeric:tabular-nums;}
 .rc-item span{width:40px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;}
-.rc-nota{font-size:11.5px;color:var(--muted);margin:12px 0 0;}
+.rc-nota{font-size:12px;color:var(--muted);margin:12px 0 0;}
 /* KPIs clicables → el gráfico muestra ese indicador */
 .rk-tile{cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;}
 .rk-tile:hover{border-color:var(--primary);box-shadow:var(--shadow-sm);}
@@ -451,7 +452,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 @media(max-width:640px){.rg-derecha{align-items:flex-start;}}
 /* Filtro de período discreto + menús flotantes (período y elegir productos) */
 .rp-ancla{position:relative;display:inline-block;}
-.rp-boton{display:inline-flex;align-items:center;gap:7px;background:var(--bg-soft);border:1px solid var(--border-light);border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;font-weight:500;color:var(--text);}
+.rp-boton{display:inline-flex;align-items:center;gap:7px;background:var(--bg-soft);border:1px solid var(--border-light);border-radius:var(--r-pill);padding:5px 12px;font-size:13px;font-weight:500;color:var(--text);}
 .rp-boton:hover{border-color:var(--border);background:var(--card);}
 .rp-boton svg{color:var(--muted);flex-shrink:0;}
 .rp-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:var(--card);border:1px solid var(--border-light);border-radius:14px;box-shadow:var(--shadow-lg);padding:6px;min-width:230px;}
@@ -464,7 +465,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rp-personal{border-top:1px solid var(--border-light);margin-top:6px;padding:10px 8px 4px;display:flex;flex-direction:column;gap:8px;}
 .rp-personal-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
 .rp-personal label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin:0;}
-.rp-personal input{width:auto;padding:5px 8px;font-size:12.5px;}
+.rp-personal input{width:auto;padding:5px 8px;font-size:13px;}
 /* Productos vendidos */
 .mv-fila-bloque{grid-template-columns:1fr;}
 .rz-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
@@ -473,14 +474,14 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rz-scroll{overflow-x:auto;max-width:100%;}
 /* CELULAR (2026-11-12): sin min-width:0 el bloque se estiraba al ancho de la tabla y se salía de la pantalla. */
 .reportes-bloque{min-width:0;}
-.rz-tabla{width:100%;font-size:12.5px;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.rz-tabla{width:100%;font-size:13px;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .rz-tabla th{font-weight:600;color:var(--muted);}
 .rz-tabla td,.rz-tabla th{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border-light);}
 .rz-tabla td:first-child,.rz-tabla th:first-child{text-align:left;position:sticky;left:0;background:var(--card);}
 .rz-tabla tr.rz-grupo td{background:var(--bg-soft);}
 .rz-tabla tr.rz-total td{border-top:2px solid var(--border);font-weight:700;}
 .rz-lugar{padding-left:14px;}
-.rz-sub{font-size:11.5px;color:var(--muted);font-weight:400;}
+.rz-sub{font-size:12px;color:var(--muted);font-weight:400;}
 .rz-cero{color:var(--muted);}
 .rz-tabla th.rz-ordenable{cursor:pointer;user-select:none;}
 .rz-tabla th.rz-ordenable:hover{color:var(--text);}
@@ -489,16 +490,16 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .mv-cab .reportes-subtitulo{margin-bottom:2px;}
 .mv-resumen{font-size:12px;color:var(--muted);}
 .mv-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.mv-controles select,.mv-controles input[type=search]{width:auto;padding:6px 10px;font-size:12.5px;}
+.mv-controles select,.mv-controles input[type=search]{width:auto;padding:6px 10px;font-size:13px;}
 .mv-controles input[type=search]{width:170px;}
 .rp-seg{display:inline-flex;background:var(--bg-soft);border-radius:var(--r-pill);padding:2px;}
-.rp-seg button{background:none;border:none;border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;color:var(--muted);}
+.rp-seg button{background:none;border:none;border-radius:var(--r-pill);padding:5px 12px;font-size:13px;color:var(--muted);}
 .rp-seg button.activo{background:var(--card);color:var(--text);font-weight:600;box-shadow:var(--shadow-xs);}
 .mv-columnas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px 22px;align-items:start;}
 .mv-col-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 8px 6px;margin-bottom:4px;border-bottom:1px solid var(--border-light);}
 .mv-col-cab span:first-child{font-size:13px;font-weight:600;color:var(--text);}
-.mv-col-cab span:last-child{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.mv-item{position:relative;display:grid;grid-template-columns:1fr auto 74px;gap:8px;align-items:center;height:28px;padding:0 8px;font-size:12.5px;}
+.mv-col-cab span:last-child{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.mv-item{position:relative;display:grid;grid-template-columns:1fr auto 74px;gap:8px;align-items:center;height:28px;padding:0 8px;font-size:13px;}
 .mv-item>*{position:relative;}
 .mv-sombra{position:absolute !important;left:0;top:3px;bottom:3px;min-width:3px;background:var(--primary);opacity:.13;border-radius:0 5px 5px 0;transition:opacity .15s;}
 .mv-item:hover .mv-sombra{opacity:.24;}
@@ -508,7 +509,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 @media(max-width:640px){.mv-controles input[type=search]{width:100%;}}
 .mv-pop{width:340px;max-width:calc(100vw - 32px);}
 .mv-pop-acciones{display:flex;gap:12px;padding:4px 8px 8px;border-bottom:1px solid var(--border-light);margin-bottom:4px;}
-.mv-pop-acciones button{background:none;border:none;padding:0;font-size:12.5px;color:var(--primary);font-weight:600;}
+.mv-pop-acciones button{background:none;border:none;padding:0;font-size:13px;color:var(--primary);font-weight:600;}
 .mv-checklist{max-height:280px;overflow-y:auto;}
 .mv-check{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:13px;margin:0;cursor:pointer;color:var(--text);font-weight:400;}
 .mv-check:hover{background:var(--bg-soft);}
@@ -525,7 +526,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
    todos los controles) + tabla compacta. Clase propia — .filtros global (Leads/Stock/etc.) no
    se toca. */
 .toolbar-historial{align-items:center;}
-.toolbar-historial select,.toolbar-historial input{height:34px;box-sizing:border-box;padding:0 10px;font-size:12.5px;border-radius:8px;}
+.toolbar-historial select,.toolbar-historial input{height:34px;box-sizing:border-box;padding:0 10px;font-size:13px;border-radius:8px;}
 .toolbar-historial input:not([type=date]){flex:1;min-width:180px;}
 .toolbar-historial input[type=date]{width:132px;}
 .toolbar-historial select{width:auto;min-width:170px;}
@@ -536,7 +537,7 @@ details.menu-mas-opciones>summary{height:34px;width:34px;box-sizing:border-box;d
 details.menu-mas-opciones>summary::-webkit-details-marker{display:none;}
 details.menu-mas-opciones>summary:hover{background:var(--bg-soft);color:var(--text);}
 table.historial-tabla{width:100%;}
-table.historial-tabla th{padding:6px 8px;font-size:9.5px;}
+table.historial-tabla th{padding:6px 8px;font-size:11px;}
 table.historial-tabla td{padding:5px 8px;font-size:12px;}
 /* MICRO-SPRINT UX HISTORIAL (2026-09-08) — sección 1/2/6: scroll interno + encabezado sticky,
    mismo patrón que .leads-tabla-wrap/.stock-tabla-wrap (66vh, scrollbar fina) para que las 6
@@ -570,7 +571,7 @@ tr.hist-fila-expandida td{white-space:normal;vertical-align:top;}
 .hist-detalle-inline .drawer-seccion-titulo{margin-bottom:4px;}
 /* Detalle compacto in-line (2026-09-11) — filas flex apretadas en vez de tabla, así nunca
    necesitan scroll horizontal como sí le pasaba al .eq-tabla dentro de una fila angosta. */
-.hd-titulo{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:8px 0 3px;}
+.hd-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:8px 0 3px;}
 .hd-titulo:first-child{margin-top:0;}
 .hd-linea{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:2px 0;font-size:12px;line-height:1.4;}
 .hd-linea>span:first-child{flex:1;}
@@ -583,20 +584,20 @@ tr.hist-fila-expandida td{white-space:normal;vertical-align:top;}
 .cliente-resumen{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:0;}
 .cliente-resumen-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 10px;box-shadow:var(--shadow-xs);}
 .cliente-resumen-item .num{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
-.cliente-resumen-item .lbl{font-size:10.5px;color:var(--muted);margin-top:2px;}
+.cliente-resumen-item .lbl{font-size:11px;color:var(--muted);margin-top:2px;}
 @media(max-width:480px){.cliente-resumen{grid-template-columns:1fr;}}
 .cliente-acciones{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;}
-.cliente-acciones .btn,.cliente-acciones .btn-secundario{padding:6px 12px;font-size:12.5px;}
+.cliente-acciones .btn,.cliente-acciones .btn-secundario{padding:6px 12px;font-size:13px;}
 /* CLIENTES 10/10 (2026-08-21): historial de compras compacto tipo Excel, mismo lenguaje que
    Stock/Historial. Solo esta tabla — .tabla-excel global no se toca. */
 table.cliente-historial-tabla{width:100%;table-layout:fixed;}
-table.cliente-historial-tabla th{padding:6px 8px;font-size:9.5px;}
+table.cliente-historial-tabla th{padding:6px 8px;font-size:11px;}
 /* Modal angosto (520px): esta tabla NO debe hacer scroll horizontal. Se anula el
    white-space:nowrap global de .tabla-excel para que Productos y los chips ("Pendiente de
    pago" no entra en una línea a este ancho) partan en varias líneas. */
 table.cliente-historial-tabla th,table.cliente-historial-tabla td{white-space:normal;word-break:break-word;}
-table.cliente-historial-tabla td{padding:5px 8px;font-size:11.5px;vertical-align:middle;}
-table.cliente-historial-tabla td .chip{white-space:normal;font-size:10px;line-height:1.25;padding:3px 7px;}
+table.cliente-historial-tabla td{padding:5px 8px;font-size:12px;vertical-align:middle;}
+table.cliente-historial-tabla td .chip{white-space:normal;font-size:11px;line-height:1.25;padding:3px 7px;}
 /* Lista de Clientes (2026-11-06): debe caber en la pantalla, sin scroll horizontal. Se anula
    el white-space:nowrap global de .tabla-excel solo aquí, con anchos fijos por columna, para que
    ubicación, marcas y chips partan en varias líneas en vez de ensanchar la tabla. */
@@ -610,7 +611,7 @@ table.clientes-tabla th:nth-child(3){width:18%;}
 table.clientes-tabla th:nth-child(4){width:14%;}
 table.clientes-tabla th:nth-child(5){width:16%;}
 table.clientes-tabla th:nth-child(6){width:8%;}
-@media(max-width:700px) and (min-width:641px){table.clientes-tabla th{font-size:9.5px;padding:7px 5px;}table.clientes-tabla td{font-size:11.5px;}table.clientes-tabla td .chip{font-size:10px;padding:2px 6px;}}
+@media(max-width:700px) and (min-width:641px){table.clientes-tabla th{font-size:11px;padding:7px 5px;}table.clientes-tabla td{font-size:12px;}table.clientes-tabla td .chip{font-size:11px;padding:2px 6px;}}
 
 /* CELULAR (2026-11-12): en pantallas de hasta 640px, Clientes y Leads dejan de ser tabla y se
    ven como TARJETAS (mismo criterio que Envíos). Solo CSS: el HTML de las filas no cambia, cada
@@ -623,7 +624,7 @@ table.clientes-tabla th:nth-child(6){width:8%;}
   table.clientes-tabla tbody,table.leads-tabla tbody{display:flex;flex-direction:column;gap:10px;}
   table.clientes-tabla tr,table.leads-tabla tr{display:grid;background:var(--card);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px 14px;gap:6px 12px;box-shadow:var(--shadow-xs);}
   table.clientes-tabla td,table.leads-tabla td{display:block;border:none !important;padding:0 !important;text-align:left !important;white-space:normal;word-break:normal;overflow:visible;font-size:13px;background:none !important;}
-  table.clientes-tabla td .chip,table.leads-tabla td .chip{font-size:11.5px;padding:2px 8px;white-space:nowrap;}
+  table.clientes-tabla td .chip,table.leads-tabla td .chip{font-size:12px;padding:2px 8px;white-space:nowrap;}
 
   /* Clientes: Cliente(1) Ubicación(2) Marcas(3) Última compra(4) Recompra(5) Pedidos(6) */
   table.clientes-tabla tr{grid-template-columns:1fr auto;grid-template-areas:"nombre estado" "lugar lugar" "marcas marcas" "ultima pedidos";}
@@ -632,11 +633,11 @@ table.clientes-tabla th:nth-child(6){width:8%;}
   table.clientes-tabla td:nth-child(2){grid-area:lugar;color:var(--muted);}
   table.clientes-tabla td:nth-child(3){grid-area:marcas;}
   table.clientes-tabla td:nth-child(3) .chip{margin:0 4px 0 0;}
-  table.clientes-tabla td:nth-child(4){grid-area:ultima;font-size:12.5px;}
+  table.clientes-tabla td:nth-child(4){grid-area:ultima;font-size:13px;}
   table.clientes-tabla td:nth-child(4)::before{content:'Última compra: ';color:var(--muted);}
   table.clientes-tabla td:nth-child(4) div{display:inline;font-size:12px !important;margin:0 0 0 4px !important;}
   table.clientes-tabla td:nth-child(5){grid-area:estado;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
-  table.clientes-tabla td:nth-child(6){grid-area:pedidos;font-size:12.5px;align-self:end;}
+  table.clientes-tabla td:nth-child(6){grid-area:pedidos;font-size:13px;align-self:end;}
   table.clientes-tabla td:nth-child(6)::before{content:'Pedidos: ';color:var(--muted);}
 
   /* Leads: Fecha(1) Hora(2) Nombre(3) Apellido(4) Edad(5) DNI(6) Celular(7) Email(8) Ciudad(9)
@@ -650,7 +651,7 @@ table.clientes-tabla th:nth-child(6){width:8%;}
   table.leads-tabla td:nth-child(7){grid-area:cel;}
   table.leads-tabla td:nth-child(9){grid-area:ciudad;color:var(--muted);text-align:right !important;}
   table.leads-tabla td:nth-child(10){grid-area:estatus;}
-  table.leads-tabla td:nth-child(10) select{width:auto;max-width:170px;font-size:12.5px;padding:6px 8px;}
+  table.leads-tabla td:nth-child(10) select{width:auto;max-width:170px;font-size:13px;padding:6px 8px;}
   table.leads-tabla td:nth-child(1){grid-area:fecha;color:var(--muted);font-size:12px;}
   table.leads-tabla td:nth-child(11){grid-area:resp;justify-self:end;}
 }
@@ -684,15 +685,15 @@ button.chip:hover{filter:brightness(.95);}
 /* UX CORRECTIVO — sección 7: Tareas en tabla (antes Kanban), mismo lenguaje visual compacto que
    las demás tablas. */
 table.tareas-tabla{width:100%;}
-table.tareas-tabla th{padding:6px 8px;font-size:9.5px;}
+table.tareas-tabla th{padding:6px 8px;font-size:11px;}
 table.tareas-tabla td{padding:5px 8px;font-size:12px;}
 
-.vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:13.5px;}
+.vacio{color:var(--muted);text-align:center;padding:28px 10px;font-size:14px;}
 /* FASE 2 — sección 14: .vacio se usa tanto para estado-vacío real (sin atributo style, siempre
    centrado) como para ayuda contextual/subtítulo (siempre con style inline text-align:left ya
    existente). Se diferencian por ese atributo, sin tocar el bloque de JavaScript. El inline solo
    fija text-align/padding — esto solo ajusta tipografía/color donde el inline no interviene. */
-.vacio[style]{font-size:12.5px;line-height:1.5;color:var(--text-light);}
+.vacio[style]{font-size:13px;line-height:1.5;color:var(--text-light);}
 
 /* ---------- VISTA SOCIO: estado de cuenta ----------
    REUNIFICADO (2026-09-19): antes tenía su propio mini-sistema de diseño (--eq-border, cajas
@@ -704,7 +705,7 @@ table.tareas-tabla td{padding:5px 8px;font-size:12px;}
    página que <main>, y el mismo botón "Salir"/avatar-chip del header principal. */
 #vistaSocio{background:var(--bg);min-height:100vh;}
 #vistaSocio .eq-header{background:var(--dark);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
-#vistaSocio .eq-header-nombre{font-size:21px;font-weight:700;letter-spacing:-.01em;}
+#vistaSocio .eq-header-nombre{font-size:22px;font-weight:700;letter-spacing:-.01em;}
 #vistaSocio .eq-header-marca{font-size:13px;color:rgba(255,255,255,.6);margin-top:3px;}
 #vistaSocio .eq-header-fecha{font-size:12px;color:rgba(255,255,255,.42);margin-top:6px;}
 #vistaSocio .eq-header-derecha{display:flex;align-items:center;gap:12px;}
@@ -728,15 +729,15 @@ table.eq-tabla{width:100%;border-collapse:collapse;}
 /* FASE 2 — sección 2/3: mismo criterio "grid ligero" que el resto de tablas compactas
    (Proveedores/Tareas/Historial/Clientes) — solo divisores horizontales, sin cuadrícula vertical. */
 table.eq-tabla th,table.eq-tabla td{border:none;border-bottom:1px solid var(--border-light);padding:10px 14px;text-align:center;font-size:13px;white-space:nowrap;}
-table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;border-bottom:1px solid var(--border);}
+table.eq-tabla th{background:var(--bg-soft);color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.05em;border-bottom:1px solid var(--border);}
 table.eq-tabla tr:last-child td{border-bottom:none;}
 table.eq-tabla tbody tr:hover{background:var(--bg-soft);}
 /* AJUSTE (2026-09-07) — tabla de ventas del detalle de proveedor: 5 columnas que caben
    completas dentro del drawer, sin scroll horizontal. */
 .modal.prov-drawer{max-width:640px;}
 table.prov-ventas-tabla{table-layout:fixed;width:100%;}
-table.prov-ventas-tabla th,table.prov-ventas-tabla td{padding:7px 5px;font-size:11.5px;white-space:normal;word-break:break-word;}
-table.prov-ventas-tabla th{font-size:9px;letter-spacing:.02em;}
+table.prov-ventas-tabla th,table.prov-ventas-tabla td{padding:7px 5px;font-size:12px;white-space:normal;word-break:break-word;}
+table.prov-ventas-tabla th{font-size:11px;letter-spacing:.02em;}
 table.prov-ventas-tabla td .btn-chico{padding:3px 8px;font-size:11px;}
 .prov-ventas-pagadas-wrap{max-height:190px;overflow-y:auto;}
 /* PENDIENTE DE PAGO (2026-09-10): una venta cuyo cliente aún no paga genera obligación con el
@@ -751,27 +752,27 @@ tr.prov-fila-espera td{opacity:.6;}
   .fecha-larga{display:none;}
   .fecha-corta{display:inline;}
   table.eq-tabla th,table.eq-tabla td{padding:8px 6px;font-size:12px;}
-  table.eq-tabla th{font-size:9.5px;letter-spacing:.02em;}
+  table.eq-tabla th{font-size:11px;letter-spacing:.02em;}
 }
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.5);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:26px 12px;overflow-y:auto;z-index:50;}
 .modal{background:#fff;border-radius:var(--r-lg);padding:22px;width:100%;max-width:520px;box-shadow:var(--shadow-lg);}
-.modal h3{margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--border-light);font-size:17px;font-weight:700;letter-spacing:-.01em;}
+.modal h3{margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--border-light);font-size:18px;font-weight:700;letter-spacing:-.01em;}
 .modal .cerrar-x{float:right;background:none;border:none;font-size:18px;color:var(--muted);border-radius:var(--r-xs);padding:4px 6px;transition:background .15s,color .15s;}
 .modal .cerrar-x:hover{background:var(--bg-soft);color:var(--text);}
 .fila-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .acciones-modal{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;padding-top:14px;border-top:1px solid var(--border-light);flex-wrap:wrap;}
 /* BLOQUE 6 SIMPLIFICADO (2026-09-07) — checkbox "Pagado" por obligación */
 .modal.venta-detalle-modal{max-width:600px;}
-.pago-oblig{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;white-space:nowrap;}
+.pago-oblig{display:inline-flex;align-items:center;gap:8px;font-size:13px;white-space:nowrap;}
 .pago-oblig-check{font-size:12px;border-radius:var(--r-xs);padding:3px 9px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:600;}
 .pago-oblig-no:hover{border-color:var(--primary);color:var(--primary);}
 .pago-oblig-si{color:var(--success);border-color:var(--success-br);background:var(--success-suave);cursor:default;}
 .pago-oblig-fila{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;}
 .pago-oblig-fila:last-child{border-bottom:none;}
 
-.item-linea{display:flex;justify-content:space-between;align-items:center;background:var(--bg-soft);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:6px;font-size:13.5px;}
+.item-linea{display:flex;justify-content:space-between;align-items:center;background:var(--bg-soft);border-radius:var(--r-sm);padding:9px 12px;margin-bottom:6px;font-size:14px;}
 .item-linea .q{color:var(--muted);font-size:12px;}
 .subtotal-box{display:flex;justify-content:space-between;font-weight:700;padding:8px 2px;border-top:1px dashed var(--border);margin-top:6px;}
 
@@ -780,8 +781,8 @@ tr.prov-fila-espera td{opacity:.6;}
 
 .kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .kanban-col h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;margin:0 0 10px;}
-.kanban-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;font-size:13.5px;box-shadow:var(--shadow-xs);}
-.kanban-card .asignado{font-size:11.5px;font-weight:600;color:var(--primary);margin-top:4px;}
+.kanban-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;font-size:14px;box-shadow:var(--shadow-xs);}
+.kanban-card .asignado{font-size:12px;font-weight:600;color:var(--primary);margin-top:4px;}
 .kanban-card .mover{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
 
 details.config-block{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s;}
@@ -792,7 +793,7 @@ details.config-block summary::before{content:'▸';display:inline-block;width:14
 details.config-block[open] summary::before{transform:rotate(90deg);}
 details.config-block summary:hover{color:var(--primary);}
 .lista-simple{list-style:none;margin:8px 0;padding:0;}
-.lista-simple li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13.5px;}
+.lista-simple li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:14px;}
 .lista-simple li:last-child{border-bottom:none;}
 
 /* FASE 2 — sección 2/3: variantes "ligeras" de .tabla-excel. Stock (10 columnas) y Leads
@@ -813,11 +814,11 @@ table.reportes-tabla-marca tr:last-child td{border-bottom:none;}
 
 /* FIX INCIDENTE SYNC (2026-08-24): barra fija arriba de todo, imposible de ignorar sin ser
    agresiva — antes un fallo de guardado en la nube no tenía NINGÚN indicador visual. */
-.aviso-sync-error{position:sticky;top:0;z-index:60;background:var(--danger);color:#fff;text-align:center;padding:8px 16px;font-size:12.5px;font-weight:600;}
+.aviso-sync-error{position:sticky;top:0;z-index:60;background:var(--danger);color:#fff;text-align:center;padding:8px 16px;font-size:13px;font-weight:600;}
 
 /* ALERTA TAREA NUEVA (2026-08-24): toasts flotantes, no bloquean nada, se autodestruyen solos. */
 .avisos-tarea-nueva{position:fixed;top:14px;right:14px;z-index:70;display:flex;flex-direction:column;gap:8px;max-width:300px;}
-.aviso-tarea-toast{background:var(--card);border:1px solid var(--border-light);border-left:4px solid var(--primary);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.16);padding:10px 12px;font-size:12.5px;color:var(--text);line-height:1.4;animation:avisoTareaEntra .18s ease-out;}
+.aviso-tarea-toast{background:var(--card);border:1px solid var(--border-light);border-left:4px solid var(--primary);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.16);padding:10px 12px;font-size:13px;color:var(--text);line-height:1.4;animation:avisoTareaEntra .18s ease-out;}
 .aviso-tarea-toast strong{display:block;margin-bottom:3px;color:var(--primary-dark);font-size:12px;}
 .aviso-tarea-toast .aviso-tarea-acciones{display:flex;justify-content:flex-end;gap:12px;margin-top:8px;}
 .aviso-tarea-toast .aviso-tarea-acciones button{background:none;border:none;padding:0;font:inherit;font-size:12px;cursor:pointer;color:var(--primary);font-weight:600;}
@@ -837,7 +838,7 @@ table.reportes-tabla-marca tr:last-child td{border-bottom:none;}
 /* Sección 9A: Desde/Hasta de Reportes → un solo filtro de período, no dos inputs sueltos.
    Clase aditiva sobre el <div class="filtros"> ya existente — no toca id/onchange. */
 .filtro-periodo{display:inline-flex;align-items:stretch;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;}
-.filtro-periodo label{display:flex;align-items:center;gap:8px;margin:0;padding:0 14px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.filtro-periodo label{display:flex;align-items:center;gap:8px;margin:0;padding:0 14px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;}
 .filtro-periodo label:first-child{border-right:1px solid var(--border-light);}
 .filtro-periodo input[type=date]{border:none;width:auto;padding:9px 2px;font-size:13px;background:transparent;}
 .filtro-periodo input[type=date]:focus{box-shadow:none;}
@@ -892,7 +893,7 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 @media(max-width:860px){.tareas-tablero{grid-template-columns:1fr;}}
 .tareas-columna{background:var(--bg-soft);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px;min-height:140px;}
 .tareas-columna-titulo{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding:0 2px;}
-.tareas-columna-cuenta{background:var(--card);border:1px solid var(--border-light);color:var(--muted);border-radius:var(--r-pill);padding:1px 8px;font-size:10.5px;font-weight:700;}
+.tareas-columna-cuenta{background:var(--card);border:1px solid var(--border-light);color:var(--muted);border-radius:var(--r-pill);padding:1px 8px;font-size:11px;font-weight:700;}
 .tarea-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow-xs);transition:box-shadow .15s,border-color .15s;}
 .tarea-card:last-child{margin-bottom:0;}
 .tarea-card:hover{box-shadow:var(--shadow-sm);border-color:var(--border-light);}
@@ -903,7 +904,7 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .tarea-card-descripcion{font-size:12px;color:var(--muted);line-height:1.4;margin:-4px 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .tarea-card-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);margin-bottom:10px;}
 .tarea-card-pie{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--border-light);padding-top:8px;}
-.tarea-card-pie select{width:auto;min-width:0;flex:1;padding:5px 8px;font-size:11.5px;}
+.tarea-card-pie select{width:auto;min-width:0;flex:1;padding:5px 8px;font-size:12px;}
 
 /* Sección 13: Config como pantalla de settings agrupada (Cuenta y acceso / Operación /
    Publicidad / Datos y seguridad), en vez de 6 bloques sueltos en fila. */
@@ -918,7 +919,7 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .page-header{margin-bottom:22px;}
 .page-title-row{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
 .page-title{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--text);}
-.page-description{margin:5px 0 0;font-size:13.5px;color:var(--muted);max-width:520px;}
+.page-description{margin:5px 0 0;font-size:14px;color:var(--muted);max-width:520px;}
 .page-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .toolbar-modulo{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border-light);}
 .tabla-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin:0 0 10px;}
@@ -928,10 +929,10 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
 .finanzas-franja{display:grid;grid-template-columns:1.3fr 1fr 1fr;background:var(--border-light);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;gap:1px;margin-bottom:22px;box-shadow:var(--shadow-xs);}
 .finanza-item{background:var(--card);padding:18px 22px;}
 .finanza-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
-.finanza-val{font-size:23px;font-weight:700;letter-spacing:-.015em;color:var(--text);font-variant-numeric:tabular-nums;}
+.finanza-val{font-size:22px;font-weight:700;letter-spacing:-.015em;color:var(--text);font-variant-numeric:tabular-nums;}
 .finanza-principal{background:var(--dark);}
 .finanza-principal .finanza-lbl{color:rgba(255,255,255,.55);}
-.finanza-principal .finanza-val{font-size:29px;color:#fff;}
+.finanza-principal .finanza-val{font-size:28px;color:#fff;}
 .finanza-atencion-activa{background:var(--warning-suave);}
 .finanza-atencion-activa .finanza-lbl{color:#92640c;}
 .finanza-atencion-activa .finanza-val{color:var(--warning);}
@@ -962,17 +963,17 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
    anchos del <colgroup> (~1030px, entra en main max-width:1100px) en vez de ensancharse con el
    contenido. El scroll horizontal queda como fallback real solo si la pantalla es angosta. */
 table.leads-tabla{table-layout:fixed;width:100%;}
-table.leads-tabla th{padding:9px 6px;font-size:9.5px;position:sticky;top:0;z-index:2;overflow:hidden;text-overflow:ellipsis;}
+table.leads-tabla th{padding:7px 6px;font-size:11px;position:sticky;top:0;z-index:2;overflow:hidden;white-space:normal;line-height:1.25;}
 table.leads-tabla td{padding:6px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;}
 table.leads-tabla td input{font-size:12px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;}
 table.leads-tabla td .link-lead,table.leads-tabla td .chip{overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:100%;vertical-align:middle;}
-select.leads-estado-select{font-weight:600;font-size:11.5px;border:none;border-radius:var(--r-xs);padding:5px 7px;width:100%;}
+select.leads-estado-select{font-weight:600;font-size:12px;border:none;border-radius:var(--r-xs);padding:5px 7px;width:100%;}
 /* MICRO-SPRINT LEADS (2026-08-24) — sección 2: flecha de orden en el encabezado "Estatus".
    Hereda la tipografía del <th> (mayúscula/gris/espaciada) para no verse como un botón pesado
    — solo agrega el cursor y el hover discreto. */
 .th-orden-btn{background:none;border:none;padding:0;margin:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:color .15s;}
 .th-orden-btn:hover{color:var(--primary);}
-.th-orden-icono{font-size:10px;opacity:.7;}
+.th-orden-icono{font-size:11px;opacity:.7;}
 /* UX PRECISIÓN LEADS (2026-08-22) — sección 3: alineación semántica — texto libre a la
    izquierda (Nombre/Apellido/Email/Ciudad), datos cortos y estado centrados (el resto). */
 table.leads-tabla td:nth-child(3),table.leads-tabla td:nth-child(4),
@@ -985,9 +986,9 @@ table.leads-tabla td:nth-child(3) .link-lead{text-align:left;}
 /* Sección 9/12: jerarquía real dentro de los drawers (Clientes/Proveedores) — identidad con
    peso propio, cada bloque siguiente con su eyebrow, historial separado como detalle de apoyo. */
 .drawer-identidad{padding-bottom:16px;border-bottom:1px solid var(--border-light);margin-bottom:18px;}
-.drawer-subtexto{font-size:12.5px;color:var(--muted);margin-top:4px;}
+.drawer-subtexto{font-size:13px;color:var(--muted);margin-top:4px;}
 .drawer-seccion{margin-bottom:20px;}
-.drawer-seccion-titulo{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin-bottom:10px;}
+.drawer-seccion-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin-bottom:10px;}
 .drawer-estado-relacion{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .drawer-estado-detalle{font-size:12px;color:var(--muted);}
 .drawer-seccion-final{padding-top:16px;border-top:1px solid var(--border-light);margin-bottom:4px;}
@@ -995,20 +996,20 @@ table.leads-tabla td:nth-child(3) .link-lead{text-align:left;}
    formularios por significado (Identificación/Presentación/Inventario/Economía/Modelo
    comercial...), reutilizado en cualquier <form> del sistema. Mismos ids/labels/required/
    onchange de siempre — solo se insertan estos separadores como texto/línea, nada más. */
-.form-grupo-titulo{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin:16px 0 4px;}
+.form-grupo-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-light);margin:16px 0 4px;}
 .form-grupo-titulo:first-child{margin-top:0;}
 .form-divisor{border-top:1px solid var(--border-light);margin:14px 0 10px;}
-.stock-form .form-grupo-titulo{margin:12px 0 3px;font-size:10px;}
+.stock-form .form-grupo-titulo{margin:12px 0 3px;font-size:11px;}
 .stock-form .form-divisor{margin:10px 0 8px;}
 .drawer-saldo-hero{display:flex;flex-wrap:wrap;align-items:center;gap:16px 28px;padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid var(--border-light);}
 .drawer-saldo-hero>.btn{margin-left:auto;}
-.drawer-saldo-val{margin-top:4px;font-size:25px;font-weight:700;letter-spacing:-.015em;color:var(--text);font-variant-numeric:tabular-nums;}
+.drawer-saldo-val{margin-top:4px;font-size:24px;font-weight:700;letter-spacing:-.015em;color:var(--text);font-variant-numeric:tabular-nums;}
 .drawer-saldo-val-alerta{color:var(--danger);}
-.drawer-saldo-secundario .drawer-saldo-val{font-size:17px;color:var(--success);}
+.drawer-saldo-secundario .drawer-saldo-val{font-size:18px;color:var(--success);}
 /* Tablas eq-tabla dentro de un drawer angosto (460px) necesitan menos padding que en vista
    socio/Stock (donde hay más ancho disponible) para no cortar encabezados como "Total a pagar". */
-.modal.panel-derecha table.eq-tabla th,.modal.panel-derecha table.eq-tabla td{padding:8px 8px;font-size:11.5px;}
-.modal.panel-derecha table.eq-tabla th{font-size:9px;}
+.modal.panel-derecha table.eq-tabla th,.modal.panel-derecha table.eq-tabla td{padding:8px 8px;font-size:12px;}
+.modal.panel-derecha table.eq-tabla th{font-size:11px;}
 
 /* Sección 10: Stock como data grid profesional — punto de estado en vez de número rojo,
    encabezado congelado, scrollbar discreto (mismo criterio que Leads). */
@@ -1124,15 +1125,15 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
         <details class="menu-mas-opciones">
           <summary title="Más filtros (estado exacto, rango de fechas)" aria-label="Más filtros">⋯</summary>
           <div class="menu-mas-opciones-panel">
-            <label style="margin:0;font-size:11.5px;font-weight:600;color:var(--muted);">Estado exacto
+            <label style="margin:0;font-size:12px;font-weight:600;color:var(--muted);">Estado exacto
               <select id="leadsFiltroEstado" onchange="pintarLeads()" style="margin-top:4px;">
                 <option value="">Todos los estados</option>
               </select>
             </label>
-            <label style="margin:8px 0 0;font-size:11.5px;font-weight:600;color:var(--muted);">Desde
+            <label style="margin:8px 0 0;font-size:12px;font-weight:600;color:var(--muted);">Desde
               <input type="date" id="leadsFiltroDesde" onchange="pintarLeads()" style="margin-top:4px;">
             </label>
-            <label style="margin:8px 0 0;font-size:11.5px;font-weight:600;color:var(--muted);">Hasta
+            <label style="margin:8px 0 0;font-size:12px;font-weight:600;color:var(--muted);">Hasta
               <input type="date" id="leadsFiltroHasta" onchange="pintarLeads()" style="margin-top:4px;">
             </label>
           </div>
@@ -1203,7 +1204,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
       </div>
       <div id="listaStock"></div>
       <div style="text-align:center;margin-top:18px;">
-        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:11.5px;color:var(--text-light);cursor:pointer;"><input type="checkbox" id="stockVerArchivados" style="width:auto;" onchange="pintarStock()"> Mostrar productos archivados</label>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:400;font-size:12px;color:var(--text-light);cursor:pointer;"><input type="checkbox" id="stockVerArchivados" style="width:auto;" onchange="pintarStock()"> Mostrar productos archivados</label>
       </div>
     </section>
 
@@ -2542,8 +2543,8 @@ function pintarLeads(){
   // main max-width:1100px sin scroll horizontal. Mismas 11 columnas, mismo orden.
   cont.innerHTML=`<div class="tabla-excel leads-tabla-wrap"><table class="leads-tabla"><colgroup>
       <col style="width:78px;"><col style="width:50px;"><col style="width:145px;"><col style="width:80px;">
-      <col style="width:40px;"><col style="width:78px;"><col style="width:110px;"><col style="width:130px;">
-      <col style="width:95px;"><col style="width:145px;"><col style="width:90px;">
+      <col style="width:40px;"><col style="width:78px;"><col style="width:110px;"><col style="width:105px;">
+      <col style="width:95px;"><col style="width:170px;"><col style="width:90px;">
     </colgroup><thead><tr>
       ${thOrden('leads','fecha','Fecha','pintarLeads()')}<th>Hora</th>${thOrden('leads','nombre','Nombre','pintarLeads()')}${thOrden('leads','apellido','Apellido','pintarLeads()')}${thOrden('leads','edad','Edad','pintarLeads()')}<th>DNI/CE</th><th title="Celular / Usuario">Celular / Usuario</th><th>Email</th>${thOrden('leads','ciudad','Ciudad / Provincia','pintarLeads()')}
       ${thOrden('leads','estatus','Estatus','pintarLeads()')}
@@ -2567,7 +2568,7 @@ function pintarLeads(){
             ${ESTADOS_LEAD.map(e=>`<option value="${e}" ${e===l.estado?'selected':''}>${e}</option>`).join('')}
           </select>`}
         </td>
-        <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:10.5px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
+        <td>${l.atendidoPor?`<span class="chip chip-gris" style="font-size:11px;">${esc(l.atendidoPor)}</span>`:'<span style="color:var(--text-light);">—</span>'}</td>
       </tr>`;}).join('')}</tbody></table></div>`;
 }
 function actualizarCampoLead(id,campo,valor){
@@ -2636,7 +2637,7 @@ function abrirFichaLead(leadId){
     <input id="lf-motivoperdida" value="${esc(l.motivoPerdida||'')}" placeholder="Ej. precio, ya compró en otro lugar, no responde hace 2 semanas..." onchange="actualizarCampoLead('${l.id}','motivoPerdida',this.value)">
     `:''}
 
-    <h4 style="font-size:13.5px;margin:14px 0 6px;">Historial de conversación (lo que se habló por chat)</h4>
+    <h4 style="font-size:14px;margin:14px 0 6px;">Historial de conversación (lo que se habló por chat)</h4>
     <form onsubmit="return guardarNota(event,'${l.id}')" style="display:flex;gap:6px;margin-bottom:10px;">
       <input id="nota-texto" placeholder="¿Qué pasó / qué preguntó?" required style="flex:1;">
       <button class="btn btn-chico" type="submit">+ Agregar</button>
@@ -2659,7 +2660,7 @@ function abrirFichaLead(leadId){
       </div>`).join('')}
 
     ${cotizacionesDeLead.length===0?'':`
-    <h4 style="font-size:13.5px;margin:14px 0 6px;">Cotizaciones</h4>
+    <h4 style="font-size:14px;margin:14px 0 6px;">Cotizaciones</h4>
     ${cotizacionesDeLead.map(c=>`
       <div class="nota-linea">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -2766,7 +2767,7 @@ function avisarLeadDuplicado(dup){
       Estado: ${esc(dup.estado||'—')}<br>
       Responsable: ${esc(dup.atendidoPor||'—')}
     </p>
-    <p class="vacio" style="text-align:left;padding:0 0 12px;font-size:12.5px;">
+    <p class="vacio" style="text-align:left;padding:0 0 12px;font-size:13px;">
       Trabajamos las mismas bandejas entre varias personas. Antes de crear otra copia, abre el lead que ya existe.
     </p>
     <div class="acciones-modal" style="flex-direction:column;align-items:stretch;gap:8px;">
@@ -3133,7 +3134,7 @@ function pintarClientes(){
         </td>
         <td style="${pad}">${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}</td>
         <td style="${pad}">${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')||'—'}</td>
-        <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
+        <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:11px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
         <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>${tienePendientePago?' <span class="chip chip-violeta">Pendiente de pago</span>':''}</td>
         <td style="${pad}">${nPedidos}</td>
       </tr>`;
@@ -3210,7 +3211,7 @@ function abrirFichaCliente(clienteId){
 
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Historial</div>
-      ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><colgroup><col style="width:58px;"><col><col style="width:62px;"><col style="width:96px;"><col style="width:28px;"></colgroup><thead><tr>
+      ${pedidos.length===0?'<div class="vacio">Todavía no tiene compras registradas.</div>':`<div class="tabla-excel"><table class="cliente-historial-tabla"><colgroup><col style="width:92px;"><col><col style="width:84px;"><col style="width:100px;"><col style="width:28px;"></colgroup><thead><tr>
         <th>Fecha</th><th>Productos</th><th>Total</th><th>Estado</th><th></th>
         </tr></thead><tbody>${pedidos.map(p=>{
           const productosTxt=p.items.map(it=>`${esc(it.cantidad)}x ${esc(nombreConSabor(it))}`).join(', ');
@@ -3253,7 +3254,7 @@ function marcarPedidoPagado(pedidoId){
       <select id="mp-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
       <label>Fecha en que te pagó</label>
       <input type="date" id="mp-fecha" value="${hoyStr()}">
-      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">En Reportes la venta se cuenta con su fecha original (${fechaBonita(p.fecha)}), no con la de cobro.</p>
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">En Reportes la venta se cuenta con su fecha original (${fechaBonita(p.fecha)}), no con la de cobro.</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
         <button class="btn">Confirmar pago</button>
@@ -3507,7 +3508,7 @@ function abrirEntregaProgramada(pedidoId){
     <form onsubmit="return guardarEntregaProgramada(event,'${p.id}')">
       <label style="margin-top:0;">Fecha de entrega</label>
       <input type="date" id="ep-fecha" min="${hoyStr()}" value="${escAttr(p.entregaProgramada||'')}">
-      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Déjala vacía para quitarla (se despacha en el siguiente turno, como siempre).</p>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Déjala vacía para quitarla (se despacha en el siguiente turno, como siempre).</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
         <button class="btn">Guardar</button>
@@ -4184,18 +4185,18 @@ function imprimirEtiquetaEnvio(pedidoId){
     <style>
       @page{size:100mm 150mm;margin:4mm;}
       *{box-sizing:border-box;}
-      body{font-family:system-ui,Arial,sans-serif;margin:0;width:92mm;color:#000;font-size:12.5px;line-height:1.35;}
+      body{font-family:system-ui,Arial,sans-serif;margin:0;width:92mm;color:#000;font-size:13px;line-height:1.35;}
       .top{display:flex;align-items:center;gap:8px;border-bottom:2px solid #000;padding-bottom:6px;}
       .top img{width:42px;height:42px;object-fit:contain;}
-      .marca{font-weight:800;font-size:16px;}
+      .marca{font-weight:700;font-size:16px;}
       .sub{font-size:11px;}
-      .num{margin-left:auto;text-align:right;font-weight:800;font-size:14px;}
-      .lbl{font-size:10px;font-weight:700;letter-spacing:.06em;margin-top:8px;}
-      .nombre{font-size:20px;font-weight:800;line-height:1.15;}
+      .num{margin-left:auto;text-align:right;font-weight:700;font-size:14px;}
+      .lbl{font-size:11px;font-weight:700;letter-spacing:.06em;margin-top:8px;}
+      .nombre{font-size:22px;font-weight:700;line-height:1.15;}
       .dir{font-size:14px;font-weight:600;}
-      .cobrar{border:2px solid #000;padding:5px 8px;font-weight:800;font-size:14px;margin-top:8px;text-align:center;}
+      .cobrar{border:2px solid #000;padding:5px 8px;font-weight:700;font-size:14px;margin-top:8px;text-align:center;}
       ul{margin:4px 0 0;padding-left:18px;}
-      .pie{border-top:1px dashed #000;margin-top:8px;padding-top:4px;font-size:10.5px;}
+      .pie{border-top:1px dashed #000;margin-top:8px;padding-top:4px;font-size:11px;}
     </style></head><body>
     <div class="top">
       ${logo?`<img src="${logo}" alt="">`:''}
@@ -4260,7 +4261,7 @@ function abrirPasoEnvio(pedidoId){
           <div><label>Código</label><input id="pe-codigo" value="${escAttr(p.codigoEnvio||'')}"></div>
         </div>
         <label>Clave de retiro</label><input id="pe-clave" value="${escAttr(p.claveRetiro||'')}" placeholder="La que pusiste en Shalom para que el cliente lo recoja">
-        <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no tienes el ticket de Shalom, déjalos vacíos y anótalos después desde la tarjeta.</p>
+        <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Si todavía no tienes el ticket de Shalom, déjalos vacíos y anótalos después desde la tarjeta.</p>
       </div>
       <div id="pe-lima" style="${p.metodoEnvio==='indrive'?'':'display:none;'}">${camposMotorizadoHTML(p)}</div>
       <label>Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">`;
@@ -4269,7 +4270,7 @@ function abrirPasoEnvio(pedidoId){
     // Contra entrega en Lima: de paso se puede marcar que ya pagó (mismo efecto que "Marcar como pagado").
     const cobrar=p.estadoPago==='pendiente pago'?`<label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="pe-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display=this.checked?'':'none'"> Ya pagó los ${money(p.total)}</label>
       <select id="pe-pago-metodo" style="display:none;">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
-      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si todavía no te llega la plata, déjalo sin marcar: sigue como "Pendiente de pago".</p>`:'';
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Si todavía no te llega la plata, déjalo sin marcar: sigue como "Pendiente de pago".</p>`:'';
     cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">${cobrar}`;
   }
   abrirModal(`
@@ -4345,7 +4346,7 @@ function abrirDatosShalom(pedidoId){
         <div><label style="margin-top:0;">Código *</label><input id="pe-codigo" required value="${escAttr(p.codigoEnvio||'')}"></div>
       </div>
       <label>Clave de retiro</label><input id="pe-clave" value="${escAttr(p.claveRetiro||'')}">
-      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">El cliente los necesita para rastrear y recoger su paquete.</p>
+      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">El cliente los necesita para rastrear y recoger su paquete.</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
         <button class="btn">Guardar</button>
@@ -4391,7 +4392,7 @@ function camposMotorizadoHTML(p){
       <div><label>Celular del motorizado *</label><input id="pe-mot-celular" inputmode="tel" value="${escAttr(m.celular||'')}"></div>
     </div>
     <label>Placa *</label><input id="pe-mot-placa" value="${escAttr(m.placa||'')}" placeholder="Ej. 1234-AB · si es bicicleta, escribe Bicicleta">
-    <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:11.5px;">Si no tiene placa (bicicleta con motor), escribe "Bicicleta".</p>`;
+    <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Si no tiene placa (bicicleta con motor), escribe "Bicicleta".</p>`;
 }
 // Devuelve {nombre, celular, placa} o null (y avisa) si falta alguno.
 function leerCamposMotorizado(){
@@ -5107,7 +5108,7 @@ function abrirFormPedido(clienteIdPre){
       ${clientePre?`
       <div class="card" style="background:var(--bg-soft);margin-bottom:12px;">
         <strong>${esc(clientePre.nombre)} ${esc(clientePre.apellido)}</strong>
-        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">${esc(clientePre.dni||'sin DNI')} · ${esc(clientePre.telefono||'—')}<br>${esc(direccionCompleta(clientePre))}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px;">${esc(clientePre.dni||'sin DNI')} · ${esc(clientePre.telefono||'—')}<br>${esc(direccionCompleta(clientePre))}</div>
       </div>
       <input type="hidden" id="pd-cliente" value="${clientePre.id}">
       `:`
@@ -5318,9 +5319,9 @@ function saboresHermanos(stockId){
 function selectorCambiarSabor(it,i){
   const otros=saboresHermanos(it.stockId);
   if(!otros.length)return '';
-  return `<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;font-size:12.5px;color:var(--text-muted);margin:-2px 0 6px;">
+  return `<div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);margin:-2px 0 6px;">
     Cambiar 1 unidad a:
-    <select style="padding:3px 6px;font-size:12.5px;" onchange="pedidoCambiarSaborItem(${i},this.value)">
+    <select style="padding:3px 6px;font-size:13px;" onchange="pedidoCambiarSaborItem(${i},this.value)">
       <option value="">elige sabor…</option>
       ${otros.map(o=>`<option value="${o.id}">${esc(o.sabor||nombreConSabor(o))} (stock: ${o.cantidad})</option>`).join('')}
     </select></div>`;
@@ -5778,7 +5779,7 @@ function eliminarPedido(id,modo){
         <option value="">— Selecciona —</option>
         ${db.usuarios.map(u=>`<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('')}
       </select>
-      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Se registrará con fecha de hoy (${fechaBonita(hoyStr())}).</p>
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">Se registrará con fecha de hoy (${fechaBonita(hoyStr())}).</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
         <button class="btn-peligro">${devuelto?'Confirmar devolución':'Confirmar eliminación'}</button>
@@ -5918,7 +5919,7 @@ function textoPresentacionStock(s){
   const pres=(s.presentacion||'').trim();
   const sabor=(s.sabor||'').trim();
   if(!pres&&!sabor)return '—';
-  return esc(pres||'—')+(sabor?`<div style="font-size:10.5px;color:var(--muted);margin-top:1px;">${esc(sabor)}</div>`:'');
+  return esc(pres||'—')+(sabor?`<div style="font-size:11px;color:var(--muted);margin-top:1px;">${esc(sabor)}</div>`:'');
 }
 function filaStock(s){
   const est=estadoStockProducto(s);
@@ -6013,8 +6014,8 @@ function pintarStock(){
   // ver CSS) con colgroup de anchos de referencia; el contenedor .tabla-excel ya trae
   // overflow:auto, así que si no cabe sigue habiendo scroll horizontal.
   cont.innerHTML=`<div class="tabla-excel stock-tabla-wrap"><table class="stock-tabla"><colgroup>
-      <col style="width:110px;"><col style="width:92px;"><col style="width:200px;"><col style="width:100px;"><col style="width:90px;">
-      <col style="width:65px;"><col style="width:58px;"><col style="width:92px;"><col style="width:92px;"><col style="width:118px;">
+      <col style="width:110px;"><col style="width:92px;"><col style="width:186px;"><col style="width:100px;"><col style="width:90px;">
+      <col style="width:78px;"><col style="width:59px;"><col style="width:92px;"><col style="width:92px;"><col style="width:118px;">
     </colgroup><thead><tr>
       ${thOrden('stock','marca','Marca','pintarStock()')}<th>Código</th>${thOrden('stock','producto','Producto','pintarStock()')}<th>Presentación</th><th>Sabor</th>${thOrden('stock','cantidad','Cantidad','pintarStock()')}${thOrden('stock','minimo','Mínimo','pintarStock()')}${thOrden('stock','costo','Precio de compra','pintarStock()')}${thOrden('stock','precio','Precio de venta','pintarStock()')}${thOrden('stock','proveedor','Proveedor','pintarStock()')}
     </tr></thead><tbody>${stockVisible.map(s=>filaStock(s)).join('')}</tbody></table></div>`;
@@ -6419,7 +6420,7 @@ function abrirFormSalidaNoComercial(stockId){
         <option value="proveedor">Cortesía del proveedor — No se paga</option>
         <option value="zona_bariatrica" ${permiteZB?'':'disabled'}>Cortesía de Zona Bariátrica — Sí se paga al proveedor cuando corresponda</option>
       </select>
-      ${!permiteZB?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Esta marca es ${esc(MODELO_LABEL_PROVEEDORES[modalidad]||'una modalidad sin configurar')}. Por ahora "Cortesía de Zona Bariátrica" solo está disponible para Compra directa — para Stock a crédito/Crédito + reparto esa obligación todavía no se refleja en Proveedores (pendiente de una decisión antes de activarlo).</p>`:''}
+      ${!permiteZB?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">Esta marca es ${esc(MODELO_LABEL_PROVEEDORES[modalidad]||'una modalidad sin configurar')}. Por ahora "Cortesía de Zona Bariátrica" solo está disponible para Compra directa — para Stock a crédito/Crédito + reparto esa obligación todavía no se refleja en Proveedores (pendiente de una decisión antes de activarlo).</p>`:''}
       <label>Nota (opcional)</label><input id="snc-nota" placeholder="Detalle adicional">
       <div id="snc-impacto" class="aviso oculto" style="margin-top:8px;"></div>
       <div class="acciones-modal">
@@ -6556,7 +6557,7 @@ function abrirKardexStock(stockId){
         <td>${f.m.tipo==='ajuste_costo'?(money(f.m.costoAnterior)+' → '+money(f.m.costoNuevo)):(f.m.tipo==='entrada'?money(f.m.cantidad>0?(f.m.monto||0)/f.m.cantidad:0):(f.m.costoUnit!=null?money(f.m.costoUnit):'—'))}</td>
         <td>${f.m.tipo==='salida_no_comercial'?esc(`${f.m.motivo||'—'} · ${f.m.tipoCortesia==='proveedor'?'Cortesía proveedor':'Cortesía Zona Bariátrica'}${f.m.nota?' · '+f.m.nota:''}`):esc(f.m.motivo||f.m.nota||'—')}</td>
         <td>${esc(f.m.usuario||'—')}</td>
-        <td>${f.m.tipo==='entrada'?`<button type="button" class="btn-secundario" style="padding:2px 8px;font-size:11.5px;" onclick="abrirEditarCompra('${f.m.id}')">Editar</button>`:''}</td>
+        <td>${f.m.tipo==='entrada'?`<button type="button" class="btn-secundario" style="padding:2px 8px;font-size:12px;" onclick="abrirEditarCompra('${f.m.id}')">Editar</button>`:''}</td>
       </tr>`).join('')}</tbody></table></div>`}
     <div class="acciones-modal"><button type="button" class="btn-secundario" onclick="cerrarModal()">Cerrar</button></div>`);
 }
@@ -6872,7 +6873,7 @@ function pintarCuentasConsignacionBajoPedido(){
         <td><span class="chip chip-gris">${MODALIDAD_LABEL_CORTO[c.modalidad]||c.modalidad}</span></td>
         <td>${money(obligacion)}</td>
         <td>${money(pagado)}</td>
-        <td>${saldo>0.005?`<span style="font-size:12.5px;color:var(--danger);">${money(saldo)}</span>`:(aFavor>0.005?`<span class="chip chip-azul" title="Zona Bariátrica pagó de más en esta cuenta (ej. una venta pagada que después se canceló)">Saldo a favor: ${money(aFavor)}</span>`:`<span class="chip chip-verde">Al día</span>`)}</td>
+        <td>${saldo>0.005?`<span style="font-size:13px;color:var(--danger);">${money(saldo)}</span>`:(aFavor>0.005?`<span class="chip chip-azul" title="Zona Bariátrica pagó de más en esta cuenta (ej. una venta pagada que después se canceló)">Saldo a favor: ${money(aFavor)}</span>`:`<span class="chip chip-verde">Al día</span>`)}</td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
   return html;
@@ -6948,10 +6949,10 @@ function bloqueAsignacionesPago(lineas,idMonto){
     <input type="number" class="pa-monto" data-idx="${idx}" step="any" min="0" max="${l.pendiente}" value="" disabled style="width:82px;" oninput="pagoAsigActualizar('${idMonto}')">
   </label>`).join('');
   return `<details style="margin-top:10px;">
-    <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">¿A qué ventas corresponde este pago? (opcional)</summary>
+    <summary style="cursor:pointer;font-size:13px;color:var(--muted);">¿A qué ventas corresponde este pago? (opcional)</summary>
     <div style="margin-top:6px;">${filas}
-      <div id="pp-asig-contador" style="margin-top:8px;font-size:12.5px;color:var(--muted);">Asignado: <strong>${money(0)}</strong> de ${money(0)}</div>
-      <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Si no marcas ninguna, el pago se registra como pago general / adelanto, igual que antes.</div>
+      <div id="pp-asig-contador" style="margin-top:8px;font-size:13px;color:var(--muted);">Asignado: <strong>${money(0)}</strong> de ${money(0)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;">Si no marcas ninguna, el pago se registra como pago general / adelanto, igual que antes.</div>
     </div>
   </details>`;
 }
@@ -7018,7 +7019,7 @@ function textoAsignacionesPago(pg){
   if(!asigs.length)return '';
   const sumAsig=round2(asigs.reduce((s,a)=>s+(a.monto||0),0));
   const sinAsignar=round2((pg.monto||0)-sumAsig);
-  return `<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">
+  return `<div style="font-size:12px;color:var(--muted);margin-top:2px;">
     ${asigs.map(a=>`${correlativoVenta(a.pedidoId)}: ${money(a.monto)} <button type="button" class="link-historial" style="font-size:11px;" onclick="abrirDetalleVentaHistorial('${a.pedidoId}')">Ver venta</button>`).join('<br>')}
     ${sinAsignar>0.005?`<br>Sin asignar: ${money(sinAsignar)}`:''}
   </div>`;
@@ -7263,7 +7264,7 @@ function abrirPdfPagosProveedor(){
         <div><label>Desde (opcional)</label><input type="date" id="pdfp-desde"></div>
         <div><label>Hasta (opcional)</label><input type="date" id="pdfp-hasta"></div>
       </div>
-      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">Sin fechas, salen todos los pagos. En la ventana que se abre elige <strong>"Guardar como PDF"</strong> como impresora.</p>
+      <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">Sin fechas, salen todos los pagos. En la ventana que se abre elige <strong>"Guardar como PDF"</strong> como impresora.</p>
       <div class="acciones-modal">
         <button type="button" class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
         <button class="btn">Generar PDF</button>
@@ -7288,7 +7289,7 @@ function generarPdfPagosProveedor(ev){
     h1{font-size:18px;margin:0;} .sub{color:#555;margin:2px 0 16px;}
     table{width:100%;border-collapse:collapse;margin-bottom:16px;} th,td{border-bottom:1px solid #ddd;padding:5px 6px;text-align:left;vertical-align:top;}
     th{background:#f2f4f7;font-size:11px;text-transform:uppercase;} .r{text-align:right;white-space:nowrap;}
-    .nota{color:#666;font-size:10.5px;margin-top:2px;} .tot td{font-weight:700;border-top:2px solid #222;}
+    .nota{color:#666;font-size:11px;margin-top:2px;} .tot td{font-weight:700;border-top:2px solid #222;}
     .resumen{width:auto;min-width:300px;} h2{font-size:13px;margin:18px 0 6px;}
     @media print{body{margin:10mm;} tr{page-break-inside:avoid;}}</style>
     </head><body>
@@ -7953,7 +7954,7 @@ function cerrarModalAbono(){
 // Σ de la columna PENDIENTE == ec.saldo. Ordenable por encabezado; ABONO no se ordena.
 function seccionVentasDrawer(ec){
   const conObl=ec.ventas.filter(v=>v.obligacion>0.005);
-  if(conObl.length===0)return `<div class="drawer-seccion drawer-seccion-final"><div class="drawer-seccion-titulo">Pendiente de pago</div><div class="vacio">Esta cuenta no tiene ventas con obligación.</div><div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div></div>`;
+  if(conObl.length===0)return `<div class="drawer-seccion drawer-seccion-final"><div class="drawer-seccion-titulo">Pendiente de pago</div><div class="vacio">Esta cuenta no tiene ventas con obligación.</div><div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div></div>`;
   const R="refrescarDetalleAbierto()";
   const accP={venta:v=>correlativoNum(v.pedidoId),fecha:v=>v.fecha,productos:v=>v.lineas.length,pendiente:v=>v.pendiente};
   const accG={venta:v=>correlativoNum(v.pedidoId),fecha:v=>v.fecha,pagado:v=>v.obligacion};
@@ -7982,8 +7983,8 @@ function seccionVentasDrawer(ec){
   return `<div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Pendiente de pago</div>
       ${tablaPend}
-      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
-      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:3px 4px 0;"><span>⏳ Aún no exigible (cliente sin pagar / tarjeta sin acreditar)</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
+      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:3px 4px 0;"><span>⏳ Aún no exigible (cliente sin pagar / tarjeta sin acreditar)</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
     </div>
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Pagadas</div>
@@ -8035,7 +8036,7 @@ function abrirDetalleProveedor(proveedor,modelo,marca){
             const s=porId(db.stock,e.stockId);
             return `<tr><td>${fechaCelda(e.fecha)}</td><td style="text-align:left;">${s?esc(s.producto):'—'}</td><td>${money(saldoEntrega(e))}</td></tr>`;
           }).join('');
-          const nota=pend.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:11.5px;">+${pend.length-4} más — ver historial completo en Historial → Entradas de productos.</p>`:'';
+          const nota=pend.length>4?`<p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">+${pend.length-4} más — ver historial completo en Historial → Entradas de productos.</p>`:'';
           return `<div class="eq-tabla-wrap"><table class="eq-tabla"><thead><tr><th>Fecha</th><th>Referencia</th><th>Corresponde pagar</th></tr></thead><tbody>${filas}</tbody></table></div>${nota}`;
         })()}
       </div>
@@ -8236,7 +8237,7 @@ function pintarTareas(){
           <div class="tarea-card-texto">${esc(t.texto)}</div>
           ${t.descripcion?`<div class="tarea-card-descripcion" title="${escAttr(t.descripcion)}">${esc(t.descripcion)}</div>`:''}
           <div class="tarea-card-meta">
-            ${v?`<button type="button" class="link-lead" style="padding:0;font-size:11.5px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'<span>Sin vincular</span>'}
+            ${v?`<button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="${v.tipo==='lead'?'abrirFichaLead':'abrirFichaCliente'}('${v.id}')">${esc(v.nombre)}</button>`:'<span>Sin vincular</span>'}
             <span>${esc(t.asignadoA||'—')}</span>
             <span>${t.fechaLimite?fechaBonita(t.fechaLimite):'Sin fecha'}</span>
           </div>
@@ -9374,7 +9375,7 @@ function abrirFormAnularGasto(id){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Anular gasto</h3>
     <p class="vacio" style="text-align:left;padding:4px 0 8px;">${fechaBonita(g.fecha)} · ${esc(g.concepto)} · ${money(g.monto)}</p>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;font-size:12.5px;">El registro no se elimina: queda visible como anulado y deja de contar. Para corregir un monto, anula este y registra el correcto.</p>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;font-size:13px;">El registro no se elimina: queda visible como anulado y deja de contar. Para corregir un monto, anula este y registra el correcto.</p>
     <form onsubmit="return anularGasto(event,'${g.id}')">
       <label>Motivo de la anulación *</label>
       <input id="gs-motivo-anul" required placeholder="Ej. monto mal tipeado / lo anoté dos veces">
@@ -9671,7 +9672,7 @@ function pintarHistorial(){
         const s=porId(db.stock,m.stockId);
         return `<tr>
           <td>${fechaCelda(m.fecha)}</td>
-          <td style="text-align:left;">${s?esc(s.producto):'—'}${m.tipo==='entrada_inicial'?' <span class="chip chip-gris" style="font-size:10px;">Stock inicial</span>':''}</td>
+          <td style="text-align:left;">${s?esc(s.producto):'—'}${m.tipo==='entrada_inicial'?' <span class="chip chip-gris" style="font-size:11px;">Stock inicial</span>':''}</td>
           <td style="text-align:left;">${s?esc(s.marca):'—'}</td>
           <td style="text-align:right;">${m.cantidad}</td>
           <td style="text-align:left;">${esc(m.proveedor||'—')}</td>
@@ -9937,7 +9938,7 @@ function pintarHistorialTodos(cont,buscar,enRango){
     responsable:e=>e.responsable
   });
   cont.innerHTML=filas.length===0?'<div class="vacio">Sin eventos para este filtro.</div>':`<div class="tabla-excel historial-wrap" tabindex="0"><table class="historial-tabla historial-tabla-todos"><colgroup>
-    <col style="width:26px;"><col style="width:90px;"><col style="width:132px;"><col style="width:112px;"><col><col style="width:96px;"><col style="width:100px;">
+    <col style="width:26px;"><col style="width:90px;"><col style="width:150px;"><col style="width:112px;"><col><col style="width:96px;"><col style="width:100px;">
     </colgroup><thead><tr>
     <th></th>${thOrden('histTodos','fecha','Fecha','pintarHistorial()')}${thOrden('histTodos','tipo','Tipo','pintarHistorial()')}${thOrden('histTodos','referencia','Referencia','pintarHistorial()')}${thOrden('histTodos','detalle','Detalle','pintarHistorial()')}<th>Ganancia ZB</th>${thOrden('histTodos','responsable','Responsable','pintarHistorial()')}
     </tr></thead><tbody>${filas.map(e=>{
@@ -9985,7 +9986,7 @@ function seccionPagoProveedorVenta(pedidoId){
       </div>`).join('');
     return `<div style="padding:6px 0;border-bottom:1px solid var(--border-light);">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-        <strong style="font-size:12.5px;">${esc(items[0].marca||'—')}</strong>
+        <strong style="font-size:13px;">${esc(items[0].marca||'—')}</strong>
         <span class="chip ${est.chip}">${est.txt}</span>
       </div>
       ${lineas}
@@ -10029,7 +10030,7 @@ function contenidoDetalleVenta(pedidoId){
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Cliente</div>
-      ${c?`<div>${esc(c.nombre)} ${esc(c.apellido)}</div><div style="font-size:12.5px;color:var(--muted);">${esc(c.telefono||'—')}${c.dni?' · '+esc(c.dni):''}</div>`:'<div class="vacio">Cliente eliminado.</div>'}
+      ${c?`<div>${esc(c.nombre)} ${esc(c.apellido)}</div><div style="font-size:13px;color:var(--muted);">${esc(c.telefono||'—')}${c.dni?' · '+esc(c.dni):''}</div>`:'<div class="vacio">Cliente eliminado.</div>'}
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Productos</div>
@@ -10057,8 +10058,8 @@ function contenidoDetalleVenta(pedidoId){
       <div>${esc(envioTxt)}${p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'&&!anulada
         ?` · ${chipPasoEnvio(p)}`
         :` · ${esc(p.estadoEnvio||'—')}`}</div>
-      ${(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div style="font-size:12.5px;color:var(--muted);">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:''}
-      ${p.metodoEnvio==='indrive'&&p.motorizado?`<div style="font-size:12.5px;color:var(--muted);">Motorizado: ${esc(textoMotorizado(p))}</div>`:''}
+      ${(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div style="font-size:13px;color:var(--muted);">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Seg. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:''}
+      ${p.metodoEnvio==='indrive'&&p.motorizado?`<div style="font-size:13px;color:var(--muted);">Motorizado: ${esc(textoMotorizado(p))}</div>`:''}
     </div>
     ${anulada?`<div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Auditoría de anulación</div>
@@ -10066,13 +10067,13 @@ function contenidoDetalleVenta(pedidoId){
       <div class="item-linea"><span>Fecha de anulación</span><span>${p.canceladoFecha?fechaBonita(p.canceladoFecha):'—'}</span></div>
       <div class="item-linea"><span>Anuló</span><span>${esc(p.canceladoPor||'—')}</span></div>
       <div class="item-linea"><span>Autorizó</span><span>${esc(p.autorizadoPor||'—')}</span></div>
-      ${p.motivoCancelacion?`<div style="font-size:12.5px;color:var(--danger);margin-top:6px;">Motivo: ${esc(p.motivoCancelacion)}</div>`:''}
+      ${p.motivoCancelacion?`<div style="font-size:13px;color:var(--danger);margin-top:6px;">Motivo: ${esc(p.motivoCancelacion)}</div>`:''}
     </div>`:''}
     ${seccionPagoProveedorVenta(p.id)}
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Otros</div>
       <div>Atendió: ${esc(p.atendidoPor||'—')}</div>
-      ${p.notas?`<div style="font-size:12.5px;color:var(--muted);font-style:italic;">"${esc(p.notas)}"</div>`:''}
+      ${p.notas?`<div style="font-size:13px;color:var(--muted);font-style:italic;">"${esc(p.notas)}"</div>`:''}
     </div>`;
 }
 function abrirDetalleVentaHistorial(pedidoId){
@@ -10216,7 +10217,7 @@ function abrirFormAnularGastoPauta(id){
     <button class="cerrar-x" onclick="cerrarModal()">✕</button>
     <h3>Anular gasto de pauta</h3>
     <p class="vacio" style="text-align:left;padding:4px 0 8px;">${fechaBonita(g.fecha)} · ${money(g.monto)}${g.canal?' · '+esc(g.canal):''}</p>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;font-size:12.5px;">El registro no se elimina: queda visible como anulado y deja de contar para la Ganancia neta ZB. Para corregir un monto, anula este y registra el gasto correcto.</p>
+    <p class="vacio" style="text-align:left;padding:0 0 10px;font-size:13px;">El registro no se elimina: queda visible como anulado y deja de contar para la Ganancia neta ZB. Para corregir un monto, anula este y registra el gasto correcto.</p>
     <form onsubmit="return anularGastoPauta(event,'${g.id}')">
       <label>Motivo de la anulación *</label>
       <input id="gp-motivo-anul" required placeholder="Ej. monto mal tipeado / gasto de prueba">
@@ -10256,11 +10257,11 @@ function pintarGastosPautaConfig(){
     <td>${esc(g.motivoAnulacion||'—')}${g.anuladoPor?' · '+esc(g.anuladoPor):''}${g.anuladoFecha?' · '+fechaBonita(g.anuladoFecha):''}</td><td></td>
   </tr>`;
   cont.innerHTML=`<details${activos.length?' open':''}>
-    <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Gastos activos (${activos.length})</summary>
+    <summary style="cursor:pointer;font-size:13px;color:var(--muted);">Gastos activos (${activos.length})</summary>
     <div class="tabla-wrap" style="margin-top:8px;">${activos.length===0?'<div class="vacio" style="padding:8px 0;">Sin gastos activos.</div>':`<table><thead><tr><th>Fecha</th><th>Monto</th><th>Canal</th><th>Nota</th><th></th></tr></thead><tbody>${activos.map(filaActiva).join('')}</tbody></table>`}</div>
   </details>${anulados.length?`
   <details style="margin-top:6px;">
-    <summary style="cursor:pointer;font-size:12.5px;color:var(--muted);">Gastos anulados (${anulados.length})</summary>
+    <summary style="cursor:pointer;font-size:13px;color:var(--muted);">Gastos anulados (${anulados.length})</summary>
     <div class="tabla-wrap" style="margin-top:8px;"><table><thead><tr><th>Fecha</th><th>Monto</th><th>Canal</th><th>Motivo anulación</th><th></th></tr></thead><tbody>${anulados.map(filaAnulada).join('')}</tbody></table></div>
   </details>`:''}`;
 }
