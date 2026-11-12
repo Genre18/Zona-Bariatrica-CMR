@@ -476,7 +476,10 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .reportes-bloque{min-width:0;}
 .rz-tabla{width:100%;font-size:13px;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .rz-tabla th{font-weight:600;color:var(--muted);}
-.rz-tabla td,.rz-tabla th{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border-light);}
+.rz-tabla td,.rz-tabla th{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border-light);}
+/* 2026-11-12: con .tabla-excel en el contenedor se ve igual que Stock (borde, encabezado gris en mayúsculas, líneas entre celdas). */
+.rz-tabla td{font-size:12px;}
+.rz-tabla th:first-child{background:var(--bg-soft);z-index:1;}
 .rz-tabla td:first-child,.rz-tabla th:first-child{text-align:left;position:sticky;left:0;background:var(--card);}
 .rz-tabla tr.rz-grupo td{background:var(--bg-soft);}
 .rz-tabla tr.rz-total td{border-top:2px solid var(--border);font-weight:700;}
@@ -9094,7 +9097,7 @@ function htmlVentasPorZona(hasta){
   const botonZona=(clave,txt)=>'<button type="button" class="'+(rzZona===clave?'activo':'')+'" aria-pressed="'+(rzZona===clave)+'" onclick="rzZona=\''+clave+'\';pintarReportes()">'+txt+'</button>';
   const opciones=[3,6,12].map(n=>'<option value="'+n+'"'+(n===rzMeses?' selected':'')+'>Últimos '+n+' meses</option>').join('');
   const tabla=pedidos.length
-    ?'<div class="rz-scroll"><table class="rz-tabla"><thead><tr><th>Zona</th>'+meses.map(me=>cab(me.clave,esc(me.titulo)+(me.clave===hoyStr().slice(0,7)?'<div class="rz-sub">en curso</div>':''))).join('')+cab('total','Total')+'<th>vs mes ant.</th></tr></thead><tbody>'
+    ?'<div class="rz-scroll tabla-excel"><table class="rz-tabla"><thead><tr><th>Zona</th>'+meses.map(me=>cab(me.clave,esc(me.titulo)+(me.clave===hoyStr().slice(0,7)?'<div class="rz-sub">en curso</div>':''))).join('')+cab('total','Total')+'<th>vs mes ant.</th></tr></thead><tbody>'
       +(rzZona!=='Provincia'?bloque('Lima'):'')+(rzZona!=='Lima'?bloque('Provincia'):'')+(rzZona==='ambos'?fila('<strong>Total</strong>',totales.Todo,'rz-total'):'')+'</tbody></table></div>'
     :'<div class="vacio">Sin ventas en estos meses.</div>';
   return '<div class="reportes-bloque"><div class="rz-cab"><div><h3 class="reportes-subtitulo">Ventas por zona y mes</h3>'
