@@ -121,6 +121,16 @@ header.app-header .sesion{display:flex;align-items:center;gap:12px;font-size:12.
   nav.tabs{order:3;width:100%;border-top:1px solid rgba(255,255,255,.12);}
   nav.tabs button{padding:11px 12px;}
 }
+/* CELULAR (2026-11-12): las 9 pestañas a la vista en filas (antes quedaban escondidas en una
+   tira con scroll de costado y solo se veían 2). flex-basis 100% las manda a su propia fila
+   (con flex:1 se metían al lado de "Salir"). La fecha se oculta para que marca + sesión entren
+   en la primera fila. */
+@media(max-width:768px){
+  nav.tabs{flex:1 1 100%;flex-wrap:wrap;overflow:visible;gap:0;padding:4px 0 6px;}
+  nav.tabs button{padding:9px 10px;font-size:13.5px;}
+  nav.tabs button.activo::after{left:10px;right:10px;}
+}
+@media(max-width:640px){.app-header-fecha{display:none;}}
 main{padding:20px 16px;max-width:1100px;margin:0 auto;}
 .sec{display:none;}
 .sec.activa{display:block;}
@@ -460,7 +470,9 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rz-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
 .rz-nota{font-size:12px;color:var(--muted);margin-top:2px;}
 .rz-controles{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.rz-scroll{overflow-x:auto;}
+.rz-scroll{overflow-x:auto;max-width:100%;}
+/* CELULAR (2026-11-12): sin min-width:0 el bloque se estiraba al ancho de la tabla y se salía de la pantalla. */
+.reportes-bloque{min-width:0;}
 .rz-tabla{width:100%;font-size:12.5px;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .rz-tabla th{font-weight:600;color:var(--muted);}
 .rz-tabla td,.rz-tabla th{padding:6px 8px;text-align:right;border-bottom:1px solid var(--border-light);}
@@ -598,7 +610,50 @@ table.clientes-tabla th:nth-child(3){width:18%;}
 table.clientes-tabla th:nth-child(4){width:14%;}
 table.clientes-tabla th:nth-child(5){width:16%;}
 table.clientes-tabla th:nth-child(6){width:8%;}
-@media(max-width:700px){table.clientes-tabla th{font-size:9.5px;padding:7px 5px;}table.clientes-tabla td{font-size:11.5px;}table.clientes-tabla td .chip{font-size:10px;padding:2px 6px;}}
+@media(max-width:700px) and (min-width:641px){table.clientes-tabla th{font-size:9.5px;padding:7px 5px;}table.clientes-tabla td{font-size:11.5px;}table.clientes-tabla td .chip{font-size:10px;padding:2px 6px;}}
+
+/* CELULAR (2026-11-12): en pantallas de hasta 640px, Clientes y Leads dejan de ser tabla y se
+   ven como TARJETAS (mismo criterio que Envíos). Solo CSS: el HTML de las filas no cambia, cada
+   <td> se acomoda en una grilla por su posición. En compu/tablet las tablas siguen igual.
+   Si se agrega, quita o reordena una columna en pintarClientes()/pintarLeads(), revisar acá. */
+@media(max-width:640px){
+  .tabla-excel:has(> table.clientes-tabla),.tabla-excel.leads-tabla-wrap{border:none;background:none;box-shadow:none;overflow:visible;max-height:none;}
+  table.clientes-tabla,table.leads-tabla{display:block;width:100%;min-width:0;table-layout:auto;}
+  table.clientes-tabla thead,table.leads-tabla thead,table.leads-tabla colgroup{display:none;}
+  table.clientes-tabla tbody,table.leads-tabla tbody{display:flex;flex-direction:column;gap:10px;}
+  table.clientes-tabla tr,table.leads-tabla tr{display:grid;background:var(--card);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px 14px;gap:6px 12px;box-shadow:var(--shadow-xs);}
+  table.clientes-tabla td,table.leads-tabla td{display:block;border:none !important;padding:0 !important;text-align:left !important;white-space:normal;word-break:normal;overflow:visible;font-size:13px;background:none !important;}
+  table.clientes-tabla td .chip,table.leads-tabla td .chip{font-size:11.5px;padding:2px 8px;white-space:nowrap;}
+
+  /* Clientes: Cliente(1) Ubicación(2) Marcas(3) Última compra(4) Recompra(5) Pedidos(6) */
+  table.clientes-tabla tr{grid-template-columns:1fr auto;grid-template-areas:"nombre estado" "lugar lugar" "marcas marcas" "ultima pedidos";}
+  table.clientes-tabla td:nth-child(1){grid-area:nombre;font-size:14px;}
+  table.clientes-tabla td:nth-child(1) div{font-size:12px !important;}
+  table.clientes-tabla td:nth-child(2){grid-area:lugar;color:var(--muted);}
+  table.clientes-tabla td:nth-child(3){grid-area:marcas;}
+  table.clientes-tabla td:nth-child(3) .chip{margin:0 4px 0 0;}
+  table.clientes-tabla td:nth-child(4){grid-area:ultima;font-size:12.5px;}
+  table.clientes-tabla td:nth-child(4)::before{content:'Última compra: ';color:var(--muted);}
+  table.clientes-tabla td:nth-child(4) div{display:inline;font-size:12px !important;margin:0 0 0 4px !important;}
+  table.clientes-tabla td:nth-child(5){grid-area:estado;display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+  table.clientes-tabla td:nth-child(6){grid-area:pedidos;font-size:12.5px;align-self:end;}
+  table.clientes-tabla td:nth-child(6)::before{content:'Pedidos: ';color:var(--muted);}
+
+  /* Leads: Fecha(1) Hora(2) Nombre(3) Apellido(4) Edad(5) DNI(6) Celular(7) Email(8) Ciudad(9)
+     Estatus(10) Responsable(11). En celular: nombre + estatus, celular + ciudad, fecha + responsable.
+     Apellido ya va dentro del nombre; hora, edad, DNI y email se ven en la ficha del lead. */
+  table.leads-tabla tr{grid-template-columns:1fr auto;grid-template-areas:"nombre estatus" "cel ciudad" "fecha resp";align-items:center;}
+  table.leads-tabla td:nth-child(2),table.leads-tabla td:nth-child(4),table.leads-tabla td:nth-child(5),
+  table.leads-tabla td:nth-child(6),table.leads-tabla td:nth-child(8){display:none;}
+  table.leads-tabla td:nth-child(3){grid-area:nombre;}
+  table.leads-tabla td:nth-child(3) .link-lead{font-size:14px;text-align:left;padding:0;}
+  table.leads-tabla td:nth-child(7){grid-area:cel;}
+  table.leads-tabla td:nth-child(9){grid-area:ciudad;color:var(--muted);text-align:right !important;}
+  table.leads-tabla td:nth-child(10){grid-area:estatus;}
+  table.leads-tabla td:nth-child(10) select{width:auto;max-width:170px;font-size:12.5px;padding:6px 8px;}
+  table.leads-tabla td:nth-child(1){grid-area:fecha;color:var(--muted);font-size:12px;}
+  table.leads-tabla td:nth-child(11){grid-area:resp;justify-self:end;}
+}
 /* Un chip que además es acción (marcar cobrado): mismo look del chip, comportamiento de botón. */
 button.chip{border:0;cursor:pointer;font-family:inherit;}
 button.chip:hover{filter:brightness(.95);}
