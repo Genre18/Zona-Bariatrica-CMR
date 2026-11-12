@@ -5,7 +5,7 @@ Herramienta interna de Zona Bariátrica (venta de suplementos 100% por delivery;
 > **Este repo es PÚBLICO.** Nunca escribir aquí (ni en commits) contraseñas, correos, PINs, datos de clientes, montos reales ni respaldos. Los datos viven en Supabase, no en el repo.
 
 ## Qué es y dónde vive
-- **Todo es un solo archivo: `index.html`** (HTML + CSS + JS, ~7.600 líneas, sin build, sin dependencias locales).
+- **Todo es un solo archivo: `index.html`** (HTML + CSS + JS, ~10.500 líneas, sin build, sin dependencias locales). Aparte, `pruebas/` tiene las pruebas automáticas (se corren con Node; la página no las usa).
 - **En vivo:** https://genre18.github.io/Zona-Bariatrica-CMR/ (GitHub Pages, rama `main`, raíz).
 - **Datos:** Supabase, tabla `crm_estado`, fila `id=1`: TODO el objeto `db` como un único blob JSONB. `cargar()` lo trae, `guardar()` lo escribe en localStorage (`zbdb_v1`) y lo empuja a la nube con debounce (`guardarEnNube()`). La sincronización en vivo (`suscribirCambiosNube()`) reemplaza el `db` completo: "el último que guarda, gana".
 - **Seguridad real:** login de Supabase Auth (correo + contraseña) + Row Level Security en `crm_estado` (solo usuarios autenticados leen/escriben). La clave de Supabase que está en `index.html` es la pública (anon) y es normal que esté ahí. **No tocar RLS, políticas ni el flujo de auth.**
@@ -14,8 +14,10 @@ Herramienta interna de Zona Bariátrica (venta de suplementos 100% por delivery;
 ## Flujo de trabajo (obligatorio)
 1. **Antes de empezar cualquier cambio:** `git pull origin main` (Genesis y Roberto pueden estar trabajando ambos).
 2. Editar `index.html`.
-3. Verificar: extraer el `<script>` y correr `node --check` sobre él. Para probar lógica, extraer solo las funciones puras y probarlas con Node. Correr el script completo fuera del navegador falla porque `cargar()` intenta conectarse a Supabase.
-4. Publicar: `git add index.html && git commit -m "..." && git push origin main`. **No usar `git add -A` / `git add .`**: hay carpetas locales (respaldos, backups, capturas) que nunca deben subirse.
+3. **Verificar SIEMPRE antes de publicar: `node pruebas/correr.js`.** Revisa la sintaxis de `index.html` y corre las pruebas de plata (ventas, proveedores/socio, ganancia y gastos) contra el código real, con datos inventados y sin conectarse a Supabase. **Si dice "NO publicar", no hacer push**: arreglar el código, o — solo si la regla de negocio cambió A PROPÓSITO y Roberto/Genesis lo confirmaron — actualizar la prueba y decirlo en el commit.
+   - Si el cambio toca plata (precios, descuentos, recargos, saldos de proveedor/socio, pagos, ganancia, gastos, stock), **agregar o ajustar una prueba** en `pruebas/*.test.js` en el mismo commit. Patrón: `const {crearEntorno,pruebas}=require('./entorno'); const {A,ctx,campos}=crearEntorno();` → `A.cualquierFuncion(...)`, `A.db={...}` para poner datos, `campos['id-del-input']='valor'` para simular formularios.
+   - Las pruebas nunca usan respaldos ni datos reales (este repo es público).
+4. Publicar: `git add index.html pruebas && git commit -m "..." && git push origin main`. **No usar `git add -A` / `git add .`**: hay carpetas locales (respaldos, backups, capturas) que nunca deben subirse.
 5. Pages tarda ~1-2 min en redesplegar. Para confirmar: `curl -s https://genre18.github.io/Zona-Bariatrica-CMR/ | grep "<algo del cambio>"` antes de concluir que algo no funcionó (puede ser caché).
 6. Si el cambio es grande o riesgoso, primero hacer una copia local `index.backup-antes-<tema>-<fecha>.html` (ignorada por git).
 
