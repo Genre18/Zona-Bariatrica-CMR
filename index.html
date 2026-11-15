@@ -4664,7 +4664,7 @@ function abrirFormCliente(leadId){
       <label>¿Ya pagó el cliente?</label>
       <select id="pd-yapago">
         <option value="1">Sí, ya pagó</option>
-        <option value="0">No — paga contra entrega (queda pendiente de cobro)</option>
+        <option value="0">No — aún no paga (queda pendiente de cobro)</option>
       </select>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
@@ -4722,8 +4722,6 @@ function guardarCliente(ev,leadId){
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
   const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
-  // PROVINCIA AL CONTADO (23-10-2026): a provincia ya no hay contra entrega; solo se despacha pagado (Izipay o Yape).
-  if(!yaPagoCliente&&document.getElementById('pd-envio').value==='shalom'){alert('A provincia (Shalom) ya no hay contra entrega: el cliente paga antes del envío con tarjeta (Izipay) o Yape. Registra el pedido cuando haya pagado.');return false;}
   const fechaPedido=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fechaPedido);
   // FIX B: se valida ANTES de crear el cliente/pedido — si esto fallara después del push,
@@ -5160,7 +5158,7 @@ function abrirFormPedido(clienteIdPre){
       <label>¿Ya pagó el cliente?</label>
       <select id="pd-yapago">
         <option value="1">Sí, ya pagó</option>
-        <option value="0">No — paga contra entrega (queda pendiente de cobro)</option>
+        <option value="0">No — aún no paga (queda pendiente de cobro)</option>
       </select>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2"></textarea>
@@ -5429,8 +5427,6 @@ function guardarPedido(ev){
   const delivery=parseFloat(document.getElementById('pd-delivery').value)||0;
   const metodoPago=document.getElementById('pd-metodopago').value;
   const yaPagoCliente=((document.getElementById('pd-yapago')||{}).value)!=='0';
-  // PROVINCIA AL CONTADO (23-10-2026): a provincia ya no hay contra entrega; solo se despacha pagado (Izipay o Yape).
-  if(!yaPagoCliente&&document.getElementById('pd-envio').value==='shalom'){alert('A provincia (Shalom) ya no hay contra entrega: el cliente paga antes del envío con tarjeta (Izipay) o Yape. Registra el pedido cuando haya pagado.');return false;}
   const fecha=document.getElementById('pd-fecha').value||hoyStr();
   const desc=descuentosPedido(pedidoItemsTmp,descuentoManual,fecha);
   const errorImportes=validarImportesPedido(pedidoItemsTmp,desc.descuentoTotal,embalaje,delivery);
