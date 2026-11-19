@@ -39,8 +39,26 @@ Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribi
 - `PERMITIR_EDITAR_ENTRADAS_CON_MOVIMIENTOS_POSTERIORES=true`: **temporal**, para que Roberto corrija stock viejo. Volverlo a `false` solo cuando Roberto confirme que terminó.
 
 ## Convenciones de UI / código
-- Pestañas reales (`<nav class="tabs">`): Leads, Clientes, Stock, Proveedores, Tareas, Reportes, Config. **No existe pestaña "Pedidos"** (hay una tabla oculta/muerta; no agregar cosas ahí). Antes de decir "lo agregué en X", verificar que X sea visible desde esa navegación.
-- Acciones frecuentes van en la lista; acciones pesadas o poco frecuentes (editar venta, marcar entregado/acreditado) van en **Historial → Ver detalle**.
+- Pestañas reales (`<nav class="tabs">`): Leads, Clientes, Envíos, Stock, Proveedores, Tareas, Gastos, Reportes, Config. **No existe pestaña "Pedidos"** (hay una tabla oculta/muerta; no agregar cosas ahí). Antes de decir "lo agregué en X", verificar que X sea visible desde esa navegación.
+- Acciones frecuentes van en la lista; acciones pesadas o poco frecuentes (editar venta) van en **Historial → Ver detalle**.
+- **Número de venta fijo:** cada pedido guarda `numeroVenta` al crearse (`siguienteNumeroVenta()`); `correlativoVenta()` lo muestra. Nunca recalcular por fecha.
+- **El CRM asume lo normal y solo pide la excepción** (regla de Genesis): se cobra al entregar ("Sí, ya pagó" viene marcado), la tarjeta (Izipay) cuenta desde el día 1, no hay lista de deudores (solo número rojo en Envíos si una venta lleva más de 2 días pendiente). No agregar pasos manuales de confirmación.
+
+### Colores: cada color dice UNA sola cosa (2026-11-18)
+- **Estado:** verde = listo/al día · ámbar/naranja = falta algo · rojo = urgente/vencido/anulado · violeta = plata pendiente del cliente · azul = acción/botón.
+- **Identidad** (nunca naranja, ámbar, rojo ni verde): etapas de Envíos (`chip-etapa-recibido/empaquetado/despachado`), Lima (`chip-lima`, rosa) / Provincia (`chip-provincia`, cian), marcas (`colorMarca()` / `COLORES_MARCA`).
+- En tablas largas, color solo para lo que pide acción (ej. Clientes: "Activo" en texto gris sin chip; marcas en texto). Puntos de marca solo en Stock y en Ventas por marca.
+- Estilo pedido por Genesis: sofisticado, moderno, elegante, con alegría pero sin ruido. **Mostrar capturas antes de publicar cambios visuales** (copia local con datos de un respaldo + Chrome headless).
+
+### Tarjetas de Envíos
+- Una acción del paso en `.btn-paso` (azul suave, relleno solo al pasar el mouse), 1–2 accesos frecuentes, `↩` (solo ícono) para volver y el resto en "⋯" (`details.env-mas`). Anular / devolver solo dentro de "⋯" (el rojo nunca visible en la tarjeta). WhatsApp se llama "WhatsApp" en todas las etapas y "WhatsApp ✓" cuando se mandó (`avisoRecibidoEn` / `avisoEnvioEn`).
+
+### Términos (una palabra por concepto)
+- En pantalla: "Pendiente de pago", "Pagado", "Anulado", "Activo" (recompra), "Tarjeta (Izipay)" (`nombreMetodoPago()`; el valor guardado sigue siendo "Tarjeta de crédito"), estados de envío Recibido/Empaquetado/Despachado/Entregado (`NOMBRE_ESTADO_ENVIO`). Nunca mostrar nombres internos ("pendiente preparación", "pendiente pago").
+- Al guardar: nombres/apellidos/lugares con `nombrePropio()`; sabor/presentación de Stock con `primeraMayuscula()`. Nunca a productos, direcciones, emails, códigos ni notas.
+
+### Correcciones únicas (quitar cuando ya corrieron)
+- En `entrarApp()` corren una sola vez (marca en `db.config.correccionesAplicadas`): `aplicarCorreccionCobros20261118`, `aplicarCorreccionEntrega20261118`, `aplicarCorreccionNombres20261118`, `aplicarCorreccionStockTexto20261118`. Cuando un respaldo muestre las 4 marcas, borrar esas funciones y sus llamadas.
 - Reutilizar lo que ya existe (`.chip`, `.stat`, `.reportes-kpis`, `var(--border)`, `abrirModal`, `ordenarTablaPor`) en vez de crear estilos o sistemas paralelos.
 - **Tamaños de letra: solo esta escala** — 11 (notas/encabezados de tabla), 12 (tablas densas, chips), 13 (texto de tabla/secundario), 14 (botones, texto normal de UI), 15, 16 (inputs en celular), 18 (subtítulos), 22, 24, 28 (números grandes). Nada menor a 11px. Pesos: 400, 500, 600, 700. No inventar tamaños intermedios (12.5, 13.5...).
 - Botones: `.btn` (principal azul) y `.btn-secundario` (blanco con borde); agregar `.btn-chico` para la versión compacta. Ya tienen forma propia: no ponerles padding/border-radius en línea.
