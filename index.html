@@ -2289,8 +2289,46 @@ function entrarApp(){
   }else{
     document.getElementById('navTabs').classList.remove('oculto');
     document.getElementById('vistaSocio').classList.add('oculto');
+    aplicarCorreccionCobros20261118();
     irA('leads');
   }
+}
+// CORRECCIÓN PUNTUAL DE DATOS (2026-11-18, pedida por Genesis): ventas que ya se cobraron y
+// entregaron pero quedaron como "pendiente pago" (se confirmó la entrega sin tildar "Ya pagó"),
+// un envío ya entregado que seguía en preparación, y tarjetas ya cobradas sin marcar acreditadas.
+// Corre UNA sola vez (marca en db.config) y solo toca cada venta si sigue en el estado esperado;
+// si alguien ya la corrigió a mano, no hace nada con ella. No es una regla automática: lista fija.
+function aplicarCorreccionCobros20261118(){
+  const MARCA='cobros-2026-11-18';
+  db.config=db.config||{};
+  const hechas=db.config.correccionesAplicadas||[];
+  if(hechas.includes(MARCA))return;
+  const hoy=hoyStr(), por='Genesis (corrección 18-11)';
+  const cobradas=['mut20asiq1pzm','mvve0bwdqj4lf','mwazvuau56nzi','mwibkuleox930'];
+  cobradas.forEach(id=>{
+    const p=porId(db.pedidos,id);
+    if(!p||p.estadoPago!=='pendiente pago')return;
+    p.estadoPago='pagado';
+    p.fechaCobro=(p.envioPasos&&p.envioPasos.entregado&&p.envioPasos.entregado.fecha)||hoy;
+    p.pagoConfirmadoPor=por;
+  });
+  const entregada=porId(db.pedidos,'mut20asiq1pzm');
+  if(entregada&&entregada.estadoPago!=='cancelado'&&entregada.estadoEnvio!=='entregado'){
+    entregada.estadoEnvio='entregado';
+    entregada.envioPasos=entregada.envioPasos||{};
+    entregada.envioPasos.entregado={fecha:hoy,hora:horaAhora(),por};
+    entregada.fechaEntrega=hoy;
+    entregada.entregaConfirmadaPor=por;
+  }
+  ['mu7t1cfno57vk','muoafhc1ip9vz','muysitoc54e4z','mvfvklpuxh1yw','mvlmp5zr75uo4','mvvnvql3ds381','mw5re0m59lkft','mwaszbl47rmoa','mwffjslju2l1s'].forEach(id=>{
+    const p=porId(db.pedidos,id);
+    if(!p||p.estadoPago==='cancelado'||p.metodoPago!=='Tarjeta de crédito'||p.acreditadoTarjeta)return;
+    p.acreditadoTarjeta=true;
+    p.acreditadoTarjetaFecha=hoy;
+    p.acreditadoTarjetaPor=por;
+  });
+  db.config.correccionesAplicadas=hechas.concat(MARCA);
+  guardar();
 }
 function cerrarSesion(){
   sesion=null;
@@ -4271,9 +4309,12 @@ function abrirPasoEnvio(pedidoId){
   }else{
     titulo=p.metodoEnvio==='shalom'?'El cliente ya lo recogió':'El cliente ya lo recibió';boton='Confirmar entrega';
     // Contra entrega en Lima: de paso se puede marcar que ya pagó (mismo efecto que "Marcar como pagado").
-    const cobrar=p.estadoPago==='pendiente pago'?`<label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" id="pe-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display=this.checked?'':'none'"> Ya pagó los ${money(p.total)}</label>
-      <select id="pe-pago-metodo" style="display:none;">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
-      <p class="vacio" style="text-align:left;padding:4px 0 0;font-size:12px;">Si todavía no te llega la plata, déjalo sin marcar: sigue como "Pendiente de pago".</p>`:'';
+    // Pregunta de pago OBLIGATORIA (2026-11-18): antes era una casilla desmarcada que se pasaba
+    // de largo y la venta quedaba "pendiente pago" aunque el cliente ya hubiera pagado.
+    const cobrar=p.estadoPago==='pendiente pago'?`<label>¿El cliente ya pagó los ${money(p.total)}? *</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display=''"> Sí, ya pagó</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-no-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display='none'"> Todavía no (queda pendiente de cobro)</label>
+      <select id="pe-pago-metodo" style="display:none;">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>`:'';
     cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">${cobrar}`;
   }
   abrirModal(`
@@ -4295,6 +4336,10 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
   if(!p||p.estadoEnvio==='entregado'||etapaEnvio(p)!==etapaAntes){alert('Este pedido ya cambió de estado en otro dispositivo.');volverDePasoEnvio(pedidoId);return false;}
   const fechaInput=document.getElementById('pe-fecha');
   const fecha=(fechaInput&&fechaInput.value)||hoyStr();
+  const siPago=document.getElementById('pe-pagado'),noPago=document.getElementById('pe-no-pagado');
+  if(etapaAntes>=2&&p.estadoPago==='pendiente pago'&&siPago&&noPago&&!siPago.checked&&!noPago.checked){
+    alert('Indica si el cliente ya pagó o todavía no.');return false;
+  }
   let estado;
   if(etapaAntes===0)estado='preparado';
   else if(etapaAntes===1){

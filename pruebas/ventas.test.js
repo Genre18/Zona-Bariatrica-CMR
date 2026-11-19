@@ -63,8 +63,9 @@ t.ok('contra entrega Lima: sin "confirmado por"',s.pedidos[0]&&s.pedidos[0].pago
 t.ok('contra entrega Lima: stock igual baja a 9',s.stock===9,s.stock);
 
 s=registrar('0','shalom');
-t.ok('provincia (Shalom) contra entrega: NO se registra (solo al contado desde 23-10-2026)',s.pedidos.length===0);
-t.ok('provincia contra entrega: avisa y no toca stock',s.alertas.length>0&&s.stock===10,s);
+// Desde el 15-11-2026 (commit b55a0e9) provincia SÍ se puede registrar sin pago adelantado: queda pendiente de cobro.
+t.ok('provincia (Shalom) sin pago adelantado: se registra 1 pedido',s.pedidos.length===1,s.alertas);
+t.ok('provincia sin pago adelantado: estadoPago = pendiente pago y stock baja a 9',s.pedidos[0]&&s.pedidos[0].estadoPago==='pendiente pago'&&s.stock===9,s);
 
 // 4) Reportes: lo pendiente de pago y lo anulado no cuentan como ingreso
 A.db=baseDb();
