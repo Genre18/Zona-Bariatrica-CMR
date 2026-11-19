@@ -177,6 +177,15 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--r-xs);font-size:12px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
 .chip-gris{background:var(--bg-soft);color:var(--muted);}
 .chip-azul{background:var(--azul-suave);color:var(--azul);}
+/* COLORES DE IDENTIDAD (2026-11-18): etapas de envío, Lima/Provincia y marcas tienen colores propios
+   que NO se repiten con los de estado (verde = listo, ámbar = falta algo, rojo = urgente,
+   violeta = plata pendiente del cliente, azul = acción). Así cada color dice una sola cosa. */
+.chip-etapa-recibido{background:#e0e7ff;color:#4338ca;}
+.chip-etapa-empaquetado{background:#e0f2fe;color:#0369a1;}
+.chip-etapa-despachado{background:#ccfbf1;color:#0f766e;}
+.chip-lima{background:#fce7f3;color:#be185d;}
+.chip-provincia{background:#ffedd5;color:#c2410c;}
+.punto-marca::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c,#94a3b8);margin-right:6px;flex:none;}
 .chip-verde{background:var(--success-suave);color:var(--success);}
 .chip-naranja{background:var(--warning-suave);color:var(--warning);}
 .chip-rojo{background:var(--danger-suave);color:var(--danger);}
@@ -211,7 +220,7 @@ table tbody tr:hover{background:var(--bg-soft);}
 .env-web .env-card{margin-bottom:0;}
 .env-web-total{font-weight:700;font-size:14px;margin-top:6px;}
 .env-web-aviso{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;line-height:1.5;margin-bottom:10px;}
-.tab-num{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--success);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;}
+.tab-num{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;}
 @media(max-width:760px){
   .env-tabs{display:flex;}
   .env-tablero{grid-template-columns:1fr;}
@@ -1162,7 +1171,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
           <option value="">Estado recompra: Todos</option>
           <option value="recompra">Recompra</option>
           <option value="proxima">Próxima</option>
-          <option value="al_dia">Al día</option>
+          <option value="al_dia">Activo</option>
           <option value="sin_compras">Sin compras</option>
         </select>
       </div>
@@ -1507,6 +1516,20 @@ function escAttr(t){return esc(t).replace(/"/g,'&quot;');}
 // igual y solo cambian de sabor, sin esto el selector y el ticket muestran dos líneas idénticas.
 function nombreConSabor(x){if(!x)return "";const sab=(x.sabor||"").trim();return sab&&!(x.producto||"").toLowerCase().includes(sab.toLowerCase())?`${x.producto} — ${sab}`:(x.producto||"");}
 function money(n){return 'S/ '+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});} // con separador de miles (2026-11-18), igual que moneyEntero
+// Color propio de cada marca (identidad, no estado). Marca nueva sin color fijo: se elige uno de la
+// paleta según su nombre, siempre el mismo.
+const COLORES_MARCA={'Bari&Nutrition':'#db2777','Bariatric Fusion':'#ea580c','Bariatric Life':'#0891b2','Nutrifath Bariatric':'#9333ea','Genodeep':'#2563eb','Nutranex D-PROTEIN':'#65a30d','Ready GDC':'#ca8a04','LVL Drink':'#0f766e'};
+const PALETA_MARCAS=['#db2777','#ea580c','#0891b2','#9333ea','#2563eb','#65a30d','#ca8a04','#0f766e','#e11d48','#4f46e5'];
+function colorMarca(m){
+  if(COLORES_MARCA[m])return COLORES_MARCA[m];
+  let h=0;String(m||'').split('').forEach(ch=>{h=(h*31+ch.charCodeAt(0))>>>0;});
+  return PALETA_MARCAS[h%PALETA_MARCAS.length];
+}
+function chipZona(c){return c&&c.esProvincia?'<span class="chip chip-provincia">Provincia</span>':'<span class="chip chip-lima">Lima</span>';}
+// Nombres que se muestran (los valores guardados no cambian).
+function nombreMetodoPago(m){return m==='Tarjeta de crédito'?'Tarjeta (Izipay)':(m||'');}
+const NOMBRE_ESTADO_ENVIO={'pendiente preparación':'Recibido','preparado':'Empaquetado','enviado':'Despachado','en destino':'Despachado','entregado':'Entregado'};
+const NOMBRE_ESTADO_PAGO={'pendiente pago':'Pendiente de pago','pagado':'Pagado','cancelado':'Anulado'};
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
 function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
@@ -3009,7 +3032,7 @@ function abrirFormCotizacion(leadId){
       <label>Método de pago (opcional, si ya se sabe)</label>
       <select id="pd-metodopago" onchange="pedidoActualizarTotales()">
         <option value="">Aún no sé</option>
-        <option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option>
+        <option>Yape</option><option>Plin</option><option>Transferencia</option><option value="Tarjeta de crédito">Tarjeta (Izipay)</option><option>Efectivo</option>
       </select>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
       <label>Notas (opcional, solo interno — no sale en el texto para WhatsApp)</label>
@@ -3124,7 +3147,7 @@ function estadoRecompraCliente(clienteId){
   // pedido — se trata como si fuera hoy (Al día), documentado acá a propósito.
   if(dias<0)dias=0;
   let estado,label;
-  if(dias<RECOMPRA_DIAS-5){estado='al_dia';label='Al día';}
+  if(dias<RECOMPRA_DIAS-5){estado='al_dia';label='Activo';}
   else if(dias<RECOMPRA_DIAS){estado='proxima';label='Próxima';}
   else{estado='recompra';label='Recompra';}
   return{estado,label,diasDesdeUltima:dias,ultimaCompra};
@@ -3182,16 +3205,17 @@ function pintarClientes(){
       const nPedidos=db.pedidos.filter(p=>p.clienteId===c.id&&p.estadoPago!=='cancelado').length;
       const tienePendientePago=db.pedidos.some(p=>p.clienteId===c.id&&p.estadoPago==='pendiente pago');
       const r=estadoRecompraCliente(c.id);
-      const lugar=[c.ciudad||c.distrito,c.departamento].filter(Boolean).join(' — ')||'—';
+      // En Lima no se repite "Lima" (ya lo dice el chip): solo el distrito.
+      const lugar=[c.ciudad||c.distrito,c.departamento].filter(x=>x&&(c.esProvincia||String(x).trim().toLowerCase()!=='lima')).join(' — ');
       return `<tr style="cursor:pointer;${c.activo===false?'opacity:.55;':''}" onclick="abrirFichaCliente('${c.id}')">
         <td style="${pad}text-align:left;">
           <strong>${esc(c.nombre)} ${esc(c.apellido)}</strong>${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}
           <div style="font-size:11px;color:var(--muted);margin-top:2px;">${esc(c.telefono||'—')}${c.dni?' · DNI '+esc(c.dni):''}</div>
         </td>
-        <td style="${pad}">${esc(lugar)} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}</td>
-        <td style="${pad}">${marcasDeCliente(c).map(m=>`<span class="chip chip-verde">${esc(m)}</span>`).join(' ')||'—'}</td>
+        <td style="${pad}">${lugar?esc(lugar)+' ':''}${chipZona(c)}</td>
+        <td style="${pad}">${marcasDeCliente(c).length?`<div style="display:inline-block;text-align:left;">${marcasDeCliente(c).map(m=>`<div style="font-size:13px;white-space:nowrap;">${esc(m)}</div>`).join('')}</div>`:'—'}</td>
         <td style="${pad}">${r.ultimaCompra?`${fechaBonita(r.ultimaCompra)}<div style="font-size:11px;color:var(--muted);margin-top:2px;">hace ${r.diasDesdeUltima} día${r.diasDesdeUltima===1?'':'s'}</div>`:'—'}</td>
-        <td style="${pad}"><span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>${tienePendientePago?' <span class="chip chip-violeta">Pendiente de pago</span>':''}</td>
+        <td style="${pad}">${r.estado==='al_dia'?`<span style="font-size:13px;color:var(--muted);">${esc(r.label)}</span>`:`<span class="chip ${RECOMPRA_CHIP[r.estado]}">${esc(r.label)}</span>`}${tienePendientePago?' <span class="chip chip-violeta">Pendiente de pago</span>':''}</td>
         <td style="${pad}">${nPedidos}</td>
       </tr>`;
     }).join('')}</tbody></table></div>
@@ -3234,7 +3258,7 @@ function abrirFichaCliente(clienteId){
     <div class="drawer-identidad">
       <h3 style="margin:0;">${esc(c.nombre)} ${esc(c.apellido)}${c.activo===false?' <span class="chip chip-gris">archivado</span>':''}</h3>
       <div class="drawer-subtexto">${contactoTxt}</div>
-      <div class="drawer-subtexto">${esc(direccionCompleta(c))} ${c.esProvincia?'<span class="chip chip-azul">Provincia</span>':'<span class="chip chip-gris">Local</span>'}${marcas.length?' · '+marcas.map(m=>esc(m)).join(' · '):''}</div>
+      <div class="drawer-subtexto">${esc(direccionCompleta(c))} ${chipZona(c)}${marcas.length?' · '+marcas.map(m=>esc(m)).join(' · '):''}</div>
     </div>
 
     <div class="drawer-seccion">
@@ -3307,7 +3331,7 @@ function marcarPedidoPagado(pedidoId){
     <p class="vacio" style="text-align:left;padding:0 0 10px;">${cli?esc(cli.nombre+' '+cli.apellido):'Cliente'} · ${fechaBonita(p.fecha)} · ${money(p.total)}</p>
     <form onsubmit="return confirmarPedidoPagado(event,'${p.id}')">
       <label style="margin-top:0;">¿Con qué método te pagó?</label>
-      <select id="mp-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>
+      <select id="mp-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option value="${m}" ${p.metodoPago===m?'selected':''}>${nombreMetodoPago(m)}</option>`).join('')}</select>
       <label>Fecha en que te pagó</label>
       <input type="date" id="mp-fecha" value="${hoyStr()}">
       <p class="vacio" style="text-align:left;padding:6px 0 0;font-size:12px;">En Reportes la venta se cuenta con su fecha original (${fechaBonita(p.fecha)}), no con la de cobro.</p>
@@ -3398,9 +3422,9 @@ const ENVIOS_DESDE='2026-10-22'; // el tablero arranca acá: los pedidos creados
 const ENVIOS_DESDE_HORA='19:00';
 const ENVIOS_DIAS_DESPACHADOS=7; // días que un despachado sigue visible en su columna (con búsqueda se ven todos)
 const ETAPAS_ENVIO=[
-  {id:'recibido',label:'Recibidos',estado:'pendiente preparación',chip:'chip-violeta'},
-  {id:'empaquetado',label:'Empaquetados',estado:'preparado',chip:'chip-naranja'},
-  {id:'despachado',label:'Despachados',estado:'enviado',chip:'chip-azul'}
+  {id:'recibido',label:'Recibidos',estado:'pendiente preparación',chip:'chip-etapa-recibido'},
+  {id:'empaquetado',label:'Empaquetados',estado:'preparado',chip:'chip-etapa-empaquetado'},
+  {id:'despachado',label:'Despachados',estado:'enviado',chip:'chip-etapa-despachado'}
 ];
 function etapaEnvio(p){
   if(p.estadoEnvio==='preparado')return 1;
@@ -4342,7 +4366,7 @@ function abrirPasoEnvio(pedidoId){
     const cobrar=p.estadoPago==='pendiente pago'?`<label>¿El cliente ya pagó los ${money(p.total)}? *</label>
       <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-pagado" style="width:auto;" checked onchange="document.getElementById('pe-pago-metodo').style.display=''"> Sí, ya pagó</label>
       <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-no-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display='none'"> Todavía no (queda pendiente de cobro)</label>
-      <select id="pe-pago-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>`:'';
+      <select id="pe-pago-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option value="${m}" ${p.metodoPago===m?'selected':''}>${nombreMetodoPago(m)}</option>`).join('')}</select>`:'';
     cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">${cobrar}`;
   }
   abrirModal(`
@@ -4761,7 +4785,7 @@ function abrirFormCliente(leadId){
       </div>
       <div class="fila-2">
         <div><label>Método de pago${lead&&lead.metodoPagoPreferido?' <span style="font-weight:400;color:var(--muted);">(preferido del lead)</span>':''}</label>
-          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${METODOS_PAGO_LEAD.map(m=>`<option ${lead&&lead.metodoPagoPreferido===m?'selected':''}>${esc(m)}</option>`).join('')}</select>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${METODOS_PAGO_LEAD.map(m=>`<option value="${esc(m)}" ${lead&&lead.metodoPagoPreferido===m?'selected':''}>${esc(nombreMetodoPago(m))}</option>`).join('')}</select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
@@ -4923,7 +4947,7 @@ function mostrarTicket(pedido,cliente){
       ${pedido.recargoTarjeta?`<div class="item-linea"><span>Recargo tarjeta (4%)</span><span>${money(pedido.recargoTarjeta)}</span></div>`:''}
       <div class="subtotal-box"><span>TOTAL</span><span>${money(pedido.total)}</span></div>
       <div style="font-size:12px;color:var(--muted);margin-top:8px;">
-        Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)} · Atendió: ${esc(pedido.atendidoPor)}
+        Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(nombreMetodoPago(pedido.metodoPago))} · Atendió: ${esc(pedido.atendidoPor)}
       </div>
     </div>
     <div class="acciones-modal">
@@ -4952,7 +4976,7 @@ function imprimirTicket(pedidoId){
       ${pedido.recargoTarjeta?`<tr><td>Recargo tarjeta (4%)</td><td style="text-align:right;">${money(pedido.recargoTarjeta)}</td></tr>`:''}
       <tr class="tot"><td>TOTAL</td><td style="text-align:right;">${money(pedido.total)}</td></tr>
     </table>
-    <div class="c" style="margin-top:10px;">Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(pedido.metodoPago)}<br>Atendió: ${esc(pedido.atendidoPor)}<br>¡Gracias por tu compra!</div>
+    <div class="c" style="margin-top:10px;">Envío: ${esc(pedido.metodoEnvio)} · Pago: ${esc(nombreMetodoPago(pedido.metodoPago))}<br>Atendió: ${esc(pedido.atendidoPor)}<br>¡Gracias por tu compra!</div>
     </body></html>`;
   const w=window.open('','_blank','width=340,height=600');
   if(!w){alert('El navegador bloqueó la ventana de impresión. Habilita las ventanas emergentes para este sitio.');return;}
@@ -5261,7 +5285,7 @@ function abrirFormPedido(clienteIdPre){
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
-          <select id="pd-metodopago" onchange="pedidoActualizarTotales()"><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta de crédito</option><option>Efectivo</option></select>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()"><option>Yape</option><option>Plin</option><option>Transferencia</option><option value="Tarjeta de crédito">Tarjeta (Izipay)</option><option>Efectivo</option></select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${hoyStr()}"></div>
       </div>
@@ -5749,18 +5773,16 @@ function abrirEditarPedido(id){
       </div>
       <div class="fila-2">
         <div><label>Método de pago</label>
-          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${m===p.metodoPago?'selected':''}>${m}</option>`).join('')}</select>
+          <select id="pd-metodopago" onchange="pedidoActualizarTotales()">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option value="${m}" ${m===p.metodoPago?'selected':''}>${nombreMetodoPago(m)}</option>`).join('')}</select>
         </div>
         <div><label>Fecha</label><input type="date" id="pd-fecha" value="${p.fecha}"></div>
       </div>
       <label>Referencia / N° de operación del pago (opcional)</label><input id="pd-referencia" value="${esc(p.pagoReferencia||'')}" placeholder="Ej. últimos 4 dígitos, código Yape...">
       <div class="fila-2">
         <div><label>Estado de pago</label>
-          <select id="pd-estadopago">${ESTADOS_PAGO.map(e=>`<option value="${e}" ${e===p.estadoPago?'selected':''}>${e}</option>`).join('')}</select>
+          <select id="pd-estadopago">${ESTADOS_PAGO.map(e=>`<option value="${e}" ${e===p.estadoPago?'selected':''}>${NOMBRE_ESTADO_PAGO[e]||e}</option>`).join('')}</select>
         </div>
-        <div><label>Estado de envío</label>
-          <select id="pd-estadoenvio">${ESTADOS_ENVIO.map(e=>`<option value="${e}" ${e===p.estadoEnvio?'selected':''}>${e}</option>`).join('')}</select>
-        </div>
+        <input type="hidden" id="pd-estadoenvio" value="${escAttr(p.estadoEnvio||'pendiente preparación')}"><!-- 2026-11-18: el envío se mueve solo desde el tablero de Envíos -->
       </div>
       <label>Notas / preguntas del cliente</label><textarea id="pd-notas" rows="2">${esc(p.notas||'')}</textarea>
       <div id="pedidoTotalesBox" style="margin-top:10px;"></div>
@@ -6050,7 +6072,7 @@ function filaStock(s){
   // el bloqueo real de venta sigue en pedidoAgregarItem()) — solo se dejó de pintar acá. Se
   // puede seguir consultando/editando desde el formulario del producto (clic derecho → Editar).
   return `<tr style="${s.activo===false?'opacity:.55;':''}cursor:context-menu;" oncontextmenu="return abrirMenuContextualStock(event,'${s.id}')">
-        <td style="${pad}text-align:left;">${esc(s.marca||'—')}</td>
+        <td style="${pad}text-align:left;"><span class="punto-marca" style="--c:${colorMarca(s.marca)};">${esc(s.marca||'—')}</span></td>
         <td style="${pad}text-align:left;">${esc(s.codigo||'—')}</td>
         <td style="${pad}text-align:left;"><strong>${esc(s.producto||'—')}</strong></td>
         <td style="${pad}text-align:left;">${esc(s.presentacion||'—')}</td>
@@ -7555,9 +7577,9 @@ function seleccionarTabSocio(tab){
 // él sea el mismo (esa plata no existe todavía); sin ninguna de esas dos, es solo el lag normal
 // de "ya se generó, falta que te paguen a ti".
 function chipEstadoVentaSocio(f){
-  if(f.pagada)return '<span class="chip chip-verde">Pagada</span>';
+  if(f.pagada)return '<span class="chip chip-verde">Pagado</span>';
   if(f.pendienteAcreditacionTarjeta)return '<span class="chip chip-violeta" title="Pagó con tarjeta, aún sin acreditar en el banco">Tarjeta sin acreditar</span>';
-  if(f.pendienteCobroCliente)return '<span class="chip chip-violeta" title="El cliente aún no paga esta venta">Pendiente de pago (cliente)</span>';
+  if(f.pendienteCobroCliente)return '<span class="chip chip-violeta" title="El cliente aún no paga esta venta">Pendiente de pago</span>';
   return '<span class="chip chip-gris">Pendiente de pago a ti</span>';
 }
 // PRE-PAUTA (2026-08-22) — sección 1/20: 'consignacion' es una clave técnica LEGACY que hoy
@@ -9135,7 +9157,7 @@ function pintarReportes(){
           <div class="rb-fila rb-cab"><span></span><span>Ventas</span><span>Ganancia ZB</span></div>
           ${rentab.map(f=>`<div class="rb-fila">
             <span class="rb-nombre" title="${esc(f.marca)}">${esc(f.marca)}</span>
-            <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 92px) * ${(f.ventas/maxMarca).toFixed(4)});"></span><span class="rb-valor">${moneyEntero(f.ventas)}</span></span>
+            <span class="rb-pista"><span class="rb-barra" style="width:calc((100% - 92px) * ${(f.ventas/maxMarca).toFixed(4)});background:${colorMarca(f.marca)};"></span><span class="rb-valor">${moneyEntero(f.ventas)}</span></span>
             <span class="rb-ganancia"${f.huboItemNoCalculable?` title="Hay ventas históricas sin información suficiente; el valor mostrado es parcial."`:''}>${!f.huboItemCalculable?'—':moneyEntero(f.gananciaZB)+(f.huboItemNoCalculable?' *':'')}</span>
           </div>`).join('')}
         </div>`}
@@ -9935,7 +9957,7 @@ function detalleVentaCompacto(pedidoId){
     ${p.recargoTarjeta?`<div class="hd-linea"><span>Recargo tarjeta</span><span>${money(p.recargoTarjeta)}</span></div>`:''}
     <div class="hd-linea hd-total"><span>TOTAL</span><span>${money(p.total)}</span></div>
     <div class="hd-titulo">Pago / Envío</div>
-    <div class="hd-linea"><span>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · '+esc(p.pagoReferencia):''}</span><span class="hd-sub">${esc(envioTxt)} · ${esc(p.estadoEnvio||'—')}</span></div>
+    <div class="hd-linea"><span>${esc(nombreMetodoPago(p.metodoPago)||'—')}${p.pagoReferencia?' · '+esc(p.pagoReferencia):''}</span><span class="hd-sub">${esc(envioTxt)} · ${esc(NOMBRE_ESTADO_ENVIO[p.estadoEnvio]||p.estadoEnvio||'—')}</span></div>
     ${anulada?`<div class="hd-titulo">Anulación</div><div class="hd-sub">${fechaBonita(p.canceladoFecha)||'—'} · Anuló ${esc(p.canceladoPor||'—')} · Autorizó ${esc(p.autorizadoPor||'—')}${p.motivoCancelacion?' · "'+esc(p.motivoCancelacion)+'"':''}</div>`:''}
     ${seccionPagoProveedorVenta(p.id)}
     <div class="hd-sub" style="margin-top:8px;">Atendió: ${esc(p.atendidoPor||'—')}${p.notas?' · "'+esc(p.notas)+'"':''}</div>`;
@@ -10162,7 +10184,7 @@ function contenidoDetalleVenta(pedidoId){
   const envioTxt=p.metodoEnvio==='shalom'?'Shalom (provincia)':(p.metodoEnvio==='indrive'?'InDrive (local)':(p.metodoEnvio||'—'));
   return `
     <div class="drawer-identidad">
-      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-violeta">PENDIENTE DE PAGO</span>':''}</h3>
+      <h3 style="margin:0;">${correlativoVenta(p.id)}${anulada?' <span class="chip chip-rojo">VENTA ANULADA</span>':''}${pendienteCobro?' <span class="chip chip-violeta">Pendiente de pago</span>':''}</h3>
       <div class="drawer-subtexto">${fechaBonita(p.fecha)} · ${estadoClienteTxt}</div>
     </div>
     <div class="drawer-seccion">
@@ -10186,7 +10208,7 @@ function contenidoDetalleVenta(pedidoId){
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Pago</div>
-      <div>${esc(p.metodoPago||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}${!anulada&&p.metodoPago==='Tarjeta de crédito'&&!ventaAcreditada(p)
+      <div>${esc(nombreMetodoPago(p.metodoPago)||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}${!anulada&&p.metodoPago==='Tarjeta de crédito'&&!ventaAcreditada(p)
         ?` · <button type="button" class="chip chip-violeta" title="Confirmar que el banco ya acreditó este pago con tarjeta" onclick="marcarVentaAcreditada('${p.id}')">Tarjeta sin acreditar</button>`
         :(p.metodoPago==='Tarjeta de crédito'&&p.acreditadoTarjeta?' · <span class="chip chip-verde">Tarjeta acreditada</span>':'')}</div>
     </div>
