@@ -2290,6 +2290,7 @@ function entrarApp(){
     document.getElementById('navTabs').classList.remove('oculto');
     document.getElementById('vistaSocio').classList.add('oculto');
     aplicarCorreccionCobros20261118();
+    aplicarCorreccionEntrega20261118();
     irA('leads');
   }
 }
@@ -2327,6 +2328,18 @@ function aplicarCorreccionCobros20261118(){
     p.acreditadoTarjetaFecha=hoy;
     p.acreditadoTarjetaPor=por;
   });
+  db.config.correccionesAplicadas=hechas.concat(MARCA);
+  guardar();
+}
+// CORRECCIÓN PUNTUAL (2026-11-18, Genesis): entrega marcada por error; el paquete sigue en camino.
+// Solo si la entrega es del mismo 18-11 (si ya se marcó de verdad otro día, no se toca).
+function aplicarCorreccionEntrega20261118(){
+  const MARCA='entrega-error-2026-11-18';
+  db.config=db.config||{};
+  const hechas=db.config.correccionesAplicadas||[];
+  if(hechas.includes(MARCA))return;
+  const p=porId(db.pedidos,'mwl8p76vbx4vt');
+  if(p&&p.estadoEnvio==='entregado'&&p.envioPasos&&p.envioPasos.entregado&&p.envioPasos.entregado.fecha==='2026-11-18')revertirEntrega(p);
   db.config.correccionesAplicadas=hechas.concat(MARCA);
   guardar();
 }
@@ -3479,7 +3492,7 @@ function tarjetaEnvio(p){
     metodo?`<span class="chip chip-gris">${metodo}</span>`:'<span class="chip chip-naranja" title="Se elige al despachar">Envío sin definir</span>',
     p.estadoPago==='pendiente pago'?(()=>{const d=diasSinPagar(p),tarde=d>DIAS_AVISO_COBRO;return `<span class="chip ${tarde?'chip-rojo':'chip-violeta'}" style="cursor:pointer;" title="Tocar para marcar que ya pagó" onclick="event.stopPropagation();marcarPedidoPagado('${p.id}')">Pendiente de pago${tarde?' · '+d+' días':''}</span>`;})():'',
     i<2?chipEntregaProgramada(p):'',
-    p.estadoEnvio==='entregado'?`<span class="chip chip-verde">Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`:''
+    p.estadoEnvio==='entregado'?`<span class="chip chip-verde">Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span><button type="button" class="btn-secundario btn-chico" title="Lo marqué entregado por error: vuelve a Despachado" onclick="event.stopPropagation();deshacerEntrega('${p.id}')">Deshacer</button>`:''
   ].join('');
   const cuando=i===2?'Despachado '+fechaCorta(fechaDespacho(p)):haceCuanto(creadoMsPedido(p));
   const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
@@ -4387,6 +4400,7 @@ function confirmarPasoEnvio(ev,pedidoId,etapaAntes){
   guardar();
   // Al empaquetar sale sola la etiqueta del paquete (así sale rotulado de la casa; antes era al
   // despachar — cambiado a pedido de Roberto, 2026-10-22).
+  if(estado==='entregado')avisoDeshacerEntrega(p.id);
   if(estado==='preparado')imprimirEtiquetaEnvio(p.id);
   if(estado==='enviado'&&p.metodoEnvio==='shalom'&&p.numeroOrden&&ofrecerWhatsAppEnvio(p))return false;
   if(estado==='enviado'&&p.metodoEnvio==='indrive'&&p.motorizado&&ofrecerWhatsAppMotorizado(p))return false;
@@ -4537,6 +4551,36 @@ function regresarPasoEnvio(pedidoId){
   volverDePasoEnvio(p.id);
 }
 // Vuelve a donde estaba: Historial → Ver detalle, tablero de Envíos o ficha del cliente.
+// DESHACER ENTREGA (2026-11-18): marcar "Ya lo recogió/recibió" por error no tenía vuelta atrás.
+// Vuelve el pedido a "Despachado" y borra solo la huella de la entrega; NO toca el pago, el stock
+// ni el total. Se ofrece en un aviso justo después de confirmar y en la tarjeta (buscándola en Envíos).
+function avisoDeshacerEntrega(pedidoId){
+  const cont=document.getElementById('avisosTareaNueva');
+  if(!cont)return;
+  const toastId='toastEntrega_'+pedidoId+'_'+Date.now();
+  const div=document.createElement('div');
+  div.className='aviso-tarea-toast';
+  div.id=toastId;
+  div.innerHTML=`<strong>Marcado como entregado</strong><div class="aviso-tarea-acciones"><button type="button" onclick="deshacerEntrega('${pedidoId}',true);document.getElementById('${toastId}')?.remove();">Deshacer</button><button type="button" class="cerrar-toast" onclick="document.getElementById('${toastId}')?.remove();">Cerrar</button></div>`;
+  cont.appendChild(div);
+  setTimeout(()=>{document.getElementById(toastId)?.remove();},10000);
+}
+function deshacerEntrega(pedidoId,sinPreguntar){
+  const p=porId(db.pedidos,pedidoId);
+  if(!p||p.estadoEnvio!=='entregado')return;
+  if(!sinPreguntar&&!confirm('¿Volver este pedido a "Despachado"? (no cambia el pago)'))return;
+  revertirEntrega(p);
+  guardar();
+  pintarAvisoPedidosWeb();
+  if(seccionActual==='envios'){const y=window.scrollY;pintarEnvios();window.scrollTo(0,y);}
+  else if(detalleVentaAbierta===pedidoId)refrescarDetalleAbierto();
+}
+function revertirEntrega(p){
+  p.estadoEnvio='enviado';
+  if(p.envioPasos)delete p.envioPasos.entregado;
+  delete p.fechaEntrega;
+  delete p.entregaConfirmadaPor;
+}
 function volverDePasoEnvio(pedidoId){
   const p=porId(db.pedidos,pedidoId);
   if(detalleVentaAbierta===pedidoId){refrescarDetalleAbierto();}
