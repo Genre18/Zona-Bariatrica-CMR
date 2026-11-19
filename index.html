@@ -1506,7 +1506,7 @@ function escAttr(t){return esc(t).replace(/"/g,'&quot;');}
 // Nombre del producto + sabor (si no está ya en el nombre): con dos productos que se llaman
 // igual y solo cambian de sabor, sin esto el selector y el ticket muestran dos líneas idénticas.
 function nombreConSabor(x){if(!x)return "";const sab=(x.sabor||"").trim();return sab&&!(x.producto||"").toLowerCase().includes(sab.toLowerCase())?`${x.producto} — ${sab}`:(x.producto||"");}
-function money(n){return 'S/ '+Number(n||0).toFixed(2);}
+function money(n){return 'S/ '+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});} // con separador de miles (2026-11-18), igual que moneyEntero
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
 function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
@@ -7804,16 +7804,16 @@ function pintarProveedores(){
   // porPagarSegunVentas/totalPagadoProveedores), solo cambia la presentación.
   document.getElementById('resumenProveedores').innerHTML=`
     <div class="finanzas-franja">
-      <div class="finanza-item finanza-principal">
-        <div class="finanza-lbl">Deuda total del stock</div>
-        <div class="finanza-val">${money(deudaStock)}</div>
-      </div>
-      <div class="finanza-item finanza-atencion${porPagarVentas>0.005?' finanza-atencion-activa':''}">
-        <div class="finanza-lbl">Por pagar según ventas</div>
+      <div class="finanza-item finanza-principal" title="Lo que ya se vendió y todavía no se le paga al proveedor/socio">
+        <div class="finanza-lbl">Por pagar</div>
         <div class="finanza-val">${money(porPagarVentas)}</div>
       </div>
+      <div class="finanza-item" title="Costo de la mercadería recibida a crédito que todavía no se vende (se paga recién cuando se vende)">
+        <div class="finanza-lbl">Mercadería a crédito sin vender</div>
+        <div class="finanza-val">${money(deudaStock)}</div>
+      </div>
       <div class="finanza-item finanza-cumplido">
-        <div class="finanza-lbl">Pagado</div>
+        <div class="finanza-lbl">Pagado en total</div>
         <div class="finanza-val">${money(totalPagado)}</div>
       </div>
     </div>`;
@@ -7829,7 +7829,7 @@ function pintarProveedores(){
         return `<tr>
           <td style="text-align:left;">${esc(f.proveedor)}</td>
           <td style="text-align:left;">${esc(f.marca)}</td>
-          <td style="text-align:right;${est.estado==='pendiente'?'color:var(--danger);font-weight:700;':''}">${money(f.pendiente)}</td>
+          <td style="text-align:right;${est.estado==='pendiente'?'font-weight:700;':''}">${money(f.pendiente)}</td>
           <td style="text-align:left;"><span class="chip ${est.chip}">${esc(est.label)}</span></td>
           <td style="text-align:left;white-space:nowrap;">
             <button type="button" class="link-lead" style="padding:0;font-size:12px;" onclick="abrirDetalleProveedor('${escJs(f.proveedor)}','${f.modelo}','${escJs(f.marca)}')">Ver detalle</button>
@@ -8713,6 +8713,7 @@ const METRICAS_REPORTE={
   ventas:{lbl:'Ventas',valor:m=>m.ingresos,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100},
   ganancia:{lbl:'Ganancia ZB',valor:m=>m.gananciaZB,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100},
   pedidos:{lbl:'Pedidos',valor:m=>m.pedidos.length,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
+  nuevos:{lbl:'Clientes nuevos',valor:m=>m.clientesNuevos,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
   ticket:{lbl:'Ticket promedio',valor:m=>m.ticket,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100,acumulado:true},
   recompra:{lbl:'Clientes que vuelven',valor:m=>m.recompra,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true},
   conversion:{lbl:'Conversión de leads',valor:m=>m.conversion,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true}
@@ -8735,6 +8736,7 @@ function tarjetaHeroReportes(M,A,parcial){
       <div class="rk-hero-lbl">Ganancia neta ZB</div>
       <div class="rk-hero-num"${M.gananciaNeta<0?' style="color:var(--danger);"':''}${tituloParcial}>${moneyEntero(M.gananciaNeta)}${parcial?' *':''}</div>
       <div class="rk-delta">${deltaKPI(M.gananciaNeta,A.gananciaNeta)}<span>antes ${moneyEntero(A.gananciaNeta)}</span></div>
+      ${(M.pauta||0)+(M.otrosGastos||0)+(M.fijos||0)<0.005?`<div style="margin-top:6px;font-size:12px;color:var(--warning);text-align:left;">Sin gastos cargados en este período: todavía no descuenta alquiler, sueldos, etc. · <button type="button" class="link-lead" style="display:inline;width:auto;padding:0;font-size:12px;" onclick="event.stopPropagation();irA('gastos')">Cargar en Gastos</button></div>`:''}
     </div>
   </div>`;
 }
@@ -9109,7 +9111,7 @@ function pintarReportes(){
       ${tarjetaKPI('pedidos',String(pedidosFacturables.length),deltaKPI(pedidosFacturables.length,A.pedidos.length),String(A.pedidos.length))}
       ${tarjetaKPI('ticket',M.ticket==null?'—':moneyEntero(M.ticket),deltaKPI(M.ticket,A.ticket),A.ticket==null?'—':moneyEntero(A.ticket))}
       ${tarjetaKPI('recompra',pctTxt(M.recompra),deltaKPI(M.recompra,A.recompra,'pts'),pctTxt(A.recompra))}
-      ${tarjetaKPI('conversion',tasaConv+'%',deltaKPI(M.conversion,A.conversion,'pts'),pctTxt(A.conversion))}
+      ${tarjetaKPI('nuevos',String(M.clientesNuevos),deltaKPI(M.clientesNuevos,A.clientesNuevos),String(A.clientesNuevos))}
     </div>
 
     <div class="rg-card">
@@ -9151,15 +9153,8 @@ function pintarReportes(){
           <div class="rc-item"><i class="rc-sw rc-vuelve"></i>Volvieron a comprar<b>${M.clientesVuelven}</b><span>${(100-pctNuevos).toFixed(0)}%</span></div>
         </div>
         ${M.pedidosSinCliente?`<p class="rc-nota">${M.pedidosSinCliente} ${M.pedidosSinCliente===1?'venta no tiene':'ventas no tienen'} cliente asignado y no ${M.pedidosSinCliente===1?'entra':'entran'} en este conteo.</p>`:''}`}
-        <div class="rc-leads">
-          <div class="reportes-leads-viz">
-            <div class="viz-paso"><div class="viz-num">${totalLeads}</div><div class="viz-lbl">Leads</div></div>
-            <div class="viz-flecha">→</div>
-            <div class="viz-paso"><div class="viz-num">${convertidos}</div><div class="viz-lbl">Compraron</div></div>
-            <div class="viz-flecha">→</div>
-            <div class="viz-paso"><div class="viz-num" style="color:var(--primary);">${tasaConv}%</div><div class="viz-lbl">Conversión</div></div>
-          </div>
-        </div>
+        <!-- 2026-11-18: se quitó el embudo Leads → Compraron → Conversión: los leads se registran al
+             comprar, así que siempre daba ~100%. Vuelve cuando los leads se anoten al primer contacto. -->
       </div>
     </div>
 
