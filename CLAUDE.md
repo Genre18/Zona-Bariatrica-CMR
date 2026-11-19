@@ -24,9 +24,9 @@ Herramienta interna de Zona Bariátrica (venta de suplementos 100% por delivery;
 Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribir historial con `reset --hard`/`push --force`).
 
 ## Reglas del negocio que NO se deben romper
-- **Nunca migrar, recalcular ni "arreglar" datos históricos automáticamente** desde el código. Las reglas nuevas se aplican desde una fecha de vigencia (`VIGENCIA_PROMO_BN`, `VIGENCIA_PROMO_FUSION`, `VIGENCIA_ACREDITACION_TARJETA`) y las ventas anteriores quedan como estaban.
+- **Nunca migrar, recalcular ni "arreglar" datos históricos automáticamente** desde el código. Las reglas nuevas se aplican desde una fecha de vigencia (`VIGENCIA_PROMO_BN`, `VIGENCIA_PROMO_FUSION`) y las ventas anteriores quedan como estaban. Excepción: una corrección única pedida explícitamente por Genesis/Roberto (ver "Correcciones únicas"), simulada antes con un respaldo.
 - Una venta se registra cuando llega el comprobante → nace "pagado" y descuenta stock. Excepción: contra entrega → "pendiente pago" (descuenta stock igual, no cuenta en Reportes hasta marcarla pagada). Provincia (Shalom) también puede quedar "pendiente pago" (desde el 15-11-2026 se quitó el bloqueo de solo al contado). Al confirmar la entrega, "Sí, ya pagó" viene marcado (se toca "Todavía no" solo en la excepción).
-- Pago con tarjeta (Izipay): desde el 18-11-2026 cuenta desde el día 1 (`TARJETA_CUENTA_DESDE_EL_DIA_1`); ya no hay paso manual de acreditar.
+- Pago con tarjeta (Izipay): desde el 18-11-2026 cuenta desde el día 1 (`ventaAcreditada()` siempre devuelve true; se dejó porque Reportes/Proveedores la consultan); ya no existe el paso manual de acreditar.
 - Se cobra al entregar: no hay lista de deudores. Una venta "pendiente pago" con más de `DIAS_AVISO_COBRO` días pone un número rojo en Envíos y su tarjeta queda en el tablero hasta marcarla pagada.
 - Recargo tarjeta 4% se calcula solo sobre productos (subtotal − descuento), no sobre delivery/embalaje.
 - Proveedores/socio: **una sola fuente de verdad `estadoCuentaProveedor()`**. Saldo = obligación total − Σ pagos (las `asignaciones[]` son solo detalle, no cambian el saldo). Lo que se le paga al socio en marcas de reparto = **costo + participación** (`totalDoctorItem`).
@@ -58,7 +58,11 @@ Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribi
 - Al guardar: nombres/apellidos/lugares con `nombrePropio()`; sabor/presentación de Stock con `primeraMayuscula()`. Nunca a productos, direcciones, emails, códigos ni notas.
 
 ### Correcciones únicas (quitar cuando ya corrieron)
-- En `entrarApp()` corren una sola vez (marca en `db.config.correccionesAplicadas`): `aplicarCorreccionCobros20261118`, `aplicarCorreccionEntrega20261118`, `aplicarCorreccionNombres20261118`, `aplicarCorreccionStockTexto20261118`. Cuando un respaldo muestre las 4 marcas, borrar esas funciones y sus llamadas.
+- En `entrarApp()` corren una sola vez (marca en `db.config.correccionesAplicadas`): `aplicarCorreccionCobros20261118`, `aplicarCorreccionEntrega20261118`, `aplicarCorreccionNombres20261118`, `aplicarCorreccionStockTexto20261118`, `aplicarCorreccionPrecioBL20261118`. Cuando un respaldo muestre las 5 marcas, borrar esas funciones y sus llamadas.
+
+### Respaldo automático
+- `supabase/04_respaldo_diario.sql` (local, no se sube): tabla `crm_respaldos` + pg_cron diario 03:00 Lima, 30 días. Hay que correrlo una vez en el SQL Editor de Supabase. Para recuperar: `select data from crm_respaldos order by creado_en desc limit 1`.
+- "Productos vendidos" (Reportes) agrupa por `stockId`: corregir el nombre de un producto (tildes, etc.) no parte su historial.
 - Reutilizar lo que ya existe (`.chip`, `.stat`, `.reportes-kpis`, `var(--border)`, `abrirModal`, `ordenarTablaPor`) en vez de crear estilos o sistemas paralelos.
 - **Tamaños de letra: solo esta escala** — 11 (notas/encabezados de tabla), 12 (tablas densas, chips), 13 (texto de tabla/secundario), 14 (botones, texto normal de UI), 15, 16 (inputs en celular), 18 (subtítulos), 22, 24, 28 (números grandes). Nada menor a 11px. Pesos: 400, 500, 600, 700. No inventar tamaños intermedios (12.5, 13.5...).
 - Botones: `.btn` (principal azul) y `.btn-secundario` (blanco con borde); agregar `.btn-chico` para la versión compacta. Ya tienen forma propia: no ponerles padding/border-radius en línea.
