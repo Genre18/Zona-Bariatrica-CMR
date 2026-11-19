@@ -210,6 +210,15 @@ table tbody tr:hover{background:var(--bg-soft);}
 .env-shalom{font-size:12px;color:var(--muted);margin-top:4px;}
 .env-acciones{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center;}
 .env-acciones .btn{flex:1;padding:10px 12px;}
+/* ACCIONES DE TARJETA (2026-11-18): el paso del día en azul suave (fondo claro + texto azul, relleno
+   solo al pasar el mouse) para que muchas tarjetas no formen una pared azul; ↩ cuadrado; lo poco
+   frecuente y lo que anula, dentro de "⋯" (el rojo solo aparece ahí, separado por una línea). */
+.btn-paso{flex:1;background:var(--primary-suave);color:var(--primary);border:1px solid var(--primary-ring);border-radius:var(--r-xs);padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;}
+.btn-paso:hover{background:var(--primary);color:#fff;}
+.env-icono{width:32px;padding:6px 0;text-align:center;}
+details.env-mas>summary{height:31px;width:32px;border-radius:var(--r-xs);border-color:var(--border);}
+.env-mas .menu-mas-opciones-panel{min-width:200px;}
+.env-menu-peligro{color:var(--danger)!important;border-top:1px solid var(--border-light)!important;border-radius:0 0 var(--r-xs) var(--r-xs)!important;margin-top:2px;}
 .env-etiqueta{border:2px dashed var(--border);border-radius:var(--r-sm);padding:12px;font-size:13px;line-height:1.5;}
 .env-etq-top{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
 .env-etq-nombre{font-size:16px;font-weight:700;}
@@ -3524,35 +3533,49 @@ function tarjetaEnvio(p){
   const productos=(p.items||[]).map(it=>`<li>${esc(it.cantidad)}x ${esc(nombreConSabor(it))}</li>`).join('');
   const shalomDatos=p.metodoEnvio==='shalom'&&(p.numeroOrden||p.codigoEnvio||p.claveRetiro)?`<div class="env-shalom">${[p.numeroOrden?'N° '+esc(p.numeroOrden):'',p.codigoEnvio?'Cód. '+esc(p.codigoEnvio):'',p.claveRetiro?'Clave '+esc(p.claveRetiro):''].filter(Boolean).join(' · ')}</div>`:'';
   const motDatos=p.metodoEnvio==='indrive'&&p.motorizado?`<div class="env-shalom">🛵 ${esc(textoMotorizado(p))}</div>`:'';
-  let acciones='';
-  // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
-  const anular=`<button type="button" class="btn-secundario btn-chico" title="Anular: devuelve el stock y queda como cancelado en el historial" onclick="eliminarPedido('${p.id}')">Anular</button>`;
-  const fechaBtn=`<button type="button" class="btn-secundario btn-chico" title="Fecha en que el cliente quiere recibirlo" onclick="abrirEntregaProgramada('${p.id}')">Fecha</button>`;
-  const avisar=c&&telefonoWhatsApp(c.telefono)
-    ?`<button type="button" class="btn-secundario btn-chico" title="Mandarle por WhatsApp la confirmación de su pedido" onclick="avisarRecibidoWhatsApp('${p.id}')">${p.avisoRecibidoEn?'✓ Avisado':'Avisar'}</button>`:'';
+  // ACCIONES DE LA TARJETA (2026-11-18, pedido de Genesis): la acción del paso en azul SUAVE (no
+  // relleno: con muchas tarjetas no se vuelve una pared azul), 1-2 accesos frecuentes, ↩ para volver
+  // y todo lo demás dentro de "⋯". Anular / devolver viven solo en "⋯": el rojo nunca queda a la
+  // vista en cada tarjeta. Mismas funciones de siempre (nada cambia en pasos, stock ni pagos).
+  const btnPaso=(txt,fn)=>`<button type="button" class="btn-paso" onclick="${fn}('${p.id}')">${txt}</button>`;
+  const btn2=(txt,on,tit)=>`<button type="button" class="btn-secundario btn-chico" title="${tit}" onclick="${on}">${txt}</button>`;
+  const item=(txt,on,extra)=>`<button type="button" class="link-lead${extra?' '+extra:''}" style="text-align:left;" onclick="this.closest('details').removeAttribute('open');${on}">${txt}</button>`;
+  const enlace=(txt,url)=>`<a class="link-lead" style="text-align:left;" href="${escAttr(url)}" target="_blank" rel="noopener">${txt}</a>`;
+  const entregado=p.estadoEnvio==='entregado';
+  const volver=i>0&&!entregado?`<button type="button" class="btn-secundario btn-chico env-icono" title="Regresar a ${ETAPAS_ENVIO[i-1].label}" onclick="regresarPasoEnvio('${p.id}')">↩</button>`:'';
+  const avisar=c&&telefonoWhatsApp(c.telefono)?btn2(p.avisoRecibidoEn?'WhatsApp ✓':'WhatsApp',`avisarRecibidoWhatsApp('${p.id}')`,'Mandarle por WhatsApp la confirmación de su pedido (Recibimos tu pedido…)'):'';
   // Ubicación de Google Maps que dejó el cliente en la web (solo Lima): para pasársela al repartidor.
   const mapaUrl=p.ubicacion||(c&&c.ubicacion)||'';
-  const mapa=mapaUrl&&p.metodoEnvio!=='shalom'?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(mapaUrl)}" target="_blank" rel="noopener" title="Abrir la ubicación del cliente en Google Maps">📍 Mapa</a>`:'';
-  if(i===0)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Preparar pedido</button>${avisar}<button type="button" class="btn-secundario btn-chico" title="Corregir productos o sabores del pedido (ej. cambiar maracumango por fresa) sin anularlo" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>${mapa}${fechaBtn}${anular}`;
-  else if(i===1)acciones=`<button type="button" class="btn" onclick="abrirPasoEnvio('${p.id}')">Despachar</button>
-    <button type="button" class="btn-secundario btn-chico" title="Imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>
-    <button type="button" class="btn-secundario btn-chico" title="Corregir productos o sabores del pedido (ej. cambiar maracumango por fresa) sin anularlo" onclick="abrirEditarPedido('${p.id}')">✏️ Editar</button>${mapa}${fechaBtn}
-    <button type="button" class="btn-secundario btn-chico" title="Regresar a Recibidos" onclick="regresarPasoEnvio('${p.id}')">↩</button>${anular}`;
-  else{
-    const wa=p.metodoEnvio==='shalom'&&p.numeroOrden&&p.estadoEnvio!=='entregado'&&c&&telefonoWhatsApp(c.telefono);
-    acciones=[
-      `<button type="button" class="btn-secundario btn-chico" title="Volver a imprimir la etiqueta del paquete" onclick="imprimirEtiquetaEnvio('${p.id}')">Etiqueta</button>`,
-      faltaDatosShalom(p)?`<button type="button" class="btn" onclick="abrirDatosShalom('${p.id}')">Anotar N° de orden</button>`:'',
-      wa?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente su N° de orden y código" onclick="enviarWhatsAppEnvio('${p.id}')">WhatsApp</button>`:'',
-      p.metodoEnvio==='indrive'&&p.motorizado&&c&&telefonoWhatsApp(c.telefono)?`<button type="button" class="btn-secundario btn-chico" title="Mandarle al cliente los datos del motorizado" onclick="enviarWhatsAppMotorizado('${p.id}')">WhatsApp</button>`:'',
-      p.metodoEnvio==='indrive'&&p.motorizado&&telefonoWhatsApp(p.motorizado.celular)?`<a class="btn-secundario btn-chico" style="text-decoration:none;" href="${escAttr(telefonoWhatsApp(p.motorizado.celular))}" target="_blank" rel="noopener" title="Escribirle al motorizado">Motorizado</a>`:'',
-      p.metodoEnvio==='indrive'?`<button type="button" class="btn-secundario btn-chico" title="Anotar o corregir nombre, celular o placa del motorizado" onclick="abrirDatosMotorizado('${p.id}')">${p.motorizado?'Editar motorizado':'Anotar motorizado'}</button>`:'',
-      p.metodoEnvio==='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El cliente ya lo recogió en la agencia" onclick="abrirPasoEnvio('${p.id}')">Ya lo recogió</button>`:'',
-      p.metodoEnvio!=='shalom'&&p.estadoEnvio!=='entregado'?`<button type="button" class="btn btn-chico" title="El cliente ya recibió su pedido" onclick="abrirPasoEnvio('${p.id}')">Entregado</button>`:'',
-      p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="El paquete regresó (no lo recibió o no pagó): devuelve el stock y anula la venta" onclick="eliminarPedido('${p.id}','devuelto')">Devuelto</button>`:'',
-      p.estadoEnvio!=='entregado'?`<button type="button" class="btn-secundario btn-chico" title="Regresar a Empaquetados" onclick="regresarPasoEnvio('${p.id}')">↩</button>`:''
-    ].join('');
+  const mapa=mapaUrl&&p.metodoEnvio!=='shalom'?enlace('Ver ubicación en Maps',mapaUrl):'';
+  const editar=item('Editar pedido',`abrirEditarPedido('${p.id}')`);
+  const fecha=item('Fecha de entrega',`abrirEntregaProgramada('${p.id}')`);
+  const etiqueta=item('Imprimir etiqueta',`imprimirEtiquetaEnvio('${p.id}')`);
+  // Anular desde el tablero (2026-10-22): mismo formulario de siempre (motivo + autorizado por, devuelve el stock).
+  const anular=item('Anular venta',`eliminarPedido('${p.id}')`,'env-menu-peligro');
+  let visibles=[],menu=[];
+  if(i===0){
+    visibles=[btnPaso('Preparar pedido','abrirPasoEnvio'),avisar];
+    menu=[editar,mapa,fecha,anular];
+  }else if(i===1){
+    visibles=[btnPaso('Despachar','abrirPasoEnvio'),volver];
+    menu=[etiqueta,editar,mapa,fecha,anular];
+  }else{
+    const falta=faltaDatosShalom(p);
+    const indrive=p.metodoEnvio==='indrive';
+    const waShalom=p.metodoEnvio==='shalom'&&p.numeroOrden&&!entregado&&c&&telefonoWhatsApp(c.telefono);
+    if(!entregado)visibles.push(falta?btnPaso('Anotar N° de orden','abrirDatosShalom'):btnPaso(p.metodoEnvio==='shalom'?'Ya lo recogió':'Ya lo recibió','abrirPasoEnvio'));
+    if(waShalom)visibles.push(btn2(p.avisoEnvioEn?'WhatsApp ✓':'WhatsApp',`enviarWhatsAppEnvio('${p.id}')`,'Mandarle al cliente que ya está en camino por Shalom, con su N° de orden, código y clave'));
+    if(indrive&&p.motorizado&&c&&telefonoWhatsApp(c.telefono))visibles.push(btn2(p.avisoEnvioEn?'WhatsApp ✓':'WhatsApp',`enviarWhatsAppMotorizado('${p.id}')`,'Mandarle al cliente que ya salió a reparto, con los datos del motorizado'));
+    if(indrive&&!p.motorizado)visibles.push(btn2('Anotar motorizado',`abrirDatosMotorizado('${p.id}')`,'Anotar nombre, celular o placa del motorizado'));
+    visibles.push(volver);
+    if(falta&&!entregado)menu.push(item('Ya lo recogió',`abrirPasoEnvio('${p.id}')`));
+    menu.push(etiqueta);
+    if(indrive&&p.motorizado&&telefonoWhatsApp(p.motorizado.celular))menu.push(enlace('Escribirle al motorizado',telefonoWhatsApp(p.motorizado.celular)));
+    if(indrive&&p.motorizado)menu.push(item('Editar motorizado',`abrirDatosMotorizado('${p.id}')`));
+    if(!entregado)menu.push(item('No lo recibió (devolver)',`eliminarPedido('${p.id}','devuelto')`,'env-menu-peligro'));
   }
+  menu=menu.filter(Boolean);
+  const acciones=visibles.filter(Boolean).join('')+(menu.length?`<details class="menu-mas-opciones env-mas"><summary title="Más opciones">⋯</summary><div class="menu-mas-opciones-panel">${menu.join('')}</div></details>`:'');
   return `<div class="env-card${faltaDatosShalom(p)?' env-card-alerta':''}">
     <div class="env-card-top"><span>${esc(correlativoVenta(p.id))}</span><span>${esc(cuando)}</span></div>
     <div class="env-cliente" onclick="abrirFichaCliente('${p.clienteId}')">${c?esc((c.nombre+' '+(c.apellido||'')).trim()):'—'}</div>
@@ -3563,6 +3586,7 @@ function tarjetaEnvio(p){
     <div class="env-acciones">${acciones}</div>
   </div>`;
 }
+document.addEventListener('click',e=>{document.querySelectorAll('details.env-mas[open]').forEach(d=>{if(!d.contains(e.target))d.removeAttribute('open');});});
 /* ================= ENTREGA PROGRAMADA (2026-10-22) =================
    Cuando el cliente pide recibirlo un día concreto (ej. "para el lunes"): p.entregaProgramada
    = 'YYYY-MM-DD'. Solo ordena y avisa en el tablero; no cambia ventas, stock ni pagos. */
@@ -4563,6 +4587,9 @@ function enviarWhatsAppMotorizado(pedidoId){
   const url=cli&&telefonoWhatsApp(cli.telefono);
   if(!url){alert('Este cliente no tiene un teléfono válido para WhatsApp.');return;}
   window.open(url+'?text='+encodeURIComponent(mensajeWhatsAppMotorizado(p,cli)),'_blank');
+  p.avisoEnvioEn=hoyStr(); // WhatsApp ✓ en la tarjeta (2026-11-18)
+  guardar();
+  if(seccionActual==='envios')pintarEnvios();
 }
 // Por si se tocó por error (pasa en tablet/celular): regresa una etapa y borra su huella.
 function regresarPasoEnvio(pedidoId){
@@ -4626,6 +4653,9 @@ function enviarWhatsAppEnvio(pedidoId){
   const url=cli&&telefonoWhatsApp(cli.telefono);
   if(!url){alert('Este cliente no tiene un teléfono válido para WhatsApp.');return;}
   window.open(url+'?text='+encodeURIComponent(mensajeWhatsAppEnvio(p,cli)),'_blank');
+  p.avisoEnvioEn=hoyStr(); // WhatsApp ✓ en la tarjeta (2026-11-18)
+  guardar();
+  if(seccionActual==='envios')pintarEnvios();
 }
 // ACREDITACIÓN DE TARJETA (2026-09-19): única puerta para confirmar que el banco ya acreditó una
 // venta pagada con tarjeta (ver ventaAcreditada() y VIGENCIA_ACREDITACION_TARJETA). Solo vive en
