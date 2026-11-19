@@ -1574,6 +1574,9 @@ function nombrePropio(t){
     i>0&&chicas.includes(w)?w:w.split('-').map(x=>x.split("'").map(y=>y.charAt(0).toUpperCase()+y.slice(1)).join("'")).join('-')
   ).join(' ');
 }
+// Regla suave para Stock (2026-11-18): solo la primera letra en mayúscula, el resto igual
+// ("maiz" → "Maiz", "1.5KG" no cambia). Para sabor y presentación.
+function primeraMayuscula(t){const v=String(t||'').trim();return v.charAt(0).toUpperCase()+v.slice(1);}
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
 function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
@@ -2360,6 +2363,7 @@ function entrarApp(){
     aplicarCorreccionCobros20261118();
     aplicarCorreccionEntrega20261118();
     aplicarCorreccionNombres20261118();
+    aplicarCorreccionStockTexto20261118();
     irA('leads');
   }
 }
@@ -2410,6 +2414,16 @@ function aplicarCorreccionNombres20261118(){
   const arreglar=(lista,campos)=>(lista||[]).forEach(x=>campos.forEach(k=>{if(typeof x[k]==='string'&&x[k].trim())x[k]=nombrePropio(x[k]);}));
   arreglar(db.clientes,['nombre','apellido','distrito','ciudad','departamento','provincia']);
   arreglar(db.leads,['nombre','apellido','distrito']);
+  db.config.correccionesAplicadas=hechas.concat(MARCA);
+  guardar();
+}
+// CORRECCIÓN PUNTUAL (2026-11-18, Genesis): sabor y presentación de Stock con primera letra en mayúscula.
+function aplicarCorreccionStockTexto20261118(){
+  const MARCA='stock-texto-2026-11-18';
+  db.config=db.config||{};
+  const hechas=db.config.correccionesAplicadas||[];
+  if(hechas.includes(MARCA))return;
+  (db.stock||[]).forEach(x=>['sabor','presentacion'].forEach(k=>{if(typeof x[k]==='string'&&x[k].trim())x[k]=primeraMayuscula(x[k]);}));
   db.config.correccionesAplicadas=hechas.concat(MARCA);
   guardar();
 }
@@ -6415,8 +6429,8 @@ function guardarStock(ev){
     marca,
     codigo:document.getElementById('st-codigo').value.trim()||generarCodigoStock(marca,document.getElementById('st-producto').value,document.getElementById('st-presentacion').value,document.getElementById('st-sabor').value),
     producto:document.getElementById('st-producto').value.trim(),
-    presentacion:document.getElementById('st-presentacion').value.trim(),
-    sabor:document.getElementById('st-sabor').value.trim(),
+    presentacion:primeraMayuscula(document.getElementById('st-presentacion').value),
+    sabor:primeraMayuscula(document.getElementById('st-sabor').value),
     cantidad:cantidadInicial,
     unidad:document.getElementById('st-unidad').value.trim(),
     min:parseFloat(document.getElementById('st-min').value)||0,
@@ -6521,8 +6535,8 @@ function guardarEditarStock(ev,id){
   s.marca=document.getElementById('st-marca').value;
   s.codigo=document.getElementById('st-codigo').value.trim();
   s.producto=document.getElementById('st-producto').value.trim();
-  s.presentacion=document.getElementById('st-presentacion').value.trim();
-  s.sabor=document.getElementById('st-sabor').value.trim();
+  s.presentacion=primeraMayuscula(document.getElementById('st-presentacion').value);
+  s.sabor=primeraMayuscula(document.getElementById('st-sabor').value);
   s.unidad=document.getElementById('st-unidad').value.trim();
   s.min=parseFloat(document.getElementById('st-min').value)||0;
   s.proveedor=valorProveedorForm();
