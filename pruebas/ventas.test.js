@@ -1,5 +1,5 @@
 // Ventas: totales del pedido (recargo de tarjeta 4% solo sobre productos), "pendiente de pago"
-// (contra entrega), provincia solo al contado y tarjeta que no cuenta hasta acreditarse.
+// (contra entrega), provincia puede quedar pendiente de cobro y la tarjeta cuenta desde el día 1.
 const {crearEntorno,pruebas}=require('./entorno');
 const {A,ctx,campos}=crearEntorno();
 const t=pruebas('Ventas');
@@ -18,11 +18,9 @@ t.ok('descuento mayor al subtotal nunca deja total negativo',r.total===0,r.total
 t.ok('validación rechaza descuento mayor al subtotal',typeof A.validarImportesPedido(items,999,0,0)==='string');
 t.ok('validación rechaza delivery negativo',typeof A.validarImportesPedido(items,0,0,-5)==='string');
 
-// 2) Tarjeta: desde la vigencia, no cuenta hasta marcarla acreditada
-const vig=A.VIGENCIA_ACREDITACION_TARJETA;
-t.ok('tarjeta posterior a la vigencia sin acreditar → NO cuenta',A.ventaAcreditada({metodoPago:'Tarjeta de crédito',fecha:'2026-10-01'})===false);
-t.ok('tarjeta acreditada → cuenta',A.ventaAcreditada({metodoPago:'Tarjeta de crédito',fecha:'2026-10-01',acreditadoTarjeta:true})===true);
-t.ok('tarjeta anterior a la vigencia → cuenta (histórico intacto)',A.ventaAcreditada({metodoPago:'Tarjeta de crédito',fecha:'2026-01-01'})===true,vig);
+// 2) Tarjeta (Izipay): desde el 18-11-2026 cuenta desde el día 1, sin paso de acreditar
+t.ok('tarjeta sin marcar acreditada → cuenta',A.ventaAcreditada({metodoPago:'Tarjeta de crédito',fecha:'2026-11-20'})===true);
+t.ok('tarjeta vieja sin acreditar → cuenta',A.ventaAcreditada({metodoPago:'Tarjeta de crédito',fecha:'2026-10-01'})===true);
 t.ok('Yape → cuenta siempre',A.ventaAcreditada({metodoPago:'Yape',fecha:'2026-10-01'})===true);
 
 // 3) guardarPedido: nace pagado o pendiente de pago, y en ambos casos descuenta stock
@@ -77,6 +75,6 @@ A.db.pedidos=[
   {id:'e',fecha:'2026-10-31',estadoPago:'pagado',metodoPago:'Yape',total:600,items:[]}
 ];
 const fact=A.pedidosFacturablesEntre('2026-11-01','2026-11-30').map(p=>p.id);
-t.ok('facturables de noviembre = solo la pagada con Yape',JSON.stringify(fact)==='["a"]',fact);
+t.ok('facturables de noviembre = la pagada con Yape y la pagada con tarjeta',JSON.stringify(fact)==='["a","d"]',fact);
 
 t.fin();

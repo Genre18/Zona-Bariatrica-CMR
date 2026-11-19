@@ -25,8 +25,9 @@ Para deshacer un cambio ya publicado: `git revert <commit>` + push (no reescribi
 
 ## Reglas del negocio que NO se deben romper
 - **Nunca migrar, recalcular ni "arreglar" datos históricos automáticamente** desde el código. Las reglas nuevas se aplican desde una fecha de vigencia (`VIGENCIA_PROMO_BN`, `VIGENCIA_PROMO_FUSION`, `VIGENCIA_ACREDITACION_TARJETA`) y las ventas anteriores quedan como estaban.
-- Una venta se registra cuando llega el comprobante → nace "pagado" y descuenta stock. Excepción: contra entrega → "pendiente pago" (descuenta stock igual, no cuenta en Reportes hasta marcarla pagada). Provincia (Shalom) también puede quedar "pendiente pago" (desde el 15-11-2026 se quitó el bloqueo de solo al contado). Al confirmar la entrega, la pregunta "¿ya pagó?" es obligatoria.
-- Pago con tarjeta: no cuenta (ni para Ganancia ZB ni para pagar al proveedor/socio) hasta marcarla "acreditada" a mano (`ventaAcreditada()`).
+- Una venta se registra cuando llega el comprobante → nace "pagado" y descuenta stock. Excepción: contra entrega → "pendiente pago" (descuenta stock igual, no cuenta en Reportes hasta marcarla pagada). Provincia (Shalom) también puede quedar "pendiente pago" (desde el 15-11-2026 se quitó el bloqueo de solo al contado). Al confirmar la entrega, "Sí, ya pagó" viene marcado (se toca "Todavía no" solo en la excepción).
+- Pago con tarjeta (Izipay): desde el 18-11-2026 cuenta desde el día 1 (`TARJETA_CUENTA_DESDE_EL_DIA_1`); ya no hay paso manual de acreditar.
+- Se cobra al entregar: no hay lista de deudores. Una venta "pendiente pago" con más de `DIAS_AVISO_COBRO` días pone un número rojo en Envíos y su tarjeta queda en el tablero hasta marcarla pagada.
 - Recargo tarjeta 4% se calcula solo sobre productos (subtotal − descuento), no sobre delivery/embalaje.
 - Proveedores/socio: **una sola fuente de verdad `estadoCuentaProveedor()`**. Saldo = obligación total − Σ pagos (las `asignaciones[]` son solo detalle, no cambian el saldo). Lo que se le paga al socio en marcas de reparto = **costo + participación** (`totalDoctorItem`).
 - La pauta publicitaria (`gastosPauta[]`) nunca se borra: se anula con motivo (`anularGastoPauta`).

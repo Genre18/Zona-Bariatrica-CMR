@@ -2354,6 +2354,7 @@ const SECCIONES=['leads','clientes','envios','stock','proveedores','tareas','gas
 function irA(sec){
   seccionActual=sec;
   actualizarAvisoGastos();
+  pintarAvisoPedidosWeb();
   SECCIONES.forEach(s=>{
     document.getElementById('sec-'+s).classList.toggle('activa',s===sec);
     document.getElementById('tab-'+s).classList.toggle('activo',s===sec);
@@ -3312,6 +3313,8 @@ function confirmarPedidoPagado(ev,pedidoId){
   p.pagoConfirmadoPor=sesion?sesion.nombre:'';
   guardar();
   cerrarModal();
+  pintarAvisoPedidosWeb();
+  if(seccionActual==='envios'){const y=window.scrollY;pintarEnvios();window.scrollTo(0,y);return false;}
   pintarClientes();
   if(typeof pintarProveedores==='function')pintarProveedores();
   abrirFichaCliente(p.clienteId);
@@ -3449,7 +3452,7 @@ function pintarEnvios(){
   const cols=[[],[],[]];
   lista.forEach(p=>{
     const i=etapaEnvio(p);
-    if(i===2&&!buscar&&!faltaDatosShalom(p)&&(p.estadoEnvio==='entregado'||fechaDespacho(p)<limite))return;
+    if(i===2&&!buscar&&!faltaDatosShalom(p)&&p.estadoPago!=='pendiente pago'&&(p.estadoEnvio==='entregado'||fechaDespacho(p)<limite))return;
     cols[i].push(p);
   });
   // Recibidos/Empaquetados: lo más antiguo arriba (lo más urgente). Despachados: lo más nuevo arriba.
@@ -3474,7 +3477,7 @@ function tarjetaEnvio(p){
   const metodo=nombreMetodoEnvio(p.metodoEnvio);
   const chips=[
     metodo?`<span class="chip chip-gris">${metodo}</span>`:'<span class="chip chip-naranja" title="Se elige al despachar">Envío sin definir</span>',
-    p.estadoPago==='pendiente pago'?'<span class="chip chip-violeta">Pendiente de pago</span>':'',
+    p.estadoPago==='pendiente pago'?(()=>{const d=diasSinPagar(p),tarde=d>DIAS_AVISO_COBRO;return `<span class="chip ${tarde?'chip-rojo':'chip-violeta'}" style="cursor:pointer;" title="Tocar para marcar que ya pagó" onclick="event.stopPropagation();marcarPedidoPagado('${p.id}')">Pendiente de pago${tarde?' · '+d+' días':''}</span>`;})():'',
     i<2?chipEntregaProgramada(p):'',
     p.estadoEnvio==='entregado'?`<span class="chip chip-verde">Entregado${p.fechaEntrega?' · '+fechaCorta(p.fechaEntrega):''}</span>`:''
   ].join('');
@@ -3662,7 +3665,18 @@ function pintarAvisoPedidosWeb(){
   const tab=document.getElementById('tab-envios');
   if(!tab)return;
   const n=pedidosWebPendientes().length;
-  tab.innerHTML='Envíos'+(n?`<span class="tab-num" title="Pedidos de la web por registrar">${n}</span>`:'');
+  const atrasados=cobrosAtrasados().length;
+  tab.innerHTML='Envíos'+(n?`<span class="tab-num" title="Pedidos de la web por registrar">${n}</span>`:'')
+    +(atrasados?`<span class="tab-num" style="background:var(--danger);" title="Ventas con más de ${DIAS_AVISO_COBRO} días sin marcar como pagadas">${atrasados}</span>`:'');
+}
+// AVISO DE COBRO (2026-11-18): se cobra al entregar, así que una venta "pendiente pago" con más de
+// DIAS_AVISO_COBRO días es una excepción real o un paso olvidado. No hay lista de deudores: solo el
+// número rojo en Envíos y la tarjeta se queda en el tablero (aunque esté entregada) hasta marcarla.
+const DIAS_AVISO_COBRO=2;
+function diasSinPagar(p){return Math.floor((new Date(hoyStr()+'T00:00:00')-new Date(String(p.fecha).slice(0,10)+'T00:00:00'))/86400000);}
+function cobrosAtrasados(){
+  if(typeof db==='undefined'||!db||!db.pedidos)return [];
+  return db.pedidos.filter(p=>p.estadoPago==='pendiente pago'&&diasSinPagar(p)>DIAS_AVISO_COBRO);
 }
 function stockPorCodigo(cod){
   if(cod==='NUTRIFATH')return db.stock.find(s=>s.activo!==false&&/nutrifath/i.test(s.producto||''));
@@ -4309,12 +4323,12 @@ function abrirPasoEnvio(pedidoId){
   }else{
     titulo=p.metodoEnvio==='shalom'?'El cliente ya lo recogió':'El cliente ya lo recibió';boton='Confirmar entrega';
     // Contra entrega en Lima: de paso se puede marcar que ya pagó (mismo efecto que "Marcar como pagado").
-    // Pregunta de pago OBLIGATORIA (2026-11-18): antes era una casilla desmarcada que se pasaba
-    // de largo y la venta quedaba "pendiente pago" aunque el cliente ya hubiera pagado.
+    // Pregunta de pago (2026-11-18): se cobra al entregar, así que "Sí, ya pagó" viene marcado y solo
+    // se toca "Todavía no" en la excepción (antes era una casilla desmarcada que se pasaba de largo).
     const cobrar=p.estadoPago==='pendiente pago'?`<label>¿El cliente ya pagó los ${money(p.total)}? *</label>
-      <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display=''"> Sí, ya pagó</label>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-pagado" style="width:auto;" checked onchange="document.getElementById('pe-pago-metodo').style.display=''"> Sí, ya pagó</label>
       <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-top:4px;"><input type="radio" name="pe-pago" id="pe-no-pagado" style="width:auto;" onchange="document.getElementById('pe-pago-metodo').style.display='none'"> Todavía no (queda pendiente de cobro)</label>
-      <select id="pe-pago-metodo" style="display:none;">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>`:'';
+      <select id="pe-pago-metodo">${['Yape','Plin','Transferencia','Tarjeta de crédito','Efectivo'].map(m=>`<option ${p.metodoPago===m?'selected':''}>${m}</option>`).join('')}</select>`:'';
     cuerpo=`<label style="margin-top:0;">Fecha</label><input type="date" id="pe-fecha" value="${hoyStr()}">${cobrar}`;
   }
   abrirModal(`
@@ -5037,7 +5051,12 @@ function fechaAplicaPromocionFusion(fecha){
 // primero se puso '19' por copiar el patrón de VIGENCIA_PROMO_FUSION sin revisar la fecha real).
 // Verificado que ningún otro pedido con tarjeta cae en 2026-09-18 salvo el de Diana.
 const VIGENCIA_ACREDITACION_TARJETA='2026-09-18';
+// DESDE EL 18-11-2026 (Genesis): la tarjeta (Izipay) solo se completa si el cobro se aprobó, así que
+// la venta cuenta desde el día 1 y ya no hay paso manual de "acreditar". Los campos acreditadoTarjeta*
+// de ventas viejas se conservan solo como historia.
+const TARJETA_CUENTA_DESDE_EL_DIA_1=true;
 function ventaAcreditada(p){
+  if(TARJETA_CUENTA_DESDE_EL_DIA_1)return true;
   if(!p||p.metodoPago!=='Tarjeta de crédito')return true;
   if(!p.fecha||p.fecha<VIGENCIA_ACREDITACION_TARJETA)return true;
   return p.acreditadoTarjeta===true;
