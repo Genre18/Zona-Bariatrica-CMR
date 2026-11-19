@@ -7427,7 +7427,7 @@ function pintarVistaSocio(){
     document.getElementById('socioResumenReparto').innerHTML=`
       <div class="stat"><div class="num">${unidadesEnStock} unidades</div><div class="lbl">Stock disponible</div></div>
       <div class="stat"><div class="num"${exigible>0.005?' style="color:var(--danger);"':''}>${money(exigible)}</div><div class="lbl">Exigible ahora</div></div>
-      ${enEspera>0.005?`<div class="stat"><div class="num" style="color:var(--violeta);">${money(enEspera)}</div><div class="lbl">En espera (cliente/tarjeta)</div></div>`:''}
+      ${enEspera>0.005?`<div class="stat"><div class="num" style="color:var(--violeta);">${money(enEspera)}</div><div class="lbl">En espera (cliente sin pagar)</div></div>`:''}
       <div class="stat"><div class="num">${money(totalPagado)}</div><div class="lbl">Total pagado</div></div>`;
 
     // TABS Ventas/Stock/Pagos (2026-09-19, feedback de Genesis): 3 tarjetas clicables, UNA sola
@@ -8050,7 +8050,7 @@ function seccionVentasDrawer(ec){
       <div class="drawer-seccion-titulo">Pendiente de pago</div>
       ${tablaPend}
       <div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:9px 4px 0;border-top:1px solid var(--border-light);margin-top:6px;"><span>TOTAL PENDIENTE</span><span>${money(ec.saldo)}</span></div>
-      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:3px 4px 0;"><span>⏳ Aún no exigible (cliente sin pagar / tarjeta sin acreditar)</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
+      ${ec.enEsperaCobro>0.005?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:3px 4px 0;"><span>⏳ Aún no exigible (cliente sin pagar)</span><span>${money(ec.enEsperaCobro)}</span></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:2px 4px 0;"><span>Exigible ahora</span><span>${money(ec.exigible)}</span></div>`:''}
     </div>
     <div class="drawer-seccion drawer-seccion-final">
       <div class="drawer-seccion-titulo">Pagadas</div>
