@@ -184,7 +184,7 @@ table tbody tr:hover{background:var(--bg-soft);}
 .chip-etapa-empaquetado{background:#e0f2fe;color:#0369a1;}
 .chip-etapa-despachado{background:#ccfbf1;color:#0f766e;}
 .chip-lima{background:#fce7f3;color:#be185d;}
-.chip-provincia{background:#ffedd5;color:#c2410c;}
+.chip-provincia{background:#cffafe;color:#0e7490;}
 .punto-marca::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c,#94a3b8);margin-right:6px;flex:none;}
 .chip-verde{background:var(--success-suave);color:var(--success);}
 .chip-naranja{background:var(--warning-suave);color:var(--warning);}
@@ -1518,8 +1518,9 @@ function nombreConSabor(x){if(!x)return "";const sab=(x.sabor||"").trim();return
 function money(n){return 'S/ '+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});} // con separador de miles (2026-11-18), igual que moneyEntero
 // Color propio de cada marca (identidad, no estado). Marca nueva sin color fijo: se elige uno de la
 // paleta según su nombre, siempre el mismo.
-const COLORES_MARCA={'Bari&Nutrition':'#db2777','Bariatric Fusion':'#ea580c','Bariatric Life':'#0891b2','Nutrifath Bariatric':'#9333ea','Genodeep':'#2563eb','Nutranex D-PROTEIN':'#65a30d','Ready GDC':'#ca8a04','LVL Drink':'#0f766e'};
-const PALETA_MARCAS=['#db2777','#ea580c','#0891b2','#9333ea','#2563eb','#65a30d','#ca8a04','#0f766e','#e11d48','#4f46e5'];
+// Sin naranja, ámbar, rojo ni verde: esos colores son de estado (falta algo / urgente / listo).
+const COLORES_MARCA={'Bari&Nutrition':'#db2777','Bariatric Fusion':'#2563eb','Bariatric Life':'#0891b2','Nutrifath Bariatric':'#9333ea','Genodeep':'#57534e','Nutranex D-PROTEIN':'#65a30d','Ready GDC':'#0f766e','LVL Drink':'#64748b'};
+const PALETA_MARCAS=['#db2777','#2563eb','#0891b2','#9333ea','#57534e','#65a30d','#0f766e','#64748b','#4f46e5','#c026d3'];
 function colorMarca(m){
   if(COLORES_MARCA[m])return COLORES_MARCA[m];
   let h=0;String(m||'').split('').forEach(ch=>{h=(h*31+ch.charCodeAt(0))>>>0;});
@@ -6131,7 +6132,10 @@ function pintarStock(){
   if(stockVisible.length===0){cont.innerHTML=`<div class="vacio">${buscar?'Ningún producto coincide con la búsqueda.':'No hay productos en stock todavía.'}</div>`;return;}
   // 2026-11-12 (pedido de Genesis): las marcas "bajo pedido" (LVL Drink) van al final — ZB no tiene stock
   // propio de ellas, siempre marcan 0 y obligaban a bajar para ver el resto. Después, marca y producto A-Z.
-  const alFinal=s=>((db.config.modalidadMarca||{})[s.marca]==='bajo_pedido')?1:0;
+  // 2026-11-18 (Genesis): Bariatric Life casi no se vende → va después de las demás marcas y antes
+  // de las bajo pedido.
+  const MARCAS_POCO_MOVIMIENTO=['Bariatric Life'];
+  const alFinal=s=>((db.config.modalidadMarca||{})[s.marca]==='bajo_pedido')?2:(MARCAS_POCO_MOVIMIENTO.includes(s.marca)?1:0);
   stockVisible=stockVisible.slice().sort((a,b)=>alFinal(a)-alFinal(b)||a.marca.localeCompare(b.marca)||a.producto.localeCompare(b.producto));
   stockVisible=ordenarFilas('stock',stockVisible,{
     marca:s=>s.marca,
