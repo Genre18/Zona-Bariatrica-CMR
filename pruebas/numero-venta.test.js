@@ -1,0 +1,20 @@
+// Número de venta fijo: una venta con fecha atrasada o una fecha editada NO renumera las demás.
+const {crearEntorno,pruebas}=require('./entorno');
+const {A}=crearEntorno();
+const t=pruebas('Número de venta');
+const ped=(id,fecha,extra)=>Object.assign({id,fecha,estadoPago:'pagado',items:[],total:0},extra||{});
+A.db={pedidos:[ped('b','2026-11-02'),ped('a','2026-11-01'),ped('c','2026-11-03')],clientes:[],stock:[],config:{}};
+A.asignarNumerosVenta();
+t.ok('ventas existentes: mismo número que antes (orden por fecha)',A.correlativoVenta('a')==='Venta 0001'&&A.correlativoVenta('b')==='Venta 0002'&&A.correlativoVenta('c')==='Venta 0003');
+A.db.pedidos.push(ped('d','2026-10-01',{numeroVenta:A.siguienteNumeroVenta()}));
+t.ok('venta nueva con fecha atrasada toma el siguiente número',A.correlativoVenta('d')==='Venta 0004');
+t.ok('las anteriores no cambian',A.correlativoVenta('a')==='Venta 0001'&&A.correlativoVenta('c')==='Venta 0003');
+A.db.pedidos.find(p=>p.id==='a').fecha='2026-12-31';
+t.ok('editar la fecha no cambia el número',A.correlativoVenta('a')==='Venta 0001');
+A.db.pedidos.push(ped('e','2026-11-05'));
+A.asignarNumerosVenta();
+t.ok('venta sin número (pestaña vieja) toma el siguiente',A.correlativoVenta('e')==='Venta 0005');
+A.db.pedidos.push(ped('f','2026-11-06',{numeroVenta:5}));
+A.asignarNumerosVenta();
+t.ok('número repetido por dos dispositivos: la creada después toma el siguiente',A.correlativoVenta('e')==='Venta 0005'&&A.correlativoVenta('f')==='Venta 0006');
+t.fin();

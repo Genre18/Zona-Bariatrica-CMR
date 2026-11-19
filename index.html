@@ -1673,6 +1673,7 @@ function normalizarDbCargada(){
   migrarMarcas();
   if(!db.stock||db.stock.length===0)db.stock=catalogoInicial();
   migrarModalidadMarcas();
+  asignarNumerosVenta();
   migrarProveedorEnviaABajoPedido();
   migrarActivos();
   migrarEstadosPedido();
@@ -4885,6 +4886,7 @@ function guardarCliente(ev,leadId){
     notas:document.getElementById('pd-notas').value.trim()
   };
   aplicarPedidoWeb(pedido);
+  pedido.numeroVenta=siguienteNumeroVenta();
   db.pedidos.push(pedido);
   descontarStock(pedido);
   guardar();
@@ -5567,6 +5569,7 @@ function guardarPedido(ev){
     notas:document.getElementById('pd-notas').value.trim()
   };
   aplicarPedidoWeb(pedido);
+  pedido.numeroVenta=siguienteNumeroVenta();
   db.pedidos.push(pedido);
   descontarStock(pedido);
   guardar();pintarStock();pintarClientes();
@@ -7896,10 +7899,39 @@ function idCortoPedido(id){
 // estable cuando hay más de uno en la misma fecha) — no se guarda en ningún lado, no migra
 // nada histórico, no reemplaza p.id. Si por lo que sea el pedido ya no existe en db.pedidos,
 // cae de vuelta a idCortoPedido() (mismo criterio que ya se usaba antes de este cambio).
+// NÚMERO DE VENTA FIJO (2026-11-18): antes se recalculaba ordenando por fecha, así que una venta
+// con fecha atrasada (o una fecha editada) renumeraba todas las siguientes. Ahora cada venta guarda
+// su número (p.numeroVenta) una sola vez y nunca cambia. Las ventas que ya existían reciben
+// exactamente el número que mostraban hasta hoy (mismo orden fecha+id).
 function correlativoVenta(pedidoId){
-  const orden=db.pedidos.slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.id).localeCompare(String(b.id)));
-  const idx=orden.findIndex(p=>p.id===pedidoId);
-  return idx===-1?idCortoPedido(pedidoId):('Venta '+String(idx+1).padStart(4,'0'));
+  const p=porId(db.pedidos,pedidoId);
+  if(!p)return idCortoPedido(pedidoId);
+  if(!p.numeroVenta)asignarNumerosVenta();
+  return p.numeroVenta?'Venta '+String(p.numeroVenta).padStart(4,'0'):idCortoPedido(pedidoId);
+}
+function siguienteNumeroVenta(){
+  asignarNumerosVenta();
+  return (db.pedidos||[]).reduce((m,p)=>Math.max(m,p.numeroVenta||0),0)+1;
+}
+// Determinista (mismo resultado en cualquier dispositivo): 1) si ninguna venta tiene número, se
+// numeran todas como se veían antes (fecha, luego id); 2) las que falten (creadas desde una pestaña
+// con versión vieja) toman los siguientes números en orden de creación; 3) si dos dispositivos
+// crearon a la vez y repitieron número, la creada después toma el siguiente libre.
+function asignarNumerosVenta(){
+  const ps=db.pedidos||[];
+  if(!ps.length)return;
+  if(!ps.some(p=>p.numeroVenta)){
+    ps.slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')||String(a.id).localeCompare(String(b.id)))
+      .forEach((p,i)=>{p.numeroVenta=i+1;});
+    return;
+  }
+  let max=ps.reduce((m,p)=>Math.max(m,p.numeroVenta||0),0);
+  const vistos=new Set();
+  ps.slice().sort((a,b)=>(a.numeroVenta||Infinity)-(b.numeroVenta||Infinity)||String(a.id).localeCompare(String(b.id)))
+    .forEach(p=>{
+      if(!p.numeroVenta||vistos.has(p.numeroVenta))p.numeroVenta=++max;
+      vistos.add(p.numeroVenta);
+    });
 }
 function toggleDetalleVenta(id){
   const row=document.getElementById(id);
