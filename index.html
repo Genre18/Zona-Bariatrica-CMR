@@ -242,6 +242,25 @@ details.env-mas>summary{height:31px;width:32px;border-radius:var(--r-xs);border-
    base, que Leads también usa). Especificidad "table.stock-tabla th" a propósito, para ganarle
    a ".tabla-excel th" sin depender del orden de declaración en la hoja de estilos. */
 table.stock-tabla{width:100%;min-width:1020px;table-layout:fixed;}
+/* 2026-11-18: en celular Stock muestra solo Marca, Producto, Sabor y Cantidad, con el texto en dos
+   líneas en vez de cortado con "…" (Código, Presentación, Mínimo, precios y Proveedor siguen en escritorio). */
+@media (max-width:640px){
+  table.stock-tabla{min-width:0;}
+  table.stock-tabla col:nth-child(2),table.stock-tabla col:nth-child(4),table.stock-tabla col:nth-child(7),
+  table.stock-tabla col:nth-child(8),table.stock-tabla col:nth-child(9),table.stock-tabla col:nth-child(10){display:none;}
+  table.stock-tabla col:nth-child(1){width:7%!important;}table.stock-tabla col:nth-child(3){width:46%!important;}
+  table.stock-tabla col:nth-child(5){width:27%!important;}table.stock-tabla col:nth-child(6){width:20%!important;}
+  table.stock-tabla th:nth-child(2),table.stock-tabla th:nth-child(4),table.stock-tabla th:nth-child(7),
+  table.stock-tabla th:nth-child(8),table.stock-tabla th:nth-child(9),table.stock-tabla th:nth-child(10),
+  table.stock-tabla td:nth-child(2),table.stock-tabla td:nth-child(4),table.stock-tabla td:nth-child(7),
+  table.stock-tabla td:nth-child(8),table.stock-tabla td:nth-child(9),table.stock-tabla td:nth-child(10){display:none;}
+  table.stock-tabla td,table.stock-tabla th{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.3;font-size:12px;padding-left:6px!important;padding-right:6px!important;}
+  table.stock-tabla th{font-size:11px;letter-spacing:0;}
+  /* la marca se reconoce por su punto de color (mismos colores que Reportes); el nombre sigue en escritorio */
+  table.stock-tabla th:nth-child(1){font-size:0;}
+  table.stock-tabla td:nth-child(1) .punto-marca{font-size:0;}
+  table.stock-tabla td:nth-child(1) .punto-marca::before{margin-right:0;}
+}
 table.stock-tabla th{padding:7px 6px;font-size:11px;white-space:normal;line-height:1.25;}
 table.stock-tabla td{padding:7px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;}
 table.stock-tabla .chip{padding:2px 7px;font-size:11px;}
@@ -984,6 +1003,12 @@ details.config-block.config-block-peligro summary:hover{color:#b91c1c;}
    anchos del <colgroup> (~1030px, entra en main max-width:1100px) en vez de ensancharse con el
    contenido. El scroll horizontal queda como fallback real solo si la pantalla es angosta. */
 table.leads-tabla{table-layout:fixed;width:100%;}
+/* 2026-11-18: Edad (5), DNI/CE (6) y Email (8) casi siempre vacías → fuera de la tabla; el dato sigue
+   en la ficha del lead. Se ocultan por CSS (no se quitan del HTML) para no mover las posiciones nth-child
+   que usa la vista de celular. */
+table.leads-tabla col:nth-child(5),table.leads-tabla col:nth-child(6),table.leads-tabla col:nth-child(8){display:none;}
+table.leads-tabla th:nth-child(5),table.leads-tabla th:nth-child(6),table.leads-tabla th:nth-child(8),
+table.leads-tabla td:nth-child(5),table.leads-tabla td:nth-child(6),table.leads-tabla td:nth-child(8){display:none;}
 table.leads-tabla th{padding:7px 6px;font-size:11px;position:sticky;top:0;z-index:2;overflow:hidden;white-space:normal;line-height:1.25;}
 table.leads-tabla td{padding:6px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;}
 table.leads-tabla td input{font-size:12px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;}
@@ -1540,6 +1565,15 @@ function chipZona(c){return c&&c.esProvincia?'<span class="chip chip-provincia">
 function nombreMetodoPago(m){return m==='Tarjeta de crédito'?'Tarjeta (Izipay)':(m||'');}
 const NOMBRE_ESTADO_ENVIO={'pendiente preparación':'Recibido','preparado':'Empaquetado','enviado':'Despachado','en destino':'Despachado','entregado':'Entregado'};
 const NOMBRE_ESTADO_PAGO={'pendiente pago':'Pendiente de pago','pagado':'Pagado','cancelado':'Anulado'};
+// NOMBRE PROPIO (2026-11-18): "carla fabiola SUCASACA" → "Carla Fabiola Sucasaca". Las partículas
+// (de, del, la, los, y…) quedan en minúscula salvo al inicio. Se aplica al guardar nombres, apellidos
+// y lugares; los registros que ya existían no se modifican.
+function nombrePropio(t){
+  const chicas=['de','del','la','las','los','y','e','da','di'];
+  return String(t||'').trim().replace(/\s+/g,' ').toLowerCase().split(' ').map((w,i)=>
+    i>0&&chicas.includes(w)?w:w.split('-').map(x=>x.split("'").map(y=>y.charAt(0).toUpperCase()+y.slice(1)).join("'")).join('-')
+  ).join(' ');
+}
 function round2(n){return Math.round((Number(n)||0)*100)/100;}
 function hoyStr(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const o={};p.forEach(x=>o[x.type]=x.value);return `${o.year}-${o.month}-${o.day}`;}
 function horaAhora(){return new Date().toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false});}
@@ -2325,6 +2359,7 @@ function entrarApp(){
     document.getElementById('vistaSocio').classList.add('oculto');
     aplicarCorreccionCobros20261118();
     aplicarCorreccionEntrega20261118();
+    aplicarCorreccionNombres20261118();
     irA('leads');
   }
 }
@@ -2362,6 +2397,19 @@ function aplicarCorreccionCobros20261118(){
     p.acreditadoTarjetaFecha=hoy;
     p.acreditadoTarjetaPor=por;
   });
+  db.config.correccionesAplicadas=hechas.concat(MARCA);
+  guardar();
+}
+// CORRECCIÓN PUNTUAL (2026-11-18, pedida por Genesis): nombres y lugares ya guardados pasan a
+// mayúscula inicial con nombrePropio() (lo mismo que se hace al guardar desde hoy). Corre UNA vez.
+function aplicarCorreccionNombres20261118(){
+  const MARCA='nombres-2026-11-18';
+  db.config=db.config||{};
+  const hechas=db.config.correccionesAplicadas||[];
+  if(hechas.includes(MARCA))return;
+  const arreglar=(lista,campos)=>(lista||[]).forEach(x=>campos.forEach(k=>{if(typeof x[k]==='string'&&x[k].trim())x[k]=nombrePropio(x[k]);}));
+  arreglar(db.clientes,['nombre','apellido','distrito','ciudad','departamento','provincia']);
+  arreglar(db.leads,['nombre','apellido','distrito']);
   db.config.correccionesAplicadas=hechas.concat(MARCA);
   guardar();
 }
@@ -2896,14 +2944,14 @@ function construirLeadDesdeForm(){
   const elAtendido=document.getElementById('ld-atendidopor');
   return{
     id:nuevoId(),
-    nombre:document.getElementById('ld-nombre').value.trim(),
-    apellido:document.getElementById('ld-apellido').value.trim(),
+    nombre:nombrePropio(document.getElementById('ld-nombre').value),
+    apellido:nombrePropio(document.getElementById('ld-apellido').value),
     telefono,
     canal:document.getElementById('ld-canal').value,
     dni:document.getElementById('ld-dni').value.trim(),
     edad:document.getElementById('ld-edad').value,
     email:document.getElementById('ld-email').value.trim(),
-    distrito:document.getElementById('ld-distrito').value.trim(),
+    distrito:nombrePropio(document.getElementById('ld-distrito').value),
     diagnostico:'',
     interes:document.getElementById('ld-interes').value.trim(),
     fecha:document.getElementById('ld-fecha').value||hoyStr(),
@@ -4728,14 +4776,14 @@ function guardarEditarCliente(ev,id){
     if(otro){alert(`El DNI ${dni} ya está registrado para otro cliente: ${otro.nombre} ${otro.apellido}.`);return false;}
   }
   const c=porId(db.clientes,id);
-  c.nombre=document.getElementById('ec-nombre').value.trim();
-  c.apellido=document.getElementById('ec-apellido').value.trim();
+  c.nombre=nombrePropio(document.getElementById('ec-nombre').value);
+  c.apellido=nombrePropio(document.getElementById('ec-apellido').value);
   c.dni=dni;
   c.telefono=document.getElementById('ec-telefono').value.trim();
   c.direccion=document.getElementById('ec-direccion').value.trim();
-  c.departamento=document.getElementById('ec-departamento').value.trim();
-  c.provincia=document.getElementById('ec-provincianombre').value.trim();
-  c.ciudad=document.getElementById('ec-ciudad').value.trim();
+  c.departamento=nombrePropio(document.getElementById('ec-departamento').value);
+  c.provincia=nombrePropio(document.getElementById('ec-provincianombre').value);
+  c.ciudad=nombrePropio(document.getElementById('ec-ciudad').value);
   c.referencia=document.getElementById('ec-referencia').value.trim();
   c.esProvincia=document.getElementById('ec-provincia').value==='1';
   guardar();pintarClientes();
@@ -4889,14 +4937,14 @@ function guardarCliente(ev,leadId){
   if(errorImportes){alert(errorImportes);return false;}
   const cliente={
     id:nuevoId(),
-    nombre:document.getElementById('cl-nombre').value.trim(),
-    apellido:document.getElementById('cl-apellido').value.trim(),
+    nombre:nombrePropio(document.getElementById('cl-nombre').value),
+    apellido:nombrePropio(document.getElementById('cl-apellido').value),
     dni,
     telefono:document.getElementById('cl-telefono').value.trim(),
     direccion:document.getElementById('cl-direccion').value.trim(),
-    departamento:document.getElementById('cl-departamento').value.trim(),
-    provincia:document.getElementById('cl-provincianombre').value.trim(),
-    ciudad:document.getElementById('cl-ciudad').value.trim(),
+    departamento:nombrePropio(document.getElementById('cl-departamento').value),
+    provincia:nombrePropio(document.getElementById('cl-provincianombre').value),
+    ciudad:nombrePropio(document.getElementById('cl-ciudad').value),
     referencia:document.getElementById('cl-referencia').value.trim(),
     // Lima o provincia sale del tipo de envío del pedido (Shalom = provincia): no se pregunta dos veces.
     esProvincia:document.getElementById('pd-envio').value==='shalom',
