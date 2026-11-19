@@ -472,7 +472,7 @@ table.proveedores-tabla td{padding:5px 7px;font-size:12px;}
 .rc-barra{display:flex;gap:2px;height:14px;margin:10px 0 14px;}
 .rc-seg{border-radius:4px;min-width:4px;}
 .rc-nuevo{background:var(--primary);}
-.rc-vuelve{background:#eb6834;}
+.rc-vuelve{background:#14b8a6;}
 .rc-leyenda{display:flex;flex-direction:column;gap:8px;font-size:13px;}
 .rc-item{display:flex;align-items:center;gap:8px;}
 .rc-sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
@@ -2364,6 +2364,7 @@ function entrarApp(){
     aplicarCorreccionEntrega20261118();
     aplicarCorreccionNombres20261118();
     aplicarCorreccionStockTexto20261118();
+    aplicarCorreccionPrecioBL20261118();
     irA('leads');
   }
 }
@@ -2414,6 +2415,17 @@ function aplicarCorreccionNombres20261118(){
   const arreglar=(lista,campos)=>(lista||[]).forEach(x=>campos.forEach(k=>{if(typeof x[k]==='string'&&x[k].trim())x[k]=nombrePropio(x[k]);}));
   arreglar(db.clientes,['nombre','apellido','distrito','ciudad','departamento','provincia']);
   arreglar(db.leads,['nombre','apellido','distrito']);
+  db.config.correccionesAplicadas=hechas.concat(MARCA);
+  guardar();
+}
+// CORRECCIÓN PUNTUAL (2026-11-18, Genesis): precio de venta de Bariatric Life maracuyá = S/180
+// (figuraba igual al de compra, S/120). Solo si sigue en 120; las ventas ya hechas no cambian.
+function aplicarCorreccionPrecioBL20261118(){
+  const MARCA='precio-bl-2026-11-18';
+  db.config=db.config||{};
+  const hechas=db.config.correccionesAplicadas||[];
+  if(hechas.includes(MARCA))return;
+  (db.stock||[]).filter(x=>x.codigo==='BL-PL-MR'&&Number(x.precioVenta)===120).forEach(x=>{x.precioVenta=180;});
   db.config.correccionesAplicadas=hechas.concat(MARCA);
   guardar();
 }
@@ -4719,38 +4731,6 @@ function enviarWhatsAppEnvio(pedidoId){
   guardar();
   if(seccionActual==='envios')pintarEnvios();
 }
-// ACREDITACIÓN DE TARJETA (2026-09-19): única puerta para confirmar que el banco ya acreditó una
-// venta pagada con tarjeta (ver ventaAcreditada() y VIGENCIA_ACREDITACION_TARJETA). Solo vive en
-// Historial → Ver detalle → sección Pago (mismo criterio que "Editar pedido"/"Pendiente de
-// entrega": una acción pesada y poco frecuente va en el detalle, no en la lista de uso diario).
-function marcarVentaAcreditada(pedidoId){
-  const p=porId(db.pedidos,pedidoId);
-  if(!p||p.metodoPago!=='Tarjeta de crédito'||ventaAcreditada(p)){alert('Esta venta ya no está pendiente de acreditación.');return;}
-  abrirModal(`
-    <button class="cerrar-x" onclick="cerrarModal()">✕</button>
-    <h3>Confirmar acreditación de tarjeta</h3>
-    <p class="vacio" style="text-align:left;padding:0 0 10px;">${correlativoVenta(p.id)} · ${fechaBonita(p.fecha)} · ${money(p.total)}</p>
-    <form onsubmit="return confirmarVentaAcreditada(event,'${p.id}')">
-      <label style="margin-top:0;">Fecha en que se vio acreditado en el banco</label>
-      <input type="date" id="va-fecha" value="${hoyStr()}">
-      <div class="acciones-modal">
-        <button type="button" class="btn-secundario" onclick="cerrarModal()">Volver</button>
-        <button class="btn">Confirmar acreditación</button>
-      </div>
-    </form>`);
-}
-function confirmarVentaAcreditada(ev,pedidoId){
-  ev.preventDefault();
-  const p=porId(db.pedidos,pedidoId);
-  if(!p||p.metodoPago!=='Tarjeta de crédito'||ventaAcreditada(p))return false;
-  p.acreditadoTarjeta=true;
-  p.acreditadoTarjetaFecha=document.getElementById('va-fecha').value||hoyStr();
-  p.acreditadoTarjetaPor=sesion?sesion.nombre:'';
-  guardar();
-  refrescarDetalleAbierto();
-  if(seccionActual==='reportes')pintarReportes();
-  return false;
-}
 function abrirEditarCliente(id){
   const c=porId(db.clientes,id);
   abrirModal(`
@@ -5199,31 +5179,10 @@ function calcularDescuentoPromocionalFusion(items){
 function fechaAplicaPromocionFusion(fecha){
   return !!fecha&&fecha>=VIGENCIA_PROMO_FUSION;
 }
-// ACREDITACIÓN DE TARJETA (2026-09-19, caso real: venta de Diana con tarjeta). pedido.estadoPago=
-// 'pagado' solo dice que el CLIENTE completó el pago — una venta con tarjeta tarda en liquidarse
-// de verdad en la cuenta bancaria de Zona Bariátrica, y hasta entonces esa plata no existe todavía
-// para nadie: ni cuenta como Ganancia ZB (Reportes) ni habilita el pago a proveedor/socio de esa
-// línea (estadoCuentaProveedor). Se confirma A MANO (Roberto la marca cuando la ve en el banco,
-// mismo patrón que "Pendiente de pago" de provincia) — no hay fecha automática de acreditación.
-// VIGENCIA_ACREDITACION_TARJETA: la regla solo aplica desde esta fecha en adelante, para no
-// recalcular en silencio la Ganancia ZB/pagos históricos ya vistos por Roberto (mismo principio
-// que las promos B&N/Fusion) — todo pedido con tarjeta anterior a esta fecha se trata como ya
-// acreditado. OJO: es '2026-09-18', NO el día en que se escribió este código ('19') — la venta
-// real de Diana que motivó todo esto (`mu7t1cfno57vk`) es del 18, así que la vigencia tiene que
-// cubrirla o el caso que la disparó queda afuera (bug real detectado y corregido el mismo día:
-// primero se puso '19' por copiar el patrón de VIGENCIA_PROMO_FUSION sin revisar la fecha real).
-// Verificado que ningún otro pedido con tarjeta cae en 2026-09-18 salvo el de Diana.
-const VIGENCIA_ACREDITACION_TARJETA='2026-09-18';
-// DESDE EL 18-11-2026 (Genesis): la tarjeta (Izipay) solo se completa si el cobro se aprobó, así que
-// la venta cuenta desde el día 1 y ya no hay paso manual de "acreditar". Los campos acreditadoTarjeta*
-// de ventas viejas se conservan solo como historia.
-const TARJETA_CUENTA_DESDE_EL_DIA_1=true;
-function ventaAcreditada(p){
-  if(TARJETA_CUENTA_DESDE_EL_DIA_1)return true;
-  if(!p||p.metodoPago!=='Tarjeta de crédito')return true;
-  if(!p.fecha||p.fecha<VIGENCIA_ACREDITACION_TARJETA)return true;
-  return p.acreditadoTarjeta===true;
-}
+// TARJETA (Izipay): desde el 18-11-2026 cuenta desde el día 1 — ya no hay paso de "acreditar".
+// Se deja esta función (siempre true) porque Reportes y Proveedores la consultan; los campos
+// acreditadoTarjeta* de ventas viejas quedan solo como historia.
+function ventaAcreditada(){return true;}
 // Único punto que combina el descuento manual (input pd-descuento) con las promos automáticas
 // (B&N + Fusion, independientes entre sí — un pedido con ambas marcas puede tener las dos a la
 // vez) en un descuentoTotal — reusado por los 3 formularios de pedido (nuevo desde cliente,
@@ -5300,7 +5259,6 @@ function validarImportesPedido(items,descuento,embalaje,delivery){
 
 /* ================= PEDIDOS ================= */
 const ESTADOS_PAGO=['pendiente pago','pagado','cancelado'];
-const ESTADOS_ENVIO=['pendiente preparación','preparado','enviado','en destino','entregado']; // 'en destino': ver ENVÍOS (2026-10-01)
 let edicionPedidoBackup=null; // respaldo de stock/movimientos mientras se edita un pedido, para poder deshacer si se cancela la edición
 function stockInsuficienteEnPedidoTmp(){
   const necesarios={};
@@ -7674,7 +7632,6 @@ function seleccionarTabSocio(tab){
 // de "ya se generó, falta que te paguen a ti".
 function chipEstadoVentaSocio(f){
   if(f.pagada)return '<span class="chip chip-verde">Pagado</span>';
-  if(f.pendienteAcreditacionTarjeta)return '<span class="chip chip-violeta" title="Pagó con tarjeta, aún sin acreditar en el banco">Tarjeta sin acreditar</span>';
   if(f.pendienteCobroCliente)return '<span class="chip chip-violeta" title="El cliente aún no paga esta venta">Pendiente de pago</span>';
   return '<span class="chip chip-gris">Pendiente de pago a ti</span>';
 }
@@ -8833,8 +8790,7 @@ const METRICAS_REPORTE={
   pedidos:{lbl:'Pedidos',valor:m=>m.pedidos.length,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
   nuevos:{lbl:'Clientes nuevos',valor:m=>m.clientesNuevos,fmt:v=>String(v),eje:v=>String(v),minTope:4,entero:true},
   ticket:{lbl:'Ticket promedio',valor:m=>m.ticket,fmt:moneyEntero,tabla:money,eje:moneyCorto,minTope:100,acumulado:true},
-  recompra:{lbl:'Clientes que vuelven',valor:m=>m.recompra,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true},
-  conversion:{lbl:'Conversión de leads',valor:m=>m.conversion,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true}
+  recompra:{lbl:'Clientes que vuelven',valor:m=>m.recompra,fmt:pctTxt,eje:v=>(Number.isInteger(v)?v:v.toFixed(1))+'%',minTope:20,maxTope:100,acumulado:true}
 };
 let reportesMetrica='ventas';
 function tarjetaKPI(clave,valorHTML,delta,antesTxt,extraNum){
@@ -9092,9 +9048,13 @@ let mvTexto='';
 let mvElegidos=null;       // null = todos; Set de nombres de producto = solo esos
 function productosVendidosPeriodo(pedidos,pedidosAnt){
   const m={};
-  const fila=it=>m[it.producto]||(m[it.producto]={producto:it.producto,marca:it.marca,und:0,soles:0,undAnt:0,solesAnt:0});
+  // 2026-11-18: la clave es el producto de Stock (stockId), con su nombre actual; así corregir un
+  // nombre (tildes, etc.) no parte el historial en dos filas.
+  const clave=it=>it.stockId||it.producto;
+  const nombre=it=>{const st=it.stockId&&porId(db.stock,it.stockId);return st?st.producto:it.producto;};
+  const fila=it=>m[clave(it)]||(m[clave(it)]={producto:nombre(it),marca:it.marca,und:0,soles:0,undAnt:0,solesAnt:0});
   pedidos.forEach(p=>(p.items||[]).forEach(it=>{const f=fila(it);f.und+=it.cantidad;f.soles=round2(f.soles+it.cantidad*it.precioUnit);}));
-  pedidosAnt.forEach(p=>(p.items||[]).forEach(it=>{if(!m[it.producto])return;const f=m[it.producto];f.undAnt+=it.cantidad;f.solesAnt=round2(f.solesAnt+it.cantidad*it.precioUnit);}));
+  pedidosAnt.forEach(p=>(p.items||[]).forEach(it=>{if(!m[clave(it)])return;const f=m[clave(it)];f.undAnt+=it.cantidad;f.solesAnt=round2(f.solesAnt+it.cantidad*it.precioUnit);}));
   return Object.values(m);
 }
 function mvFiltrados(){
@@ -9191,7 +9151,6 @@ function pintarReportes(){
   const A=metricasReportes(ant.desde,ant.hasta,primeraCompra);
   const pedidosFacturables=M.pedidos,rentab=M.rentab,gananciaZBTotal=M.gananciaZB,hayMarcaSinHistoria=M.hayMarcaSinHistoria;
   const totalLeads=M.totalLeads,convertidos=M.convertidos;
-  const tasaConv=M.conversion==null?'0.0':M.conversion.toFixed(1);
   // Sección 15: pauta del período (db.gastosPauta, fechado) — YA NO se usa config.gastoPauta
   // (global, sin fecha) para esto, porque no se puede saber a qué período pertenece.
   // BLOQUE 5 (2026-09-07): solo cuentan los gastos ACTIVOS (!g.anulado). Los históricos sin el
@@ -10304,9 +10263,7 @@ function contenidoDetalleVenta(pedidoId){
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Pago</div>
-      <div>${esc(nombreMetodoPago(p.metodoPago)||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}${!anulada&&p.metodoPago==='Tarjeta de crédito'&&!ventaAcreditada(p)
-        ?` · <button type="button" class="chip chip-violeta" title="Confirmar que el banco ya acreditó este pago con tarjeta" onclick="marcarVentaAcreditada('${p.id}')">Tarjeta sin acreditar</button>`
-        :(p.metodoPago==='Tarjeta de crédito'&&p.acreditadoTarjeta?' · <span class="chip chip-verde">Tarjeta acreditada</span>':'')}</div>
+      <div>${esc(nombreMetodoPago(p.metodoPago)||'—')}${p.pagoReferencia?' · ref. '+esc(p.pagoReferencia):''}</div>
     </div>
     <div class="drawer-seccion">
       <div class="drawer-seccion-titulo">Envío</div>
