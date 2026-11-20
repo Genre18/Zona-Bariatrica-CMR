@@ -1117,7 +1117,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
        era 100% silencioso (solo console.error), así que un fallo real de sincronización podía
        pasar completamente desapercibido. mostrarAvisoSyncError()/ocultarAvisoSyncError() lo
        controlan; no cambia nada de la lógica de guardado/reintento existente. -->
-  <div id="avisoSyncError" class="oculto aviso-sync-error">No se pudo guardar en la nube — los cambios quedan solo en este dispositivo por ahora. Se reintenta solo, pero si esto no desaparece, avisa antes de seguir cargando datos importantes.</div>
+  <div id="avisoSyncError" class="oculto aviso-sync-error">Sin conexión con la nube — lo que cargues queda guardado en este dispositivo y se sube solo apenas vuelva la conexión. No cierres sesión hasta que este aviso desaparezca.</div>
   <!-- ALERTA TAREA NUEVA (2026-08-24): contenedor de avisos flotantes cuando llega (por Realtime
        o por la resincronización al volver a la pestaña) una tarea nueva asignada al usuario
        logueado. mostrarAvisoTareaNueva() los agrega/quita; no interviene en guardar/cargar. -->
@@ -1715,9 +1715,20 @@ async function cargar(){
   // Cuando NO hay remoto (se usa el respaldo local de este dispositivo o dbVacia()), el
   // comportamiento de recuperación local no cambia — reemplazoAutoritativo sigue en false ahí.
   let esRemoto=false;
-  if(remoto&&Object.keys(remoto).length>0){
+  let localPendiente=null;
+  if(raw&&hayPendienteNube()){try{localPendiente=JSON.parse(raw);}catch(e){}}
+  if(remoto&&Object.keys(remoto).length>0&&localPendiente){
+    // CAMBIOS SIN SUBIR (2026-11-20): este dispositivo cargó algo que la nube nunca recibió.
+    // Antes se descartaba al recargar; ahora se combina con la nube y queda pendiente: se sube
+    // apenas se entra con el PIN (entrarApp → sincronizarPendiente). cargar() sigue sin escribir
+    // en la nube por su cuenta.
+    db=fusionarTresVias(leerBaseNube(),localPendiente,remoto);
+    guardarBaseNube(remoto);
+    esRemoto=true;
+  }else if(remoto&&Object.keys(remoto).length>0){
     db=remoto;
     esRemoto=true;
+    guardarBaseNube(remoto);
   }else if(raw){
     try{db=JSON.parse(raw);}catch(e){db=dbVacia();}
   }else{
@@ -2023,7 +2034,119 @@ function guardar(opciones){
   const raw=JSON.stringify(db);
   localStorage.setItem(CLAVE,raw);
   selloDisco=raw;
-  if(!omitirNube)guardarEnNube(raw,sesion?sesion.nombre:null);
+  if(!omitirNube){
+    marcarPendienteNube(); // ANTES del envío: si se cierra la pestaña o se corta internet, queda constancia
+    guardarEnNube(raw,sesion?sesion.nombre:null);
+  }
+}
+// CAMBIOS SIN SUBIR (2026-11-20, Genesis: el aviso rojo con ERR_CONNECTION_CLOSED). Antes, si un
+// envío a la nube fallaba: (1) solo se reintentaba al volver a guardar algo, y (2) al recargar, al
+// volver a la pestaña o al llegar un cambio de otro dispositivo, db se reemplazaba por la nube y
+// lo cargado en este dispositivo se perdía sin aviso (así se perdió una entrada de stock el 16-11).
+// Ahora:
+//  - CLAVE_PENDIENTE marca que este dispositivo tiene cambios que la nube todavía no confirmó.
+//  - CLAVE_BASE guarda la última versión que este dispositivo SABE que está en la nube (forma
+//    canónica). Con ella se distingue qué cambió acá y qué cambió en la nube mientras tanto.
+//  - Mientras haya pendiente, nada reemplaza db: se combina (fusionarTresVias) y se sube.
+//  - Reintento solo cada 5s→60s y apenas el navegador avisa que volvió la conexión.
+const CLAVE_PENDIENTE='zbdb_pendiente_nube';
+const CLAVE_BASE='zbdb_base_nube';
+let reintentoNubeTimeout=null;
+let reintentoNubeEspera=5000;
+let sincronizandoPendiente=false;
+function hayPendienteNube(){try{return !!localStorage.getItem(CLAVE_PENDIENTE);}catch(e){return false;}}
+function marcarPendienteNube(){try{localStorage.setItem(CLAVE_PENDIENTE,new Date().toISOString());}catch(e){}}
+function limpiarPendienteNube(){try{localStorage.removeItem(CLAVE_PENDIENTE);}catch(e){}}
+function guardarBaseNube(obj){
+  try{localStorage.setItem(CLAVE_BASE,jsonCanonico(obj));}
+  catch(e){try{localStorage.removeItem(CLAVE_BASE);}catch(_){}} // sin espacio: mejor sin base que con una vieja
+}
+function leerBaseNube(){try{const b=localStorage.getItem(CLAVE_BASE);return b?JSON.parse(b):null;}catch(e){return null;}}
+function esObjetoPlano(x){return !!x&&typeof x==='object'&&!Array.isArray(x);}
+// Combina tres versiones: base (lo último que ambos lados compartían), local (este dispositivo) y
+// remoto (la nube ahora). Si solo un lado cambió un dato, gana ese lado; si cambiaron los dos el
+// MISMO registro, gana este dispositivo (es lo más reciente que vio una persona). Los registros
+// nuevos de cualquiera de los dos lados se conservan. Sin base, nada se da por borrado.
+function fusionarTresVias(base,local,remoto){
+  const igual=(a,b)=>jsonCanonico(a)===jsonCanonico(b);
+  const res={};
+  const claves=new Set([...Object.keys(remoto||{}),...Object.keys(local||{})]);
+  claves.forEach(k=>{
+    const b=base?base[k]:undefined,l=local?local[k]:undefined,r=remoto?remoto[k]:undefined;
+    if(l===undefined){res[k]=r;return;}
+    if(r===undefined){res[k]=l;return;}
+    if(Array.isArray(l)&&Array.isArray(r)){res[k]=fusionarListaTresVias(Array.isArray(b)?b:[],l,r,base!=null);return;}
+    if(igual(l,r)){res[k]=r;return;}
+    if(b!==undefined&&igual(l,b)){res[k]=r;return;}
+    if(b!==undefined&&igual(r,b)){res[k]=l;return;}
+    if(esObjetoPlano(l)&&esObjetoPlano(r)){res[k]=fusionarTresVias(esObjetoPlano(b)?b:null,l,r);return;}
+    res[k]=l;
+  });
+  return res;
+}
+function fusionarListaTresVias(b,l,r,hayBase){
+  const igual=(x,y)=>jsonCanonico(x)===jsonCanonico(y);
+  const conId=x=>esObjetoPlano(x)&&x.id!=null;
+  if(![...l,...r].every(conId)){
+    // Lista de valores sueltos (ej. correccionesAplicadas): si solo cambió un lado gana ese;
+    // si cambiaron los dos, se juntan sin repetir.
+    if(igual(l,r)||(hayBase&&igual(l,b)))return r;
+    if(hayBase&&igual(r,b))return l;
+    const vistos=new Set(r.map(x=>jsonCanonico(x)));
+    return r.concat(l.filter(x=>!vistos.has(jsonCanonico(x))));
+  }
+  const mb=new Map(b.filter(conId).map(x=>[x.id,x]));
+  const ml=new Map(l.map(x=>[x.id,x]));
+  const mr=new Map(r.map(x=>[x.id,x]));
+  const out=[],puestos=new Set();
+  [...r,...l].forEach(x=>{
+    const id=x.id;
+    if(puestos.has(id))return;
+    puestos.add(id);
+    const bi=mb.get(id),li=ml.get(id),ri=mr.get(id);
+    if(li&&ri){out.push(igual(li,ri)?ri:(bi&&igual(li,bi))?ri:li);return;}
+    if(ri){if(hayBase&&bi&&igual(ri,bi))return;out.push(ri);return;} // falta acá: borrado acá, o nuevo de la nube
+    if(hayBase&&bi&&igual(li,bi))return;                               // falta en la nube: borrado allá, o nuevo de acá
+    out.push(li);
+  });
+  return out;
+}
+function programarReintentoNube(){
+  clearTimeout(reintentoNubeTimeout);
+  reintentoNubeTimeout=setTimeout(()=>sincronizarPendiente(),reintentoNubeEspera);
+  reintentoNubeEspera=Math.min(reintentoNubeEspera*2,60000);
+}
+// Sube los cambios pendientes sin pisar lo que otro dispositivo haya guardado mientras tanto.
+// remotoConocido: la versión de la nube si ya se tiene (evento de Realtime); si no, se lee.
+async function sincronizarPendiente(remotoConocido){
+  if(!sesion||!hayPendienteNube())return;
+  if(sincronizandoPendiente){if(remotoConocido)programarReintentoNube();return;}
+  sincronizandoPendiente=true;
+  try{
+    let remoto=remotoConocido;
+    if(!remoto){
+      const{data,error}=await sb.from('crm_estado').select('data').eq('id',1).single();
+      if(error||!data)throw(error||new Error('Sin datos de la nube'));
+      remoto=data.data;
+    }
+    const base=leerBaseNube();
+    if(!base||jsonCanonico(remoto)!==jsonCanonico(base)){
+      const tareasAntes=db.tareas;
+      db=fusionarTresVias(base,db,remoto);
+      guardarBaseNube(remoto);
+      try{rerenderizarSeccionActual();notificarTareasNuevas(tareasAntes);}catch(e){} // un fallo de pantalla no debe frenar la subida
+    }
+    const raw=JSON.stringify(db);
+    localStorage.setItem(CLAVE,raw);
+    selloDisco=raw;
+    guardarEnNube(raw,sesion.nombre);
+  }catch(e){
+    console.error('Reintento de subida a la nube falló (los cambios siguen a salvo en este dispositivo)',e);
+    mostrarAvisoSyncError();
+    programarReintentoNube();
+  }finally{
+    sincronizandoPendiente=false;
+  }
 }
 function guardarEnNube(raw,autor){
   clearTimeout(guardarNubeTimeout);
@@ -2059,9 +2182,17 @@ function guardarEnNube(raw,autor){
         // guardarEnNube en vuelo a la vez), ese marcador más nuevo no se toca.
         if(ultimoEnviadoNube===raw)ultimoEnviadoNube=null;
         olvidarEnvio();
+        programarReintentoNube();
       }else{
         ultimoErrorNube=null;
-        ocultarAvisoSyncError();
+        guardarBaseNube(JSON.parse(raw));
+        // Solo se limpia el pendiente si no hubo otro guardado después de este envío.
+        if(localStorage.getItem(CLAVE)===raw){
+          limpiarPendienteNube();
+          clearTimeout(reintentoNubeTimeout);
+          reintentoNubeEspera=5000;
+          ocultarAvisoSyncError();
+        }
       }
     }catch(e){
       console.error('No se pudo guardar en la nube (queda a salvo en este dispositivo, se reintentará al recargar)',e);
@@ -2069,6 +2200,7 @@ function guardarEnNube(raw,autor){
       mostrarAvisoSyncError();
       if(ultimoEnviadoNube===raw)ultimoEnviadoNube=null; // FIX D3.1: misma invalidación ante una excepción real
       olvidarEnvio();
+      programarReintentoNube();
     }
   },400);
 }
@@ -2158,14 +2290,19 @@ function suscribirCambiosNube(){
         if(eraElUltimo)ultimoEnviadoNube=null;
         return;
       }
+      // Con cambios sin subir, no se reemplaza: se combina con lo de acá y se sube (2026-11-20).
+      if(hayPendienteNube()){sincronizarPendiente(nuevo);return;}
       const tareasAntesDelCambio=db.tareas;
       db=nuevo;
       selloDisco=raw;
       localStorage.setItem(CLAVE,raw);
+      guardarBaseNube(nuevo);
       rerenderizarSeccionActual();
       notificarTareasNuevas(tareasAntesDelCambio);
     })
     .subscribe();
+  // Volvió el internet: subir lo pendiente sin esperar el próximo reintento (2026-11-20).
+  window.addEventListener('online',()=>{if(hayPendienteNube()){reintentoNubeEspera=5000;sincronizarPendiente();}});
   // FIX INCIDENTE SYNC (2026-08-24): defensa complementaria a la de cargar(). Si la pestaña
   // estuvo mucho tiempo en segundo plano (laptop dormida, celular bloqueado, cambio de wifi),
   // el canal de Realtime de arriba puede perder eventos sin avisar — la pestaña queda con datos
@@ -2179,15 +2316,18 @@ function suscribirCambiosNube(){
 }
 async function resincronizarSiHayCambios(){
   if(!sesion)return;
+  if(hayPendienteNube()){sincronizarPendiente();return;} // 2026-11-20: combinar y subir, no reemplazar
   try{
     const{data,error}=await sb.from('crm_estado').select('data').eq('id',1).single();
     if(error||!data)return;
+    if(hayPendienteNube()){sincronizarPendiente(data.data);return;} // se guardó algo mientras se leía
     const raw=JSON.stringify(data.data);
     if(raw!==selloDisco){
       const tareasAntesDelCambio=db.tareas;
       db=data.data;
       selloDisco=raw;
       localStorage.setItem(CLAVE,raw);
+      guardarBaseNube(data.data);
       rerenderizarSeccionActual();
       notificarTareasNuevas(tareasAntesDelCambio);
     }
@@ -2266,6 +2406,7 @@ async function continuarLuegoDeLoginNube(){
   suscribirCambiosNube();
 }
 async function cerrarSesionNube(){
+  if(hayPendienteNube()&&!confirm('ATENCIÓN: hay cambios de este dispositivo que todavía NO llegaron a la nube (falta conexión). Si cierras sesión ahora se pierden.\n\n¿Cerrar sesión igual?'))return;
   if(!confirm('¿Cerrar sesión de este dispositivo? La próxima vez van a tener que volver a ingresar correo y contraseña acá.\n\nAdemás se borra la copia local de los datos en ESTA computadora. Los datos en la nube NO se tocan: al volver a entrar se descargan de nuevo.'))return;
   await sb.auth.signOut();
   // MICRO-SPRINT SEGURIDAD (2026-08-27): este es el cierre de sesión REAL (Supabase Auth), NO el
@@ -2276,6 +2417,7 @@ async function cerrarSesionNube(){
   // la clave del CRM (CLAVE = 'zbdb_v1'). Nada de esto toca Supabase: cargar() vuelve a bajar el
   // estado real la próxima vez que se inicia sesión.
   try{localStorage.removeItem(CLAVE);}catch(e){}
+  try{localStorage.removeItem(CLAVE_PENDIENTE);localStorage.removeItem(CLAVE_BASE);}catch(e){}
   try{sessionStorage.removeItem('zbUltimoUsuario');}catch(e){}
   location.reload();
 }
@@ -2339,6 +2481,7 @@ function entrarApp(){
   // se borra si se cierra la pestaña o el navegador, así que un equipo/navegador nuevo sigue
   // pidiendo PIN. cerrarSesionNube()/cerrarSesion() siguen limpiándolo para cerrar de verdad.
   sessionStorage.setItem('zbUltimoUsuario',sesion.id);
+  if(hayPendienteNube()){mostrarAvisoSyncError();sincronizarPendiente();} // cambios que quedaron sin subir (2026-11-20)
   iniciarPedidosWeb();
   document.getElementById('pantallaLogin').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
