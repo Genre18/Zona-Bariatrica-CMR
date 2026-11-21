@@ -3945,9 +3945,9 @@ function pintarAvisoPedidosWeb(){
   const tab=document.getElementById('tab-envios');
   if(!tab)return;
   const n=pedidosWebPendientes().length;
-  const atrasados=cobrosAtrasados().length;
-  tab.innerHTML='Envíos'+(n?`<span class="tab-num" title="Pedidos de la web por registrar">${n}</span>`:'')
-    +(atrasados?`<span class="tab-num" style="background:var(--danger);" title="Ventas con más de ${DIAS_AVISO_COBRO} días sin marcar como pagadas">${atrasados}</span>`:'');
+  // Solo pedidos web (Genesis, 21-11-2026): el número rojo de cobros atrasados confundía; la venta
+  // atrasada se sigue viendo en el tablero con su etiqueta roja "Pendiente de pago · N días".
+  tab.innerHTML='Envíos'+(n?`<span class="tab-num" title="Pedidos de la web por registrar">${n}</span>`:'');
 }
 // AVISO DE COBRO (2026-11-18): se cobra al entregar, así que una venta "pendiente pago" con más de
 // DIAS_AVISO_COBRO días es una excepción real o un paso olvidado. No hay lista de deudores: solo el
